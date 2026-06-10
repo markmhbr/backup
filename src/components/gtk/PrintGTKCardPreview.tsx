@@ -1,6 +1,7 @@
 import React from "react";
 import { Modal } from "../ui/modal";
 import { PrinterIcon } from "../../icons";
+import { QRCodeSVG } from "qrcode.react";
 
 interface GTKCardData {
   ptk_id: string;
@@ -9,6 +10,7 @@ interface GTKCardData {
   nuptk: string;
   jabatan: string;
   jenis: "Guru" | "Tendik";
+  qr_token?: string;
 }
 
 interface PrintGTKCardPreviewProps {
@@ -93,6 +95,19 @@ const PrintGTKCardPreview: React.FC<PrintGTKCardPreviewProps> = ({ isOpen, onClo
               <div>
                 <p className="text-[8px] text-gray-400 uppercase font-bold mb-0.5">Jabatan</p>
                 <p className="text-[10px] font-bold text-gray-800 dark:text-white leading-none uppercase">{person.jabatan}</p>
+              </div>
+            </div>
+
+            {/* QR Code Section */}
+            <div className="flex justify-center pt-2">
+              <div className="bg-white p-1 rounded border border-gray-100 shadow-sm">
+                {person.qr_token ? (
+                  <QRCodeSVG value={person.qr_token} size={42} />
+                ) : (
+                  <div className="w-[42px] h-[42px] flex items-center justify-center bg-gray-50 text-[6px] text-gray-400 border border-dashed rounded font-bold">
+                     NO QR
+                  </div>
+                )}
               </div>
             </div>
           </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Modal } from "../ui/modal";
 import { PrinterIcon } from "../../icons";
 import { dapodikService } from "../../services/dapodikService";
+import { QRCodeSVG } from "qrcode.react";
 
 interface Student {
   peserta_didik_id: string;
@@ -10,6 +11,7 @@ interface Student {
   nisn: string;
   nipd: string;
   jenis_kelamin: "L" | "P";
+  qr_token?: string;
 }
 
 interface PrintPDCardPreviewProps {
@@ -81,7 +83,7 @@ const PrintPDCardPreview: React.FC<PrintPDCardPreviewProps> = ({ isOpen, onClose
       </div>
 
       {/* Printable Content */}
-      <div className="p-8 bg-gray-50 dark:bg-gray-900/50 max-h-[75vh] overflow-y-auto custom-scrollbar print:p-0 print:bg-white print:overflow-visible print:max-h-none">
+      <div className="id-card-preview-container p-8 bg-gray-50 dark:bg-gray-900/50 max-h-[75vh] overflow-y-auto custom-scrollbar print:p-0 print:bg-white print:overflow-visible print:max-h-none">
         {loading ? (
             <div className="flex justify-center py-20">
                 <p className="text-gray-500">Memuat data siswa...</p>
@@ -139,6 +141,19 @@ const PrintPDCardPreview: React.FC<PrintPDCardPreviewProps> = ({ isOpen, onClose
                     </div>
                   </div>
                   
+                  {/* QR Code Section */}
+                  <div className="flex justify-center pt-2 relative z-20">
+                    <div className="bg-white p-1 rounded border border-gray-100 shadow-sm">
+                      {student.qr_token ? (
+                        <QRCodeSVG value={student.qr_token || "no-token"} size={42} level="H" includeMargin={false} />
+                      ) : (
+                        <div className="w-[42px] h-[42px] flex items-center justify-center bg-gray-50 text-[6px] text-gray-400 border border-dashed rounded font-bold">
+                           NO QR
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
                   <div className="pt-1">
                       <p className="text-[7px] text-gray-400 uppercase font-bold mb-0.5">Jenis Kelamin</p>
                       <p className="text-[9px] font-bold text-gray-800 dark:text-white leading-none">{student.jenis_kelamin === "L" ? "Laki-laki" : "Perempuan"}</p>
@@ -161,7 +176,7 @@ const PrintPDCardPreview: React.FC<PrintPDCardPreviewProps> = ({ isOpen, onClose
       </div>
 
       <style dangerouslySetInnerHTML={{ __html: `
-        @media print {
+        @media print { .id-card-preview-container, .id-card-preview-container * { visibility: visible !important; } .id-card-preview-container { position: absolute !important; left: 0; top: 0; width: 100%; }
           body * {
             visibility: hidden;
           }
