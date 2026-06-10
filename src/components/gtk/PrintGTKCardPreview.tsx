@@ -3,7 +3,7 @@ import { Modal } from "../ui/modal";
 import { PrinterIcon } from "../../icons";
 
 interface GTKCardData {
-  id: number;
+  ptk_id: string;
   nama: string;
   avatar: string;
   nuptk: string;

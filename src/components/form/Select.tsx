@@ -13,6 +13,7 @@ interface SelectProps {
   className?: string;
   defaultValue?: string;
   value?: string;
+  disabled?: boolean;
 }
 
 const Select: React.FC<SelectProps> = ({
@@ -22,6 +23,7 @@ const Select: React.FC<SelectProps> = ({
   className = "",
   defaultValue = "",
   value,
+  disabled = false,
 }) => {
   // Manage the selected value
   const [internalValue, setInternalValue] = useState<string>(value || defaultValue);
@@ -44,10 +46,13 @@ const Select: React.FC<SelectProps> = ({
   return (
     <div className="relative">
       <select
+        disabled={disabled}
         className={`h-11 w-full appearance-none rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 pr-11 text-sm shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800 ${
+          disabled ? "bg-gray-100 cursor-not-allowed opacity-60 dark:bg-gray-800 text-gray-700" : ""
+        } ${
           internalValue
-            ? "text-gray-800 dark:text-white/90"
-            : "text-gray-400 dark:text-gray-400"
+            ? "text-gray-900 dark:text-white/90"
+            : "text-gray-500 dark:text-gray-400"
         } ${className}`}
         value={internalValue}
         onChange={handleChange}
@@ -57,7 +62,7 @@ const Select: React.FC<SelectProps> = ({
           <option
             value=""
             disabled
-            className="text-gray-700 dark:bg-gray-900 dark:text-gray-400"
+            className="text-gray-500 dark:bg-gray-900 dark:text-gray-400"
           >
             {placeholder}
           </option>
@@ -67,7 +72,7 @@ const Select: React.FC<SelectProps> = ({
           <option
             key={option.value}
             value={option.value}
-            className="text-gray-700 dark:bg-gray-900 dark:text-gray-400"
+            className="text-gray-900 dark:bg-gray-900 dark:text-white/90"
           >
             {option.label}
           </option>

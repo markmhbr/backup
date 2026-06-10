@@ -1,10 +1,14 @@
 import { Link } from "react-router";
+import { useAuth } from "../../context/AuthContext";
 
 interface BreadcrumbProps {
   pageTitle: string;
 }
 
 const PageBreadcrumb: React.FC<BreadcrumbProps> = ({ pageTitle }) => {
+  const { user } = useAuth();
+  const rolePath = user ? `/${user.role.toLowerCase().replace(/\s+/g, "-")}` : "/";
+
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
       <h2
@@ -18,7 +22,7 @@ const PageBreadcrumb: React.FC<BreadcrumbProps> = ({ pageTitle }) => {
           <li>
             <Link
               className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400"
-              to="/"
+              to={rolePath}
             >
               Home
               <svg

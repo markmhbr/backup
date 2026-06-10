@@ -14,7 +14,6 @@ import RekapGTKPendidikanTable from "../../components/gtk/RekapGTKPendidikanTabl
 import RekapGTKUsiaTable from "../../components/gtk/RekapGTKUsiaTable";
 import { useModal } from "../../hooks/useModal";
 import EditGTKModal from "../../components/gtk/EditGTKModal";
-import { allGTKData } from "../../data/gtkData";
 
 export default function GTKData() {
   const [searchParams] = useSearchParams();
@@ -31,7 +30,7 @@ export default function GTKData() {
     }
   }, [tabParam]);
 
-  const [selectedGTKIds, setSelectedGTKIds] = useState<number[]>([]);
+  const [selectedGTKIds, setSelectedGTKIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [completenessFilter, setCompletenessFilter] = useState("all");
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -51,7 +50,7 @@ export default function GTKData() {
     { value: "100", label: "100" },
   ];
 
-  const handleSelectionChange = (selectedIds: number[]) => {
+  const handleSelectionChange = (selectedIds: string[]) => {
     setSelectedGTKIds(selectedIds);
   };
 
@@ -136,15 +135,6 @@ export default function GTKData() {
                   Register
                 </Button>
                 <Button
-                  variant="primary-outline"
-                  size="sm"
-                  className="min-w-[110px]"
-                  startIcon={<UserCircleIcon className="size-4" />}
-                  onClick={handleShowProfile}
-                >
-                  Profil
-                </Button>
-                <Button
                   variant="warning-outline"
                   size="sm"
                   className="min-w-[110px]"
@@ -155,6 +145,15 @@ export default function GTKData() {
                 </Button>
               </>
             )}
+            <Button
+              variant="primary-outline"
+              size="sm"
+              className="min-w-[110px]"
+              startIcon={<UserCircleIcon className="size-4" />}
+              onClick={handleShowProfile}
+            >
+              Profil
+            </Button>
             <Button
               variant="success-outline"
               size="sm"
@@ -277,7 +276,6 @@ export default function GTKData() {
         isOpen={isOpen}
         onClose={closeModal}
         selectedIds={selectedGTKIds}
-        allData={allGTKData}
       />
     </>
   );

@@ -15,19 +15,92 @@ export interface GTK {
   nuptk: string;
   tglSuratTugas: string;
   // Additional fields for the modal
-  rtRw?: string;
-  kodePos?: string;
+  nik?: string;
+  kk?: string;
+  nipNiyNigb?: string;
+  agama?: string;
+  jenisPTK?: string;
+  jabatanPTK?: string;
+  statusInduk?: string;
+  kewarganegaraan?: string;
+  statusPerkawinan?: "Kawin" | "Belum Kawin" | "Janda" | "Duda";
+  namaPasangan?: string;
+  pekerjaanPasangan?: string;
+  namaWajibPajak?: string;
+  npwp?: string;
+  kampungJalan?: string;
+  rt?: string;
+  rw?: string;
+  dusun?: string;
+  desaKelurahan?: string;
   kecamatan?: string;
   kotaKabupaten?: string;
-  pangkatGolongan?: string;
+  provinsi?: string;
+  lintang?: string;
+  bujur?: string;
+  statusPegawai?: string;
+  skPengangkatan?: string;
   tmtPengangkatan?: string;
+  lembagaPengangkat?: string;
+  skCpns?: string;
+  tmtCpns?: string;
+  tmtPns?: string;
+  pangkatTerakhir?: string;
+  sumberGaji?: string;
+  riwayatKepangkatan?: {
+    gol: string;
+    nomorSk: string;
+    tmt: string;
+    masaKerja: string;
+  }[];
+  rtRw?: string;
+  kodePos?: string;
+  pangkatGolongan?: string;
   pendidikanTerakhir?: string;
+  bidangStudi?: string;
   programStudi?: string;
   perguruanTinggi?: string;
+  riwayatPendidikan?: {
+    jenjang: string;
+    institusi: string;
+    tahunLulus: string;
+    ipk: string;
+  }[];
+  memilikiSertifikasi?: "Ya" | "Tidak";
+  riwayatSertifikasi?: {
+    lembagaSertifikasi: string;
+    bidangStudi: string;
+    jenisSertifikasi: string;
+    tglBerlaku: string;
+    tglHabisBerlaku: string;
+    noSertifikasi: string;
+    noRegistrasi: string;
+    nomorPeserta: string;
+    kualifikasi: string;
+  }[];
+  namaBank?: string;
+  cabangBank?: string;
+  noRekening?: string;
+  atasNamaRekening?: string;
+  lisensiKepsek?: string;
+  nuk?: string;
+  keahlianLab?: string;
+  kebutuhanKhusus?: string;
+  keahlianBraille?: string;
+  bahasaIsyarat?: string;
+  noTelpRumah?: string;
   noHp?: string;
+  noWa?: string;
   email?: string;
+  idTelegram?: string;
   noSerdik?: string;
   bidangStudiSerdik?: string;
+  dokumen?: {
+    id: number;
+    nama: string;
+    fileUrl: string;
+    fileType: string;
+  }[];
   alasan?: string; // for non-aktif
   tglKeluar?: string; // for non-aktif
 }

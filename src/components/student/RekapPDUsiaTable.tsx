@@ -6,8 +6,10 @@ import {
   TableRow,
 } from "../ui/table";
 
+import { useState, useEffect } from "react";
+import { dapodikService } from "../../services/dapodikService";
+
 interface RekapPDUsia {
-  id: number;
   rentangUsia: string;
   lakiLaki: number;
   perempuan: number;
@@ -17,15 +19,38 @@ interface RekapPDUsia {
   totalStatus: number;
 }
 
-const rekapData: RekapPDUsia[] = [
-  { id: 1, rentangUsia: "< 15 Tahun", lakiLaki: 20, perempuan: 25, totalJK: 45, siswaBaru: 45, pindahan: 0, totalStatus: 45 },
-  { id: 2, rentangUsia: "16 Tahun", lakiLaki: 80, perempuan: 85, totalJK: 165, siswaBaru: 160, pindahan: 5, totalStatus: 165 },
-  { id: 3, rentangUsia: "17 Tahun", lakiLaki: 75, perempuan: 75, totalJK: 150, siswaBaru: 145, pindahan: 5, totalStatus: 150 },
-  { id: 4, rentangUsia: "18 Tahun", lakiLaki: 55, perempuan: 60, totalJK: 115, siswaBaru: 113, pindahan: 2, totalStatus: 115 },
-  { id: 5, rentangUsia: "> 18 Tahun", lakiLaki: 5, perempuan: 20, totalJK: 25, siswaBaru: 25, pindahan: 0, totalStatus: 25 },
-];
-
 export default function RekapPDUsiaTable() {
+  const [rekapData, setRekapData] = useState<RekapPDUsia[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        const response = await dapodikService.getPdRekapUsia();
+        const dataArray = Array.isArray(response) ? response : (Array.isArray(response?.data) ? response.data : (Array.isArray(response?.data?.data) ? response.data.data : []));
+        
+        if (dataArray && dataArray.length > 0) {
+          const mapped = dataArray.map((item: any) => ({
+            rentangUsia: item.usia,
+            lakiLaki: item.l || 0,
+            perempuan: item.p || 0,
+            totalJK: item.total || 0,
+            siswaBaru: 0, // Not implemented in backend yet for usia
+            pindahan: 0,
+            totalStatus: item.total || 0,
+          }));
+          setRekapData(mapped);
+        }
+      } catch (error) {
+        console.error("Failed to fetch pd rekap usia:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
   // Calculate Grand Totals
   const totals = rekapData.reduce((acc, curr) => ({
     lakiLaki: acc.lakiLaki + curr.lakiLaki,
@@ -59,9 +84,15 @@ export default function RekapPDUsiaTable() {
             </TableRow>
           </TableHeader>
           <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-            {rekapData.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell className="px-5 py-4 text-start font-medium text-gray-800 dark:text-white/90">{item.rentangUsia}</TableCell>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={7} className="px-5 py-10 text-center text-gray-500 dark:text-gray-400">Loading...</TableCell>
+              </TableRow>
+            ) : rekapData.length > 0 ? (
+              <>
+                {rekapData.map((item, index) => (
+                  <TableRow key={index}>
+                    <TableCell className="px-5 py-4 text-start font-medium text-gray-800 dark:text-white/90">{item.rentangUsia}</TableCell>
                 <TableCell className="px-5 py-4 text-gray-500 text-center text-theme-sm dark:text-gray-400 border-l border-gray-100 dark:border-white/[0.05]">{item.lakiLaki}</TableCell>
                 <TableCell className="px-5 py-4 text-gray-500 text-center text-theme-sm dark:text-gray-400 border-l border-gray-100 dark:border-white/[0.05]">{item.perempuan}</TableCell>
                 <TableCell className="px-5 py-4 text-gray-800 text-center text-theme-sm dark:text-white/90 font-semibold border-l border-gray-100 dark:border-white/[0.05]">{item.totalJK}</TableCell>
@@ -80,6 +111,14 @@ export default function RekapPDUsiaTable() {
               <TableCell className="px-5 py-4 text-center border-l border-gray-100 dark:border-white/[0.05]">{totals.pindahan}</TableCell>
               <TableCell className="px-5 py-4 text-center border-l border-gray-100 dark:border-white/[0.05] text-brand-500 font-extrabold">{totals.totalStatus}</TableCell>
             </TableRow>
+              </>
+            ) : (
+              <TableRow>
+                <TableCell colSpan={7} className="px-5 py-10 text-center text-gray-500 dark:text-gray-400">
+                  Tidak ada data rekap ditemukan.
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </div>

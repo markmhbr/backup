@@ -6,8 +6,10 @@ import {
   TableRow,
 } from "../ui/table";
 
+import { useState, useEffect } from "react";
+import { dapodikService } from "../../services/dapodikService";
+
 interface RekapPD {
-  id: number;
   tingkat: string;
   lakiLaki: number;
   perempuan: number;
@@ -17,17 +19,42 @@ interface RekapPD {
   totalStatus: number;
 }
 
-const rekapData: RekapPD[] = [
-  { id: 1, tingkat: "Tingkat 10", lakiLaki: 85, perempuan: 95, totalJK: 180, siswaBaru: 175, pindahan: 5, totalStatus: 180 },
-  { id: 2, tingkat: "Tingkat 11", lakiLaki: 78, perempuan: 82, totalJK: 160, siswaBaru: 155, pindahan: 5, totalStatus: 160 },
-  { id: 3, tingkat: "Tingkat 12", lakiLaki: 72, perempuan: 88, totalJK: 160, siswaBaru: 158, pindahan: 2, totalStatus: 160 },
-];
-
 interface RekapPDTableProps {
   searchTerm: string;
 }
 
 export default function RekapPDTable({ searchTerm }: RekapPDTableProps) {
+  const [rekapData, setRekapData] = useState<RekapPD[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        const response = await dapodikService.getPdRekapTingkat();
+        const dataArray = Array.isArray(response) ? response : (Array.isArray(response?.data) ? response.data : (Array.isArray(response?.data?.data) ? response.data.data : []));
+        
+        if (dataArray && dataArray.length > 0) {
+          const mapped = dataArray.map((item: any) => ({
+            tingkat: `Tingkat ${item.tingkat}`,
+            lakiLaki: item.l || 0,
+            perempuan: item.p || 0,
+            totalJK: item.total || 0,
+            siswaBaru: item.siswaBaru || 0,
+            pindahan: (item.pindahan || 0) + (item.mengulang || 0),
+            totalStatus: item.total || 0,
+          }));
+          setRekapData(mapped);
+        }
+      } catch (error) {
+        console.error("Failed to fetch pd rekap tingkat:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
   const filteredData = rekapData.filter(item => 
     item.tingkat.toLowerCase().includes(searchTerm.toLowerCase())
   ).sort((a, b) => a.tingkat.localeCompare(b.tingkat));
@@ -69,10 +96,14 @@ export default function RekapPDTable({ searchTerm }: RekapPDTableProps) {
             </TableRow>
           </TableHeader>
           <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-            {filteredData.length > 0 ? (
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={7} className="px-5 py-10 text-center text-gray-500 dark:text-gray-400">Loading...</TableCell>
+              </TableRow>
+            ) : filteredData.length > 0 ? (
               <>
-                {filteredData.map((item) => (
-                  <TableRow key={item.id}>
+                {filteredData.map((item, index) => (
+                  <TableRow key={index}>
                     <TableCell className="px-5 py-4 text-start font-medium text-gray-800 dark:text-white/90">{item.tingkat}</TableCell>
                     <TableCell className="px-5 py-4 text-gray-500 text-center text-theme-sm dark:text-gray-400 border-l border-gray-100 dark:border-white/[0.05]">{item.lakiLaki}</TableCell>
                     <TableCell className="px-5 py-4 text-gray-500 text-center text-theme-sm dark:text-gray-400 border-l border-gray-100 dark:border-white/[0.05]">{item.perempuan}</TableCell>

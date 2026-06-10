@@ -1,0 +1,102 @@
+import axios from 'axios';
+
+// Konfigurasi Axios dengan praktik keamanan dasar
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || 'https://centralsimak.smakniscjr.sch.id/api',
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  },
+  withCredentials: true, // Izinkan pengiriman cookie (untuk Refresh Token)
+  timeout: 15000,
+});
+
+// Interceptor untuk menangani token keamanan (misal JWT)
+api.interceptors.request.use(
+  (config) => {
+    // Token Auth (User Login)
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    // API Key (Backend Connection) - SEKARANG MENGGUNAKAN DOMAIN-BASED (BACKEND OTOMATIS DETEKSI)
+    // Tidak perlu lagi mengambil dari localStorage untuk setiap request
+
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Flag untuk mencegah loop refresh token tak terbatas
+let isRefreshing = false;
+let failedQueue: any[] = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  
+  failedQueue = [];
+};
+
+// Interceptor untuk menangani error secara terpusat
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Jika error 401 dan bukan sedang mencoba refresh
+    // JANGAN mencoba refresh jika error terjadi pada endpoint login
+    if (
+      error.response?.status === 401 && 
+      !originalRequest._retry && 
+      !originalRequest.url?.includes('/auth/login')
+    ) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then(token => {
+          originalRequest.headers['Authorization'] = 'Bearer ' + token;
+          return api(originalRequest);
+        }).catch(err => {
+          return Promise.reject(err);
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const response = await axios.post(`${api.defaults.baseURL}/auth/refresh`, {}, { withCredentials: true });
+        const { accessToken } = response.data;
+
+        localStorage.setItem('auth_token', accessToken);
+        api.defaults.headers.common['Authorization'] = 'Bearer ' + accessToken;
+        originalRequest.headers['Authorization'] = 'Bearer ' + accessToken;
+
+        processQueue(null, accessToken);
+        return api(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        // Jika refresh gagal, arahkan ke login
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('user_data');
+        window.location.href = '/signin';
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+export default api;

@@ -1,3 +1,5 @@
+import { useState, useEffect } from "react";
+import { dapodikService } from "../../services/dapodikService";
 import {
   Table,
   TableBody,
@@ -17,30 +19,40 @@ interface RekapGTK {
   totalStatus: number;
 }
 
-const rekapData: RekapGTK[] = [
-  { id: 1, kategori: "Guru", lakiLaki: 12, perempuan: 28, totalJK: 40, asn: 15, nonAsn: 25, totalStatus: 40 },
-  { id: 2, kategori: "Tendik", lakiLaki: 8, perempuan: 12, totalJK: 20, asn: 5, nonAsn: 15, totalStatus: 20 },
-];
+export default function RekapGTKTable({ searchTerm = "" }: { searchTerm?: string }) {
+  const [rekapData, setRekapData] = useState<RekapGTK[]>([]);
+  const [loading, setLoading] = useState(true);
 
-interface RekapGTKTableProps {
-  onSelectionChange?: (selectedIds: number[]) => void;
-  searchTerm?: string;
-  itemsPerPage?: number;
-}
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const result = await dapodikService.getGtkRekapKategori();
+        if (result && result.status === "success" && Array.isArray(result.data)) {
+          setRekapData(result.data);
+        }
+      } catch (err) {
+        console.error("Gagal mengambil rekap GTK:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
-export default function RekapGTKTable({ searchTerm = "" }: RekapGTKTableProps) {
-  const filteredData = rekapData.filter(item => 
-    item.kategori.toLowerCase().includes(searchTerm.toLowerCase())
-  ).sort((a, b) => a.kategori.localeCompare(b.kategori));
+  const safeRekapData = Array.isArray(rekapData) ? rekapData : [];
+
+  const filteredData = safeRekapData.filter(item => 
+    (item.kategori || "").toLowerCase().includes((searchTerm || "").toLowerCase())
+  ).sort((a, b) => (a.kategori || "").localeCompare(b.kategori || ""));
 
   // Calculate Grand Totals
   const grandTotal = filteredData.reduce((acc, curr) => ({
-    lakiLaki: acc.lakiLaki + curr.lakiLaki,
-    perempuan: acc.perempuan + curr.perempuan,
-    totalJK: acc.totalJK + curr.totalJK,
-    asn: acc.asn + curr.asn,
-    nonAsn: acc.nonAsn + curr.nonAsn,
-    totalStatus: acc.totalStatus + curr.totalStatus,
+    lakiLaki: acc.lakiLaki + (curr.lakiLaki || 0),
+    perempuan: acc.perempuan + (curr.perempuan || 0),
+    totalJK: acc.totalJK + (curr.totalJK || 0),
+    asn: acc.asn + (curr.asn || 0),
+    nonAsn: acc.nonAsn + (curr.nonAsn || 0),
+    totalStatus: acc.totalStatus + (curr.totalStatus || 0),
   }), {
     lakiLaki: 0,
     perempuan: 0,
@@ -49,6 +61,14 @@ export default function RekapGTKTable({ searchTerm = "" }: RekapGTKTableProps) {
     nonAsn: 0,
     totalStatus: 0,
   });
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-10">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">

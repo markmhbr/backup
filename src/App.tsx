@@ -1,8 +1,7 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router";
 import SignIn from "./pages/AuthPages/SignIn";
 import SignUp from "./pages/AuthPages/SignUp";
 import NotFound from "./pages/OtherPage/NotFound";
-import UserProfiles from "./pages/UserProfiles";
 import Videos from "./pages/UiElements/Videos";
 import Images from "./pages/UiElements/Images";
 import Alerts from "./pages/UiElements/Alerts";
@@ -28,63 +27,109 @@ import TahunPelajaran from "./pages/Academic/TahunPelajaran";
 import KompetensiPage from "./pages/Academic/KompetensiPage";
 import GTKCardPage from "./pages/Academic/GTKCardPage";
 import PDCardPage from "./pages/DataMaster/PDCardPage";
+import ProtectedRoute from "./components/common/ProtectedRoute";
+import ApiSyncPage from "./pages/OtherPage/ApiSyncPage";
+import SyncGuard from "./components/common/SyncGuard";
+import { useAuth } from "./context/AuthContext";
+import { getRoleSlug } from "./services/roleUtils";
+import PengaturanJam from "./pages/Kurikulum/PengaturanJam";
+import JadwalPelajaran from "./pages/Kurikulum/JadwalPelajaran";
+import AbsensiPD from "./pages/Kurikulum/Absensi/AbsensiPD";
+import AbsensiGTK from "./pages/Kurikulum/Absensi/AbsensiGTK";
+import HariLibur from "./pages/Kurikulum/Absensi/HariLibur";
+import Scanner from "./pages/Kurikulum/Absensi/Scanner";
+import IzinSakit from "./pages/Kurikulum/Absensi/IzinSakit";
+
+function HomeRedirect() {
+  const { user, isAuthenticated } = useAuth();
+  if (isAuthenticated && user) {
+    return <Navigate to={`/${getRoleSlug(user.role)}`} replace />;
+  }
+  return <Navigate to="/signin" replace />;
+}
 
 export default function App() {
   return (
-    <>
-      <Router>
-        <ScrollToTop />
-        <Routes>
-          {/* Dashboard Layout */}
-          <Route element={<AppLayout />}>
-            <Route index path="/" element={<Home />} />
+    <Router>
+      <ScrollToTop />
+      <Routes>
+        {/* Dashboard Layout */}
+        <Route
+          element={
+            <ProtectedRoute>
+              <SyncGuard>
+                <AppLayout />
+              </SyncGuard>
+            </ProtectedRoute>
+          }
+        >
+          {/* Redirect root to role-based dashboard */}
+          <Route path="/" element={<HomeRedirect />} />
+          
+          <Route path="/:role">
+            <Route index element={<Home />} />
 
             {/* Data Master */}
-            <Route path="/school-profile" element={<SchoolProfile />} />
-            <Route path="/gtk-data" element={<GTKData />} />
-            <Route path="/student-data" element={<StudentData />} />
-            <Route path="/class-data" element={<ClassData />} />
-            <Route path="/subject-data" element={<SubjectData />} />
-            <Route path="/sarpras-data" element={<SarprasData />} />
+            <Route path="school-profile" element={<SchoolProfile />} />
+            <Route path="gtk-data" element={<GTKData />} />
+            <Route path="student-data" element={<StudentData />} />
+            <Route path="class-data" element={<ClassData />} />
+            <Route path="subject-data" element={<SubjectData />} />
+            <Route path="sarpras-data" element={<SarprasData />} />
 
-            {/* Akademik */}
-            <Route path="/academic/year" element={<TahunPelajaran />} />
-            <Route path="/academic/competency" element={<KompetensiPage />} />
-            <Route path="/gtk-card" element={<GTKCardPage />} />
-            <Route path="/student-card" element={<PDCardPage />} />
+            {/* Academic */}
+            <Route path="academic/year" element={<TahunPelajaran />} />
+            <Route path="academic/competency" element={<KompetensiPage />} />
+            <Route path="gtk-card" element={<GTKCardPage />} />
+            <Route path="student-card" element={<PDCardPage />} />
 
-            {/* Others Page */}
-            <Route path="/profile" element={<UserProfiles />} />
-            <Route path="/calendar" element={<Calendar />} />
-            <Route path="/blank" element={<Blank />} />
+            {/* Kurikulum */}
+            <Route path="kurikulum/pengaturan-jam" element={<PengaturanJam />} />
+            <Route path="kurikulum/jadwal-pelajaran" element={<JadwalPelajaran />} />
+            <Route path="kurikulum/absensi/scanner" element={<Scanner />} />
+            <Route path="kurikulum/absensi/siswa" element={<AbsensiPD />} />
+            <Route path="kurikulum/absensi/gtk" element={<AbsensiGTK />} />
+            <Route path="kurikulum/absensi/mapel" element={<Blank />} />
+            <Route path="kurikulum/absensi/izin" element={<IzinSakit />} />
+            <Route path="kurikulum/absensi/hari-libur" element={<HariLibur />} />
 
-            {/* Forms */}
-            <Route path="/form-elements" element={<FormElements />} />
-
-            {/* Tables */}
-            <Route path="/basic-tables" element={<BasicTables />} />
-
-            {/* Ui Elements */}
-            <Route path="/alerts" element={<Alerts />} />
-            <Route path="/avatars" element={<Avatars />} />
-            <Route path="/badge" element={<Badges />} />
-            <Route path="/buttons" element={<Buttons />} />
-            <Route path="/images" element={<Images />} />
-            <Route path="/videos" element={<Videos />} />
-
-            {/* Charts */}
-            <Route path="/line-chart" element={<LineChart />} />
-            <Route path="/bar-chart" element={<BarChart />} />
+            {/* Other */}
+            <Route path="sync-api" element={<ApiSyncPage />} />
+            
+            {/* Profile */}
+            <Route path="profile" element={<Blank />} />
           </Route>
+        </Route>
 
-          {/* Auth Layout */}
-          <Route path="/signin" element={<SignIn />} />
-          <Route path="/signup" element={<SignUp />} />
+        {/* Auth Pages */}
+        <Route path="/calendar" element={<Calendar />} />
+        <Route path="/blank" element={<Blank />} />
 
-          {/* Fallback Route */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </Router>
-    </>
+        {/* Forms */}
+        <Route path="/form-elements" element={<FormElements />} />
+
+        {/* Tables */}
+        <Route path="/basic-tables" element={<BasicTables />} />
+
+        {/* Ui Elements */}
+        <Route path="/alerts" element={<Alerts />} />
+        <Route path="/avatars" element={<Avatars />} />
+        <Route path="/badge" element={<Badges />} />
+        <Route path="/buttons" element={<Buttons />} />
+        <Route path="/images" element={<Images />} />
+        <Route path="/videos" element={<Videos />} />
+
+        {/* Charts */}
+        <Route path="/line-chart" element={<LineChart />} />
+        <Route path="/bar-chart" element={<BarChart />} />
+
+        {/* Auth Layout */}
+        <Route path="/signin" element={<SignIn />} />
+        <Route path="/signup" element={<SignUp />} />
+
+        {/* Fallback Route */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </Router>
   );
 }

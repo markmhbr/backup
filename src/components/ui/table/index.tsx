@@ -63,7 +63,11 @@ const TableCell: React.FC<TableCellProps> = ({
 }) => {
   const CellTag = isHeader ? "th" : "td";
   return (
-    <CellTag className={` ${className}`} colSpan={colSpan} rowSpan={rowSpan}>
+    <CellTag
+      className={`whitespace-nowrap ${className}`}
+      colSpan={colSpan}
+      rowSpan={rowSpan}
+    >
       {children}
     </CellTag>
   );

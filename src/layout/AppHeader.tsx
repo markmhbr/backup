@@ -5,11 +5,14 @@ import { useSidebar } from "../context/SidebarContext";
 import { ThemeToggleButton } from "../components/common/ThemeToggleButton";
 import NotificationDropdown from "../components/header/NotificationDropdown";
 import UserDropdown from "../components/header/UserDropdown";
+import { useAuth } from "../context/AuthContext";
 
 const AppHeader: React.FC = () => {
   const [isApplicationMenuOpen, setApplicationMenuOpen] = useState(false);
-
+  const { user } = useAuth();
   const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
+
+  const rolePath = user ? `/${user.role.toLowerCase().replace(/\s+/g, "-")}` : "/";
 
   const handleToggle = () => {
     if (window.innerWidth >= 1024) {
@@ -83,7 +86,7 @@ const AppHeader: React.FC = () => {
             {/* Cross Icon */}
           </button>
 
-          <Link to="/" className="lg:hidden">
+          <Link to={rolePath} className="lg:hidden">
             <img
               className="dark:hidden"
               src="./images/logo/logo.svg"

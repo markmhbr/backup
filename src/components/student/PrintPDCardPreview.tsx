@@ -1,34 +1,51 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Modal } from "../ui/modal";
 import { PrinterIcon } from "../../icons";
+import { dapodikService } from "../../services/dapodikService";
 
 interface Student {
-  id: number;
+  peserta_didik_id: string;
   nama: string;
-  avatar: string;
+  foto?: string;
   nisn: string;
   nipd: string;
-  jk: "L" | "P";
+  jenis_kelamin: "L" | "P";
 }
-
-const dummyStudents: Student[] = [
-  { id: 1, nama: "Aditya Pratama", avatar: "/images/user/user-01.jpg", nisn: "0012345678", nipd: "1001", jk: "L" },
-  { id: 2, nama: "Bella Safira", avatar: "/images/user/user-02.jpg", nisn: "0012345679", nipd: "1002", jk: "P" },
-  { id: 3, nama: "Candra Wijaya", avatar: "/images/user/user-03.jpg", nisn: "0012345680", nipd: "1003", jk: "L" },
-  { id: 4, nama: "Dian Pelangi", avatar: "/images/user/user-04.jpg", nisn: "0012345681", nipd: "1004", jk: "P" },
-  { id: 5, nama: "Erlangga Putra", avatar: "/images/user/user-05.jpg", nisn: "0012345682", nipd: "1005", jk: "L" },
-  { id: 6, nama: "Fania Rahma", avatar: "/images/user/user-06.jpg", nisn: "0012345683", nipd: "1006", jk: "P" },
-  { id: 7, nama: "Gilang Dirga", avatar: "/images/user/user-07.jpg", nisn: "0012345684", nipd: "1007", jk: "L" },
-  { id: 8, nama: "Hana Hanifah", avatar: "/images/user/user-08.jpg", nisn: "0012345685", nipd: "1008", jk: "P" },
-];
 
 interface PrintPDCardPreviewProps {
   isOpen: boolean;
   onClose: () => void;
+  rombelId: string;
   rombelName: string;
 }
 
-const PrintPDCardPreview: React.FC<PrintPDCardPreviewProps> = ({ isOpen, onClose, rombelName }) => {
+const PrintPDCardPreview: React.FC<PrintPDCardPreviewProps> = ({ isOpen, onClose, rombelId, rombelName }) => {
+  const [students, setStudents] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && rombelId) {
+      const fetchStudents = async () => {
+        try {
+          setLoading(true);
+          const result = await dapodikService.getRombelAnggota(rombelId);
+          if (result && result.data) {
+            setStudents(result.data);
+          } else {
+            setStudents([]);
+          }
+        } catch (error) {
+          console.error("Gagal memuat anggota rombel:", error);
+          setStudents([]);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchStudents();
+    }
+  }, [isOpen, rombelId]);
+
   const handlePrint = () => {
     window.print();
   };
@@ -54,7 +71,8 @@ const PrintPDCardPreview: React.FC<PrintPDCardPreviewProps> = ({ isOpen, onClose
           </button>
           <button
             onClick={handlePrint}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-500 rounded-lg hover:bg-brand-600"
+            disabled={loading || students.length === 0}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-500 rounded-lg hover:bg-brand-600 disabled:opacity-50"
           >
             <PrinterIcon className="w-4 h-4" />
             Cetak Sekarang
@@ -64,72 +82,82 @@ const PrintPDCardPreview: React.FC<PrintPDCardPreviewProps> = ({ isOpen, onClose
 
       {/* Printable Content */}
       <div className="p-8 bg-gray-50 dark:bg-gray-900/50 max-h-[75vh] overflow-y-auto custom-scrollbar print:p-0 print:bg-white print:overflow-visible print:max-h-none">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 justify-items-center print:grid-cols-3 print:gap-4">
-          {dummyStudents.map((student) => (
-            <div 
-              key={student.id} 
-              className="id-card-vertical relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden shadow-md print:shadow-none print:border print:border-gray-300"
-              style={{ 
-                width: '5.5cm', 
-                height: '8.5cm',
-                pageBreakInside: 'avoid'
-              }}
-            >
-              {/* Vertical Card Header */}
-              <div className="h-20 bg-brand-500 flex flex-col items-center justify-center p-2 text-center">
-                <img src="/images/logo/logo-icon.svg" alt="Logo" className="w-8 h-8 brightness-0 invert mb-1" />
-                <h5 className="text-[10px] font-bold text-white uppercase leading-tight">Kartu Pelajar</h5>
-                <p className="text-[7px] text-white/90 uppercase tracking-tighter">SMK SIMAK INDONESIA</p>
-              </div>
-
-              {/* Photo Area */}
-              <div className="flex justify-center -mt-6 relative z-10">
-                <div className="w-20 h-24 bg-white dark:bg-gray-800 p-0.5 rounded-md shadow-sm border border-gray-100 dark:border-gray-700">
-                    <div className="w-full h-full overflow-hidden rounded flex items-center justify-center bg-gray-50">
-                        <img src={student.avatar} alt={student.nama} className="w-full h-full object-cover" />
-                    </div>
-                </div>
-              </div>
-
-              {/* Class Badge */}
-              <div className="flex justify-center mt-2">
-                <span className="px-2 py-0 bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400 rounded-full text-[8px] font-bold uppercase border border-brand-100 dark:border-brand-500/20">
-                    {rombelName}
-                </span>
-              </div>
-
-              {/* Details Area */}
-              <div className="px-3 py-3 space-y-2 text-center">
-                <div>
-                  <p className="text-[7px] text-gray-400 uppercase font-bold tracking-widest leading-none mb-1">Nama Lengkap</p>
-                  <p className="text-[10px] font-extrabold text-gray-800 dark:text-white leading-tight uppercase line-clamp-2">{student.nama}</p>
-                </div>
-
-                <div className="grid grid-cols-2 border-t border-gray-100 dark:border-white/[0.05] pt-2 gap-2">
-                  <div>
-                    <p className="text-[7px] text-gray-400 uppercase font-bold mb-0.5">NISN</p>
-                    <p className="text-[9px] font-bold text-gray-800 dark:text-white leading-none">{student.nisn}</p>
-                  </div>
-                  <div>
-                    <p className="text-[7px] text-gray-400 uppercase font-bold mb-0.5">NIPD</p>
-                    <p className="text-[9px] font-bold text-gray-800 dark:text-white leading-none">{student.nipd}</p>
-                  </div>
-                </div>
-                
-                <div className="pt-1">
-                    <p className="text-[7px] text-gray-400 uppercase font-bold mb-0.5">Jenis Kelamin</p>
-                    <p className="text-[9px] font-bold text-gray-800 dark:text-white leading-none">{student.jk === "L" ? "Laki-laki" : "Perempuan"}</p>
-                </div>
-              </div>
-
-              {/* Card Footer Decoration */}
-              <div className="absolute bottom-0 left-0 w-full h-0.5 bg-brand-500"></div>
-              <div className="absolute bottom-1.5 left-0 w-full text-center">
-                <p className="text-[6px] text-gray-300 italic font-medium tracking-tight">Berlaku selama menjadi siswa aktif</p>
-              </div>
+        {loading ? (
+            <div className="flex justify-center py-20">
+                <p className="text-gray-500">Memuat data siswa...</p>
             </div>
-          ))}
-        </div>
+        ) : students.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 justify-items-center print:grid-cols-3 print:gap-4">
+            {students.map((student) => (
+              <div 
+                key={student.peserta_didik_id} 
+                className="id-card-vertical relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden shadow-md print:shadow-none print:border print:border-gray-300"
+                style={{ 
+                  width: '5.5cm', 
+                  height: '8.5cm',
+                  pageBreakInside: 'avoid'
+                }}
+              >
+                {/* Vertical Card Header */}
+                <div className="h-20 bg-brand-500 flex flex-col items-center justify-center p-2 text-center">
+                  <img src="/images/logo/logo-icon.svg" alt="Logo" className="w-8 h-8 brightness-0 invert mb-1" />
+                  <h5 className="text-[10px] font-bold text-white uppercase leading-tight">Kartu Pelajar</h5>
+                  <p className="text-[7px] text-white/90 uppercase tracking-tighter">SMK SIMAK INDONESIA</p>
+                </div>
+
+                {/* Photo Area */}
+                <div className="flex justify-center -mt-6 relative z-10">
+                  <div className="w-20 h-24 bg-white dark:bg-gray-800 p-0.5 rounded-md shadow-sm border border-gray-100 dark:border-gray-700">
+                      <div className="w-full h-full overflow-hidden rounded flex items-center justify-center bg-gray-50">
+                          <img src={student.foto ? `/storage/${student.foto}` : "/images/user/user-01.jpg"} alt={student.nama} className="w-full h-full object-cover" />
+                      </div>
+                  </div>
+                </div>
+
+                {/* Class Badge */}
+                <div className="flex justify-center mt-2">
+                  <span className="px-2 py-0 bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400 rounded-full text-[8px] font-bold uppercase border border-brand-100 dark:border-brand-500/20">
+                      {rombelName}
+                  </span>
+                </div>
+
+                {/* Details Area */}
+                <div className="px-3 py-3 space-y-2 text-center">
+                  <div>
+                    <p className="text-[7px] text-gray-400 uppercase font-bold tracking-widest leading-none mb-1">Nama Lengkap</p>
+                    <p className="text-[10px] font-extrabold text-gray-800 dark:text-white leading-tight uppercase line-clamp-2">{student.nama}</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 border-t border-gray-100 dark:border-white/[0.05] pt-2 gap-2">
+                    <div>
+                      <p className="text-[7px] text-gray-400 uppercase font-bold mb-0.5">NISN</p>
+                      <p className="text-[9px] font-bold text-gray-800 dark:text-white leading-none">{student.nisn || "-"}</p>
+                    </div>
+                    <div>
+                      <p className="text-[7px] text-gray-400 uppercase font-bold mb-0.5">NIPD</p>
+                      <p className="text-[9px] font-bold text-gray-800 dark:text-white leading-none">{student.nipd || "-"}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="pt-1">
+                      <p className="text-[7px] text-gray-400 uppercase font-bold mb-0.5">Jenis Kelamin</p>
+                      <p className="text-[9px] font-bold text-gray-800 dark:text-white leading-none">{student.jenis_kelamin === "L" ? "Laki-laki" : "Perempuan"}</p>
+                  </div>
+                </div>
+
+                {/* Card Footer Decoration */}
+                <div className="absolute bottom-0 left-0 w-full h-0.5 bg-brand-500"></div>
+                <div className="absolute bottom-1.5 left-0 w-full text-center">
+                  <p className="text-[6px] text-gray-300 italic font-medium tracking-tight">Berlaku selama menjadi siswa aktif</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+            <div className="flex justify-center py-20">
+                <p className="text-gray-500">Tidak ada data siswa dalam rombel ini.</p>
+            </div>
+        )}
       </div>
 
       <style dangerouslySetInnerHTML={{ __html: `

@@ -27,7 +27,7 @@ export default function ClassData() {
     }
   }, [tabParam]);
 
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [gradeFilter, setGradeFilter] = useState("all");
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -45,7 +45,7 @@ export default function ClassData() {
     { value: "100", label: "100" },
   ];
 
-  const handleSelectionChange = (ids: number[]) => {
+  const handleSelectionChange = (ids: string[]) => {
     setSelectedIds(ids);
   };
 

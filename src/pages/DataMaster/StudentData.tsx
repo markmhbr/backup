@@ -11,6 +11,8 @@ import PDKeluarTable from "../../components/student/PDKeluarTable";
 import RekapPDTable from "../../components/student/RekapPDTable";
 import RekapPDKompetensiTable from "../../components/student/RekapPDKompetensiTable";
 import RekapPDUsiaTable from "../../components/student/RekapPDUsiaTable";
+import { useModal } from "../../hooks/useModal";
+import EditStudentModal from "../../components/student/EditStudentModal";
 
 export default function StudentData() {
   const [searchParams] = useSearchParams();
@@ -27,10 +29,13 @@ export default function StudentData() {
     }
   }, [tabParam]);
 
-  const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([]);
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [completenessFilter, setCompletenessFilter] = useState("all");
+  const [gradeFilter, setGradeFilter] = useState("all");
   const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  const { isOpen, openModal, closeModal } = useModal();
 
   const completenessOptions = [
     { value: "all", label: "Semua Kelengkapan" },
@@ -39,25 +44,25 @@ export default function StudentData() {
     { value: "50", label: "Lengkap Data < 50%" },
   ];
 
+  const gradeOptions = [
+    { value: "all", label: "Semua Tingkat" },
+    { value: "10", label: "Tingkat 10" },
+    { value: "11", label: "Tingkat 11" },
+    { value: "12", label: "Tingkat 12" },
+  ];
+
   const rowsPerPageOptions = [
     { value: "10", label: "10" },
     { value: "50", label: "50" },
     { value: "100", label: "100" },
   ];
 
-  const handleSelectionChange = (selectedIds: number[]) => {
+  const handleSelectionChange = (selectedIds: string[]) => {
     setSelectedStudentIds(selectedIds);
   };
 
   const handleEditData = () => {
-    Swal.fire({
-      title: "Ubah Data?",
-      text: `Anda akan mengubah data untuk ${selectedStudentIds.length} siswa yang dipilih.`,
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonColor: "#465fff",
-      confirmButtonText: "Ya, Ubah!",
-    });
+    openModal();
   };
 
   const handleRegister = () => {
@@ -202,13 +207,22 @@ export default function StudentData() {
                   />
                 </div>
                 {activeTab === "aktif" && (
-                  <div className="w-full sm:w-56">
-                      <Select
-                          options={completenessOptions}
-                          defaultValue={completenessFilter}
-                          onChange={(value) => setCompletenessFilter(value)}
-                      />
-                  </div>
+                  <>
+                    <div className="w-full sm:w-56">
+                        <Select
+                            options={gradeOptions}
+                            defaultValue={gradeFilter}
+                            onChange={(value) => setGradeFilter(value)}
+                        />
+                    </div>
+                    <div className="w-full sm:w-56">
+                        <Select
+                            options={completenessOptions}
+                            defaultValue={completenessFilter}
+                            onChange={(value) => setCompletenessFilter(value)}
+                        />
+                    </div>
+                  </>
                 )}
               </div>
             </div>
@@ -220,6 +234,7 @@ export default function StudentData() {
                 onSelectionChange={handleSelectionChange} 
                 searchTerm={searchQuery}
                 completenessFilter={completenessFilter}
+                gradeFilter={gradeFilter}
                 itemsPerPage={itemsPerPage}
             />
           )}
@@ -262,6 +277,12 @@ export default function StudentData() {
           )}
         </div>
       </div>
+
+      <EditStudentModal 
+        isOpen={isOpen}
+        onClose={closeModal}
+        selectedIds={selectedStudentIds}
+      />
     </>
   );
 }

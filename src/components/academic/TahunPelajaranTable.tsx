@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -8,34 +8,48 @@ import {
 } from "../ui/table";
 import Pagination from "../common/Pagination";
 import Badge from "../ui/badge/Badge";
+import { dapodikService } from "../../services/dapodikService";
 
 interface TahunPelajaran {
-  id: number;
+  semester_id: string;
+  tahun_pelajaran: string;
   semester: string;
-  tahunPelajaran: string;
-  status: "Aktif" | "Non Aktif";
+  status: string;
 }
 
-const initialData: TahunPelajaran[] = [
-  { id: 1, semester: "20251 (Ganjil)", tahunPelajaran: "2025/2026", status: "Aktif" },
-  { id: 2, semester: "20252 (Genap)", tahunPelajaran: "2025/2026", status: "Non Aktif" },
-  { id: 3, semester: "20241 (Ganjil)", tahunPelajaran: "2024/2025", status: "Non Aktif" },
-  { id: 4, semester: "20242 (Genap)", tahunPelajaran: "2024/2025", status: "Non Aktif" },
-  { id: 5, semester: "20231 (Ganjil)", tahunPelajaran: "2023/2024", status: "Non Aktif" },
-];
-
 interface TahunPelajaranTableProps {
-  onSelectionChange?: (selectedIds: number[]) => void;
+  onSelectionChange?: (selectedIds: string[]) => void;
   searchTerm: string;
   itemsPerPage: number;
 }
 
 export default function TahunPelajaranTable({ searchTerm, itemsPerPage }: TahunPelajaranTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
+  const [tahunPelajaranData, setTahunPelajaranData] = useState<TahunPelajaran[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const filteredData = initialData.filter(item => 
-    item.tahunPelajaran.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.semester.toLowerCase().includes(searchTerm.toLowerCase())
+  useEffect(() => {
+    const fetchTahunPelajaran = async () => {
+      setIsLoading(true);
+      try {
+        const response = await dapodikService.getTahunPelajaran();
+        if (response && response.data) {
+          setTahunPelajaranData(response.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch tahun pelajaran", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTahunPelajaran();
+  }, []);
+
+  const filteredData = tahunPelajaranData.filter(item => 
+    item.tahun_pelajaran.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.semester.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.semester_id.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const totalPages = Math.ceil(filteredData.length / itemsPerPage) || 1;
@@ -56,10 +70,20 @@ export default function TahunPelajaranTable({ searchTerm, itemsPerPage }: TahunP
             </TableRow>
           </TableHeader>
           <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-            {currentData.length > 0 ? currentData.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell className="px-5 py-4 text-start font-medium text-gray-800 dark:text-white/90">{item.semester}</TableCell>
-                <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{item.tahunPelajaran}</TableCell>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={3} className="px-5 py-10 text-center text-gray-500 dark:text-gray-400">
+                  Loading...
+                </TableCell>
+              </TableRow>
+            ) : currentData.length > 0 ? currentData.map((item) => (
+              <TableRow key={item.semester_id}>
+                <TableCell className="px-5 py-4 text-start font-medium text-gray-800 dark:text-white/90">
+                  {item.semester_id} ({item.semester})
+                </TableCell>
+                <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">
+                  {item.tahun_pelajaran}
+                </TableCell>
                 <TableCell className="px-5 py-4 text-center">
                   <Badge size="sm" color={item.status === "Aktif" ? "success" : "light"}>
                     {item.status}
@@ -67,11 +91,11 @@ export default function TahunPelajaranTable({ searchTerm, itemsPerPage }: TahunP
                 </TableCell>
               </TableRow>
             )) : (
-                <TableRow>
-                    <TableCell colSpan={3} className="px-5 py-10 text-center text-gray-500 dark:text-gray-400">
-                        Tidak ada data tahun pelajaran ditemukan
-                    </TableCell>
-                </TableRow>
+              <TableRow>
+                <TableCell colSpan={3} className="px-5 py-10 text-center text-gray-500 dark:text-gray-400">
+                  Tidak ada data tahun pelajaran ditemukan
+                </TableCell>
+              </TableRow>
             )}
           </TableBody>
         </Table>

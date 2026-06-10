@@ -3,6 +3,7 @@ import { ThemeToggleButton } from "../common/ThemeToggleButton";
 import NotificationDropdown from "./NotificationDropdown";
 import UserDropdown from "./UserDropdown";
 import { Link } from "react-router";
+import { useAuth } from "../../context/AuthContext";
 
 // Define the interface for the props
 interface HeaderProps {
@@ -11,6 +12,9 @@ interface HeaderProps {
 }
 const Header: React.FC<HeaderProps> = ({ onClick, onToggle }) => {
   const [isApplicationMenuOpen, setApplicationMenuOpen] = useState(false);
+  const { user } = useAuth();
+
+  const rolePath = user ? `/${user.role.toLowerCase().replace(/\s+/g, "-")}` : "/";
 
   const toggleApplicationMenu = () => {
     setApplicationMenuOpen(!isApplicationMenuOpen);
@@ -78,7 +82,7 @@ const Header: React.FC<HeaderProps> = ({ onClick, onToggle }) => {
             </svg>
           </button>
 
-          <Link to="/" className="lg:hidden">
+          <Link to={rolePath} className="lg:hidden">
             <img
               className="dark:hidden"
               src="./images/logo/logo.svg"

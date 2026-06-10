@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PageMeta from "../../components/common/PageMeta";
 import Input from "../../components/form/input/InputField";
 import Label from "../../components/form/Label";
@@ -7,60 +7,125 @@ import Select from "../../components/form/Select";
 import FileInput from "../../components/form/input/FileInput";
 import Swal from "sweetalert2";
 import { DownloadIcon, PrinterIcon, PlusIcon, TrashBinIcon } from "../../icons";
+import { dapodikService } from "../../services/dapodikService";
 
 export default function SchoolProfile() {
   const [activeTab, setActiveTab] = useState<
     "profil" | "administrasi" | "alamat" | "kontak" | "map"
   >("profil");
+  const [loading, setLoading] = useState(true);
 
   // Form State
   const [profileData, setProfileData] = useState({
-    namaSekolah: "SMK Negeri 1 Contoh",
-    npsn: "12345678",
-    nss: "101026001001",
-    kodeWilayah: "026000",
-    lintang: "-6.1234",
-    bujur: "106.1234",
-    statusSekolah: "Negeri",
-    cabangDinas: "VII",
-    namaKepalaSekolah: "Dr. H. Budi Santoso, M.Pd.",
-    namaOperator: "Asep Sunandar",
-    skPendirian: "421.5/2345-Disdik/2010",
-    tanggalSK: "2010-05-20",
-    tanggalIzinOperasional: "2010-06-15",
-    bentukPendidikan: "SMK",
+    namaSekolah: "",
+    npsn: "",
+    nss: "",
+    kodeWilayah: "",
+    lintang: "",
+    bujur: "",
+    statusSekolah: "",
+    cabangDinas: "",
+    namaKepalaSekolah: "",
+    namaOperator: "",
+    skPendirian: "",
+    tanggalSK: "",
+    tanggalIzinOperasional: "",
+    bentukPendidikan: "",
     logo: "",
   });
 
   const [administrasiData, setAdministrasiData] = useState({
-    kebutuhanDilayani: "Ya",
-    statusKepemilikan: "Pemerintah Daerah",
-    mbs: "Ya",
-    namaWajibPajak: "SMK Negeri 1 Contoh",
-    npwp: "01.234.567.8-901.000",
+    kebutuhanDilayani: "",
+    statusKepemilikan: "",
+    mbs: "",
+    namaWajibPajak: "",
+    npwp: "",
   });
 
   const [alamatData, setAlamatData] = useState({
-    jalan: "Jl. Pendidikan No. 123",
-    desa: "Mekar Sari",
-    kecamatan: "Sukasari",
-    kabupaten: "Bandung",
-    propinsi: "Jawa Barat",
-    rt: "01",
-    rw: "05",
-    kodePos: "40123",
+    jalan: "",
+    desa: "",
+    kecamatan: "",
+    kabupaten: "",
+    propinsi: "",
+    rt: "",
+    rw: "",
+    kodePos: "",
   });
 
-  const [kontakData, setKontakData] = useState({
-    email: "info@smkn1contoh.sch.id",
-    telepon: "022-1234567",
-    website: "www.smkn1contoh.sch.id",
-    nomorFax: "022-7654321",
-    socialMedia: [
-      { platform: "Facebook", url: "https://facebook.com/smkn1contoh" },
-      { platform: "Instagram", url: "https://instagram.com/smkn1contoh" },
-    ],
+  const [kontakData, setKontakData] = useState<{
+    email: string;
+    telepon: string;
+    website: string;
+    nomorFax: string;
+    socialMedia: { platform: string; url: string }[];
+  }>({
+    email: "",
+    telepon: "",
+    website: "",
+    nomorFax: "",
+    socialMedia: [],
   });
+
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchSchoolData = async () => {
+      try {
+        const result = await dapodikService.getSekolah();
+        console.log("API School Data:", result);
+        if (result.status === "success" && result.data) {
+          const s = result.data;
+          
+          setProfileData(prev => ({
+            ...prev,
+            namaSekolah: s.nama || prev.namaSekolah,
+            npsn: s.npsn || prev.npsn,
+            nss: s.nss || prev.nss,
+            kodeWilayah: s.kode_wilayah || prev.kodeWilayah,
+            lintang: s.lintang ? String(s.lintang) : prev.lintang,
+            bujur: s.bujur ? String(s.bujur) : prev.bujur,
+            statusSekolah: s.status_sekolah_str || prev.statusSekolah,
+            bentukPendidikan: s.bentuk_pendidikan_id_str || prev.bentukPendidikan,
+            namaKepalaSekolah: s.nama_kepala_sekolah || prev.namaKepalaSekolah,
+            skPendirian: s.spmb || prev.skPendirian,
+            logo: s.logo || prev.logo
+          }));
+
+          if (s.logo) {
+            setLogoPreview(s.logo);
+          }
+
+          setAlamatData(prev => ({
+            ...prev,
+            jalan: s.alamat_jalan || prev.jalan,
+            desa: s.desa_kelurahan || prev.desa,
+            kecamatan: s.kecamatan || prev.kecamatan,
+            kabupaten: s.kabupaten_kota || prev.kabupaten,
+            propinsi: s.provinsi || prev.propinsi,
+            rt: s.rt || prev.rt,
+            rw: s.rw || prev.rw,
+            kodePos: s.kode_pos || prev.kodePos,
+          }));
+
+          setKontakData(prev => ({
+            ...prev,
+            email: s.email || prev.email,
+            telepon: s.nomor_telepon || prev.telepon,
+            website: s.website || prev.website,
+            nomorFax: s.nomor_fax || prev.nomorFax,
+            socialMedia: Array.isArray(s.social_media) ? s.social_media : prev.socialMedia
+          }));
+        }
+      } catch (err) {
+        console.error("Gagal mengambil data profil sekolah:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSchoolData();
+  }, []);
 
   const [dataRinci] = useState({
     waktuPenyelenggaraan: "Pagi/6 Hari",
@@ -100,10 +165,6 @@ export default function SchoolProfile() {
     nilai: "A",
     lembaga: "BAN-S/M",
   });
-
-  const [logoPreview, setLogoPreview] = useState<string | null>(
-    "/images/logo/logo-icon.svg"
-  );
 
   const cabangDinasOptions = [
     { value: "I", label: "I" },
@@ -230,6 +291,14 @@ export default function SchoolProfile() {
   const handlePrint = () => {
     window.print();
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-500"></div>
+      </div>
+    );
+  }
 
   return (
     <>

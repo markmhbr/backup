@@ -1,3 +1,5 @@
+import { useState, useEffect } from "react";
+import { dapodikService } from "../../services/dapodikService";
 import {
   Table,
   TableBody,
@@ -17,26 +19,48 @@ interface RekapGTKUsia {
   totalStatus: number;
 }
 
-const rekapData: RekapGTKUsia[] = [
-  { id: 1, rentangUsia: "< 30 Tahun", lakiLaki: 5, perempuan: 10, totalJK: 15, asn: 2, nonAsn: 13, totalStatus: 15 },
-  { id: 2, rentangUsia: "31 - 40 Tahun", lakiLaki: 8, perempuan: 12, totalJK: 20, asn: 5, nonAsn: 15, totalStatus: 20 },
-  { id: 3, rentangUsia: "41 - 50 Tahun", lakiLaki: 4, perempuan: 6, totalJK: 10, asn: 6, nonAsn: 4, totalStatus: 10 },
-  { id: 4, rentangUsia: "> 50 Tahun", lakiLaki: 4, perempuan: 1, totalJK: 5, asn: 4, nonAsn: 1, totalStatus: 5 },
-];
-
 export default function RekapGTKUsiaTable() {
+  const [rekapData, setRekapData] = useState<RekapGTKUsia[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const result = await dapodikService.getGtkRekapUsia();
+        if (result && result.status === "success" && Array.isArray(result.data)) {
+          setRekapData(result.data);
+        }
+      } catch (err) {
+        console.error("Gagal mengambil rekap usia GTK:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const safeRekapData = Array.isArray(rekapData) ? rekapData : [];
+
   // Calculate Grand Totals
-  const totals = rekapData.reduce((acc, curr) => ({
-    lakiLaki: acc.lakiLaki + curr.lakiLaki,
-    perempuan: acc.perempuan + curr.perempuan,
-    totalJK: acc.totalJK + curr.totalJK,
-    asn: acc.asn + curr.asn,
-    nonAsn: acc.nonAsn + curr.nonAsn,
-    totalStatus: acc.totalStatus + curr.totalStatus,
+  const totals = safeRekapData.reduce((acc, curr) => ({
+    lakiLaki: acc.lakiLaki + (curr.lakiLaki || 0),
+    perempuan: acc.perempuan + (curr.perempuan || 0),
+    totalJK: acc.totalJK + (curr.totalJK || 0),
+    asn: acc.asn + (curr.asn || 0),
+    nonAsn: acc.nonAsn + (curr.nonAsn || 0),
+    totalStatus: acc.totalStatus + (curr.totalStatus || 0),
   }), {
     lakiLaki: 0, perempuan: 0, totalJK: 0,
     asn: 0, nonAsn: 0, totalStatus: 0,
   });
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-10">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
@@ -58,7 +82,7 @@ export default function RekapGTKUsiaTable() {
             </TableRow>
           </TableHeader>
           <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-            {rekapData.map((item) => (
+            {safeRekapData.map((item) => (
               <TableRow key={item.id}>
                 <TableCell className="px-5 py-4 text-start font-medium text-gray-800 dark:text-white/90">{item.rentangUsia}</TableCell>
                 <TableCell className="px-5 py-4 text-gray-500 text-center text-theme-sm dark:text-gray-400 border-l border-gray-100 dark:border-white/[0.05]">{item.lakiLaki}</TableCell>

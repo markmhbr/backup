@@ -15,9 +15,13 @@ import {
   PlugInIcon,
   TableIcon,
   UserCircleIcon,
+  BoltIcon,
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
 import SidebarWidget from "./SidebarWidget";
+import { useSekolah } from "../context/SekolahContext";
+import { useAuth } from "../context/AuthContext";
+import { getRoleSlug } from "../services/roleUtils";
 
 type NavItem = {
   name: string;
@@ -168,6 +172,58 @@ const navItems: NavItem[] = [
     ],
   },
   {
+    icon: <TableIcon />,
+    name: "Kurikulum",
+    subItems: [
+      {
+        name: "Pengaturan Jam",
+        path: "/kurikulum/pengaturan-jam",
+        icon: <DotIcon />,
+      },
+      {
+        name: "Jadwal Pelajaran",
+        path: "/kurikulum/jadwal-pelajaran",
+        icon: <DotIcon />,
+      },
+      {
+        name: "Absensi",
+        icon: <DotIcon />,
+        subItems: [
+          {
+            name: "Scanner QR",
+            path: "/kurikulum/absensi/scanner",
+            icon: <DotIcon />,
+          },
+          {
+            name: "Absensi PD",
+            path: "/kurikulum/absensi/siswa",
+            icon: <DotIcon />,
+          },
+          {
+            name: "Absensi GTK",
+            path: "/kurikulum/absensi/gtk",
+            icon: <DotIcon />,
+          },
+          {
+            name: "Absensi Mapel",
+            path: "/kurikulum/absensi/mapel",
+            icon: <DotIcon />,
+          },
+          {
+            name: "Izin / Sakit",
+            path: "/kurikulum/absensi/izin",
+            icon: <DotIcon />,
+          },
+          {
+            name: "Hari Libur",
+            path: "/kurikulum/absensi/hari-libur",
+            icon: <DotIcon />,
+          },
+        ],
+      },
+    ],
+  },
+  {
     icon: <CalenderIcon />,
     name: "Kalender",
     path: "/calendar",
@@ -196,6 +252,17 @@ const navItems: NavItem[] = [
         name: "Tabel Dasar",
         path: "/basic-tables",
         icon: <DotIcon />,
+      },
+    ],
+    },
+    {
+    name: "Pengaturan",
+    icon: <PlugInIcon />,
+    subItems: [
+      {
+        name: "Sync API",
+        path: "/sync-api",
+        icon: <BoltIcon />,
       },
     ],
   },
@@ -290,17 +357,35 @@ const othersItems: NavItem[] = [
 
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
+  const { sekolah } = useSekolah();
+  const { user } = useAuth();
   const location = useLocation();
+
+  const rolePrefix = user ? `/${getRoleSlug(user.role)}` : "";
+
+  // Helper to prepend role prefix to path
+  const getFullPath = (path?: string) => {
+    if (!path || path === "/" || path.startsWith("/signin") || path.startsWith("/signup")) return path;
+    // Don't prepend if it already has the prefix
+    if (path.startsWith(rolePrefix)) return path;
+    return `${rolePrefix}${path}`;
+  };
+
+  // Jika belum sinkron, hanya tampilkan menu Dashboard dan Sync API
+  const filteredNavItems = sekolah 
+    ? navItems 
+    : navItems.filter(item => item.name === "Dashboard" || item.name === "Pengaturan");
 
   const [openSubmenus, setOpenSubmenus] = useState<string[]>([]);
   const subMenuRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const isActive = useCallback(
     (path: string) => {
+      const fullPath = getFullPath(path);
       const currentFullPath = location.pathname + location.search;
-      return currentFullPath === path || location.pathname === path;
+      return currentFullPath === fullPath || location.pathname === fullPath;
     },
-    [location.pathname, location.search]
+    [location.pathname, location.search, rolePrefix]
   );
 
   const isSubItemActive = useCallback(
@@ -402,7 +487,7 @@ const AppSidebar: React.FC = () => {
             ) : (
               nav.path && (
                 <Link
-                  to={nav.path}
+                  to={getFullPath(nav.path) || ""}
                   className={`menu-item group ${
                     isActive(nav.path) ? "menu-item-active" : "menu-item-inactive"
                   } ${
@@ -456,35 +541,46 @@ const AppSidebar: React.FC = () => {
       onMouseLeave={() => setIsHovered(false)}
     >
       <div
-        className={`py-8 flex ${
+        className={`py-8 flex items-center ${
           !isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
         }`}
       >
-        <Link to="/">
+        <Link to={rolePrefix || "/"} className="flex items-center gap-3">
           {isExpanded || isHovered || isMobileOpen ? (
             <>
-              <img
-                className="dark:hidden"
-                src="/images/logo/logo.svg"
-                alt="Logo"
-                width={150}
-                height={40}
-              />
-              <img
-                className="hidden dark:block"
-                src="/images/logo/logo-dark.svg"
-                alt="Logo"
-                width={150}
-                height={40}
-              />
+              {sekolah?.logo ? (
+                <img
+                  src={sekolah.logo}
+                  alt="Logo Sekolah"
+                  className="w-10 h-10 object-contain"
+                />
+              ) : (
+                <div className="w-10 h-10 bg-brand-500 rounded-lg flex items-center justify-center text-white font-bold text-xl">
+                  {sekolah?.nama?.charAt(0) || "S"}
+                </div>
+              )}
+              <div className="flex flex-col">
+                <span className="font-bold text-gray-900 dark:text-white leading-tight">
+                  {sekolah?.nama || "SIMAK"}
+                </span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {sekolah?.npsn || "Sistem Informasi"}
+                </span>
+              </div>
             </>
           ) : (
-            <img
-              src="/images/logo/logo-icon.svg"
-              alt="Logo"
-              width={32}
-              height={32}
-            />
+            sekolah?.logo ? (
+              <img
+                src={sekolah.logo}
+                alt="Logo"
+                width={32}
+                height={32}
+              />
+            ) : (
+              <div className="w-8 h-8 bg-brand-500 rounded-lg flex items-center justify-center text-white font-bold text-lg">
+                {sekolah?.nama?.charAt(0) || "S"}
+              </div>
+            )
           )}
         </Link>
       </div>
@@ -505,7 +601,7 @@ const AppSidebar: React.FC = () => {
                   <HorizontaLDots className="size-6" />
                 )}
               </h2>
-              {renderMenuItems(navItems, "main")}
+              {renderMenuItems(filteredNavItems, "main")}
             </div>
             <div className="">
               <h2

@@ -75,7 +75,7 @@ const dummyStudents: Student[] = [
 ];
 
 interface WaliTableProps {
-  onSelectionChange?: (selectedIds: number[]) => void;
+  onSelectionChange?: (selectedIds: string[]) => void;
   searchTerm: string;
   itemsPerPage: number;
 }

@@ -6,16 +6,16 @@ import { BoxIcon } from "../../icons";
 
 export default function Buttons() {
   return (
-    <div>
+    <>
       <PageMeta
-        title="React.js Buttons Dashboard | SIMAK - React.js Admin Dashboard Template"
-        description="This is React.js Buttons Dashboard page for SIMAK - React.js Tailwind CSS Admin Dashboard Template"
+        title="React.js Buttons Dashboard | SIMAK - Sistem Informasi Akademik Sekolah"
+        description="This is React.js Buttons Dashboard page for SIMAK - Sistem Informasi Akademik Sekolah"
       />
       <PageBreadcrumb pageTitle="Buttons" />
       <div className="space-y-5 sm:space-y-6">
         {/* Primary Button */}
         <ComponentCard title="Primary Button">
-          <div className="flex items-center gap-5">
+          <div className="flex flex-wrap items-center gap-5">
             <Button size="sm" variant="primary">
               Button Text
             </Button>
@@ -26,7 +26,7 @@ export default function Buttons() {
         </ComponentCard>
         {/* Primary Button with Start Icon */}
         <ComponentCard title="Primary Button with Left Icon">
-          <div className="flex items-center gap-5">
+          <div className="flex flex-wrap items-center gap-5">
             <Button
               size="sm"
               variant="primary"
@@ -45,7 +45,7 @@ export default function Buttons() {
         </ComponentCard>
         {/* Primary Button with Start Icon */}
         <ComponentCard title="Primary Button with Right Icon">
-          <div className="flex items-center gap-5">
+          <div className="flex flex-wrap items-center gap-5">
             <Button
               size="sm"
               variant="primary"
@@ -64,7 +64,7 @@ export default function Buttons() {
         </ComponentCard>
         {/* Outline Button */}
         <ComponentCard title="Secondary Button">
-          <div className="flex items-center gap-5">
+          <div className="flex flex-wrap items-center gap-5">
             {/* Outline Button */}
             <Button size="sm" variant="outline">
               Button Text
@@ -76,7 +76,7 @@ export default function Buttons() {
         </ComponentCard>
         {/* Outline Button with Start Icon */}
         <ComponentCard title="Outline Button with Left Icon">
-          <div className="flex items-center gap-5">
+          <div className="flex flex-wrap items-center gap-5">
             <Button
               size="sm"
               variant="outline"
@@ -92,10 +92,10 @@ export default function Buttons() {
               Button Text
             </Button>
           </div>
-        </ComponentCard>{" "}
+        </ComponentCard>
         {/* Outline Button with Start Icon */}
         <ComponentCard title="Outline Button with Right Icon">
-          <div className="flex items-center gap-5">
+          <div className="flex flex-wrap items-center gap-5">
             <Button
               size="sm"
               variant="outline"
@@ -113,6 +113,6 @@ export default function Buttons() {
           </div>
         </ComponentCard>
       </div>
-    </div>
+    </>
   );
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -11,103 +11,100 @@ import { Modal } from "../ui/modal";
 import { useModal } from "../../hooks/useModal";
 import Avatar from "../ui/avatar/Avatar";
 
+import { dapodikService } from "../../services/dapodikService";
+
 interface Ekskul {
-  id: number;
+  rombongan_belajar_id: string;
+  nm_ekskul: string;
   nama: string;
-  pembina: string;
-  prasarana: string;
-  anggotaRombel: number;
+  ptk_id_str: string;
+  id_ruang_str: string;
+  anggotaRombel?: number;
 }
-
-const ekskulData: Ekskul[] = [
-  { id: 1, nama: "Pramuka", pembina: "Endang Suherman", prasarana: "Lapangan Utama", anggotaRombel: 150 },
-  { id: 2, nama: "Paskibra", pembina: "Toto Raharjo, S.Or.", prasarana: "Lapangan Utama", anggotaRombel: 45 },
-  { id: 3, nama: "PMR", pembina: "Siti Aminah, S.Pd.", prasarana: "Ruang UKS", anggotaRombel: 60 },
-  { id: 4, nama: "Rohis", pembina: "Abdul Gani, S.Ag.", prasarana: "Masjid Sekolah", anggotaRombel: 120 },
-  { id: 5, nama: "English Club", pembina: "Farida Utami, S.Pd.", prasarana: "Lab Bahasa", anggotaRombel: 30 },
-  { id: 6, nama: "Seni Tari", pembina: "Ani Maryani, S.Pd.", prasarana: "Aula Seni", anggotaRombel: 25 },
-  { id: 7, nama: "Paduan Suara", pembina: "Putri Ayu", prasarana: "Aula Seni", anggotaRombel: 40 },
-  { id: 8, nama: "Basket", pembina: "Lukman Hakim", prasarana: "Lapangan Basket", anggotaRombel: 50 },
-  { id: 9, nama: "Futsal", pembina: "Rizky Fauzi", prasarana: "Lapangan Futsal", anggotaRombel: 80 },
-  { id: 10, nama: "Voli", pembina: "Endang Suherman", prasarana: "Lapangan Voli", anggotaRombel: 40 },
-  { id: 11, nama: "KIR (Karya Ilmiah Remaja)", pembina: "Rina Widia, S.Si.", prasarana: "Lab Biologi", anggotaRombel: 20 },
-  { id: 12, nama: "IT Club", pembina: "Hendra Wijaya, S.Kom.", prasarana: "Lab Komputer 4", anggotaRombel: 35 },
-  { id: 13, nama: "Jurnalistik", pembina: "Yuni Kartika, S.Pd.", prasarana: "R. OSIS", anggotaRombel: 25 },
-  { id: 14, nama: "Pecinta Alam", pembina: "Ginanjar Saputra", prasarana: "Gudang Alat", anggotaRombel: 30 },
-  { id: 15, nama: "Bulu Tangkis", pembina: "Kevin Sanjaya", prasarana: "GOR Sekolah", anggotaRombel: 45 },
-  { id: 16, nama: "Karate", pembina: "Taufik Hidayat", prasarana: "Aula Utama", anggotaRombel: 30 },
-  { id: 17, nama: "Teater", pembina: "Dewi Persik", prasarana: "Aula Seni", anggotaRombel: 20 },
-  { id: 18, nama: "Catur", pembina: "Abdul Gani, S.Ag.", prasarana: "Perpustakaan", anggotaRombel: 15 },
-  { id: 19, nama: "Robotik", pembina: "Dadan Ramdan, M.T.", prasarana: "Lab Elektronika", anggotaRombel: 18 },
-  { id: 20, nama: "Fotografi", pembina: "Hendra Wijaya, S.Kom.", prasarana: "Studio Foto", anggotaRombel: 22 },
-];
-
-interface Student {
-  id: number;
-  nama: string;
-  avatar: string;
-  nisn: string;
-  nis: string;
-  jk: "L" | "P";
-}
-
-const dummyStudents: Student[] = [
-  { id: 1, nama: "Aditya Pratama", avatar: "/images/user/user-01.jpg", nisn: "0012345678", nis: "1001", jk: "L" },
-  { id: 2, nama: "Bella Safira", avatar: "/images/user/user-02.jpg", nisn: "0012345679", nis: "1002", jk: "P" },
-  { id: 3, nama: "Candra Wijaya", avatar: "/images/user/user-03.jpg", nisn: "0012345680", nis: "1003", jk: "L" },
-  { id: 4, nama: "Dian Pelangi", avatar: "/images/user/user-04.jpg", nisn: "0012345681", nis: "1004", jk: "P" },
-  { id: 5, nama: "Erlangga Putra", avatar: "/images/user/user-05.jpg", nisn: "0012345682", nis: "1005", jk: "L" },
-  { id: 6, nama: "Fania Rahma", avatar: "/images/user/user-06.jpg", nisn: "0012345683", nis: "1006", jk: "P" },
-  { id: 7, nama: "Gilang Dirga", avatar: "/images/user/user-07.jpg", nisn: "0012345684", nis: "1007", jk: "L" },
-  { id: 8, nama: "Hana Hanifah", avatar: "/images/user/user-08.jpg", nisn: "0012345685", nis: "1008", jk: "P" },
-  { id: 9, nama: "Indra Wijaya", avatar: "/images/user/user-09.jpg", nisn: "0012345686", nis: "1009", jk: "L" },
-  { id: 10, nama: "Jasmine Putri", avatar: "/images/user/user-10.jpg", nisn: "0012345687", nis: "1010", jk: "P" },
-  { id: 11, nama: "Kevin Sanjaya", avatar: "/images/user/user-11.jpg", nisn: "0012345688", nis: "1011", jk: "L" },
-  { id: 12, nama: "Lestari Dewi", avatar: "/images/user/user-12.jpg", nisn: "0012345689", nis: "1012", jk: "P" },
-  { id: 13, nama: "Muhammad Ridwan", avatar: "/images/user/user-13.jpg", nisn: "0012345690", nis: "1013", jk: "L" },
-  { id: 14, nama: "Nadia Utami", avatar: "/images/user/user-14.jpg", nisn: "0012345691", nis: "1014", jk: "P" },
-  { id: 15, nama: "Oki Setiawan", avatar: "/images/user/user-15.jpg", nisn: "0012345692", nis: "1015", jk: "L" },
-  { id: 16, nama: "Putri Ayu", avatar: "/images/user/user-16.jpg", nisn: "0012345693", nis: "1016", jk: "P" },
-  { id: 17, nama: "Rizky Fauzi", avatar: "/images/user/user-17.jpg", nisn: "0012345694", nis: "1017", jk: "L" },
-  { id: 18, nama: "Sinta Maharani", avatar: "/images/user/user-18.jpg", nisn: "0012345695", nis: "1018", jk: "P" },
-  { id: 19, nama: "Taufik Hidayat", avatar: "/images/user/user-19.jpg", nisn: "0012345696", nis: "1019", jk: "L" },
-  { id: 20, nama: "Vina Panduwinata", avatar: "/images/user/user-20.jpg", nisn: "0012345697", nis: "1020", jk: "P" },
-];
 
 interface EkskulTableProps {
-  onSelectionChange?: (selectedIds: number[]) => void;
+  onSelectionChange?: (selectedIds: string[]) => void;
   searchTerm: string;
   itemsPerPage: number;
 }
 
-export default function EkskulTable({ searchTerm, itemsPerPage }: EkskulTableProps) {
+export default function EkskulTable({ onSelectionChange: _, searchTerm, itemsPerPage }: EkskulTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
+  const [ekskulData, setEkskulData] = useState<Ekskul[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const { isOpen, openModal, closeModal } = useModal();
+  const [selectedEkskulId, setSelectedEkskulId] = useState("");
   const [selectedEkskul, setSelectedEkskul] = useState("");
+
+  const [modalStudents, setModalStudents] = useState<any[]>([]);
+  const [isModalLoading, setIsModalLoading] = useState(false);
+
+  // Reset page to 1 on search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        const response = await dapodikService.getEkstrakurikuler(searchTerm);
+        if (response && response.data) {
+          setEkskulData(response.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch ekskul data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, [searchTerm]);
   
   // Modal Pagination State
   const [modalPage, setModalPage] = useState(1);
   const modalItemsPerPage = 10;
   
-  const filteredData = ekskulData.filter(item => 
-    item.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.pembina.toLowerCase().includes(searchTerm.toLowerCase())
-  ).sort((a, b) => a.nama.localeCompare(b.nama));
+  const sortedData = [...ekskulData].sort((a, b) => 
+    (a.nm_ekskul || a.nama || "").localeCompare(b.nm_ekskul || b.nama || "")
+  );
   
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage) || 1;
-  const currentData = filteredData.slice(
+  const totalPages = Math.ceil(sortedData.length / itemsPerPage) || 1;
+  const currentData = sortedData.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
 
-  const handleEkskulClick = (nama: string) => {
+  const handleEkskulClick = (id: string, nama: string) => {
+    setSelectedEkskulId(id);
     setSelectedEkskul(nama);
     setModalPage(1);
     openModal();
   };
 
-  const totalModalPages = Math.ceil(dummyStudents.length / modalItemsPerPage);
-  const currentModalData = dummyStudents.slice(
+  // Fetch real student members when modal is open
+  useEffect(() => {
+    if (!isOpen || !selectedEkskulId) return;
+
+    const fetchAnggota = async () => {
+      setIsModalLoading(true);
+      try {
+        const response = await dapodikService.getRombelAnggota(selectedEkskulId);
+        if (response && response.data) {
+          setModalStudents(response.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch ekskul members:", error);
+      } finally {
+        setIsModalLoading(false);
+      }
+    };
+
+    fetchAnggota();
+  }, [isOpen, selectedEkskulId]);
+
+  const totalModalPages = Math.ceil(modalStudents.length / modalItemsPerPage) || 1;
+  const currentModalData = modalStudents.slice(
     (modalPage - 1) * modalItemsPerPage,
     modalPage * modalItemsPerPage
   );
@@ -121,27 +118,33 @@ export default function EkskulTable({ searchTerm, itemsPerPage }: EkskulTablePro
               <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Nama Ekskul</TableCell>
               <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Pembina</TableCell>
               <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Prasarana</TableCell>
-              <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-center text-theme-xs dark:text-gray-400">Anggota Rombel</TableCell>
             </TableRow>
           </TableHeader>
-          <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-            {currentData.length > 0 ? currentData.map((item) => (
-              <TableRow key={item.id}>
+          <TableBody className={`divide-y divide-gray-100 dark:divide-white/[0.05] ${isLoading && currentData.length > 0 ? "opacity-50 pointer-events-none transition-opacity duration-200" : ""}`}>
+            {isLoading && currentData.length === 0 ? (
+              Array.from({ length: 5 }).map((_, rIdx) => (
+                <TableRow key={rIdx} className="animate-pulse">
+                  <TableCell className="px-5 py-4"><div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-28"></div></TableCell>
+                  <TableCell className="px-5 py-4"><div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-24"></div></TableCell>
+                  <TableCell className="px-5 py-4"><div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-16"></div></TableCell>
+                </TableRow>
+              ))
+            ) : currentData.length > 0 ? currentData.map((item, index) => (
+              <TableRow key={item.rombongan_belajar_id || index}>
                 <TableCell className="px-5 py-4 text-start">
                   <button 
-                    onClick={() => handleEkskulClick(item.nama)}
+                    onClick={() => handleEkskulClick(item.rombongan_belajar_id, item.nama)}
                     className="font-medium text-brand-500 hover:text-brand-600 dark:text-brand-400 dark:hover:text-brand-300 whitespace-nowrap"
                   >
                     {item.nama}
                   </button>
                 </TableCell>
-                <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400 whitespace-nowrap">{item.pembina}</TableCell>
-                <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{item.prasarana}</TableCell>
-                <TableCell className="px-5 py-4 text-gray-800 text-center text-theme-sm dark:text-white/90 font-medium">{item.anggotaRombel}</TableCell>
+                <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400 whitespace-nowrap">{item.ptk_id_str || "-"}</TableCell>
+                <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{item.id_ruang_str || "-"}</TableCell>
               </TableRow>
             )) : (
                 <TableRow>
-                    <TableCell colSpan={4} className="px-5 py-10 text-center text-gray-500 dark:text-gray-400">
+                    <TableCell colSpan={3} className="px-5 py-10 text-center text-gray-500 dark:text-gray-400">
                         Tidak ada data ekskul ditemukan untuk "{searchTerm}"
                     </TableCell>
                 </TableRow>
@@ -178,19 +181,31 @@ export default function EkskulTable({ searchTerm, itemsPerPage }: EkskulTablePro
                 </TableRow>
                 </TableHeader>
                 <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-                {currentModalData.map((student) => (
-                    <TableRow key={student.id}>
+                {isModalLoading ? (
+                    <TableRow>
+                        <TableCell colSpan={4} className="px-5 py-10 text-center text-gray-500 dark:text-gray-400">
+                            Loading...
+                        </TableCell>
+                    </TableRow>
+                ) : currentModalData.length > 0 ? currentModalData.map((student) => (
+                    <TableRow key={student.peserta_didik_id}>
                     <TableCell className="px-5 py-4 text-start whitespace-nowrap">
                         <div className="flex items-center gap-3">
-                            <Avatar src={student.avatar} size="small" />
+                            <Avatar src={student.foto || "/images/user/user-01.jpg"} size="small" />
                             <span className="font-medium text-gray-800 dark:text-white/90">{student.nama}</span>
                         </div>
                     </TableCell>
-                    <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{student.nisn}</TableCell>
-                    <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{student.nis}</TableCell>
-                    <TableCell className="px-5 py-4 text-gray-500 text-center text-theme-sm dark:text-gray-400">{student.jk}</TableCell>
+                    <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{student.nisn || "-"}</TableCell>
+                    <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{student.nipd || "-"}</TableCell>
+                    <TableCell className="px-5 py-4 text-gray-500 text-center text-theme-sm dark:text-gray-400">{student.jenis_kelamin || "-"}</TableCell>
                     </TableRow>
-                ))}
+                )) : (
+                    <TableRow>
+                        <TableCell colSpan={4} className="px-5 py-10 text-center text-gray-500 dark:text-gray-400">
+                            Tidak ada siswa terdaftar di rombel ini
+                        </TableCell>
+                    </TableRow>
+                )}
                 </TableBody>
             </Table>
           </div>
