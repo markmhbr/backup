@@ -101,8 +101,8 @@ const PrintGTKCardPreview: React.FC<PrintGTKCardPreviewProps> = ({ isOpen, onClo
             {/* QR Code Section */}
             <div className="flex justify-center pt-2">
               <div className="bg-white p-1 rounded border border-gray-100 shadow-sm">
-                {person.qr_token ? (
-                  <QRCodeSVG value={person.qr_token} size={42} />
+                {person.qr_token || "" ? (
+                  <QRCodeSVG value={person.qr_token || ""} size={42} />
                 ) : (
                   <div className="w-[42px] h-[42px] flex items-center justify-center bg-gray-50 text-[6px] text-gray-400 border border-dashed rounded font-bold">
                      NO QR

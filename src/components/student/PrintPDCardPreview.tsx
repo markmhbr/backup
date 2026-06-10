@@ -32,6 +32,7 @@ const PrintPDCardPreview: React.FC<PrintPDCardPreviewProps> = ({ isOpen, onClose
           setLoading(true);
           const result = await dapodikService.getRombelAnggota(rombelId);
           if (result && result.data) {
+            console.log("Anggota Rombel Loaded. Contoh Siswa:", result.data[0]);
             setStudents(result.data);
           } else {
             setStudents([]);
@@ -143,12 +144,19 @@ const PrintPDCardPreview: React.FC<PrintPDCardPreviewProps> = ({ isOpen, onClose
                   
                   {/* QR Code Section */}
                   <div className="flex justify-center pt-2 relative z-20">
-                    <div className="bg-white p-1 rounded border border-gray-100 shadow-sm">
+                    <div className="bg-white p-1 rounded border border-gray-200 shadow-sm inline-block">
                       {student.qr_token ? (
-                        <QRCodeSVG value={student.qr_token || "no-token"} size={42} level="H" includeMargin={false} />
+                        <QRCodeSVG 
+                          value={student.qr_token} 
+                          size={42} 
+                          level="M" 
+                          includeMargin={true}
+                          fgColor="#000000"
+                          bgColor="#FFFFFF"
+                        />
                       ) : (
-                        <div className="w-[42px] h-[42px] flex items-center justify-center bg-gray-50 text-[6px] text-gray-400 border border-dashed rounded font-bold">
-                           NO QR
+                        <div className="w-[42px] h-[42px] flex items-center justify-center bg-gray-50 text-[6px] text-gray-400 border border-dashed rounded font-bold uppercase">
+                           No Token
                         </div>
                       )}
                     </div>
