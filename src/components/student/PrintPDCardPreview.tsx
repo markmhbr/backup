@@ -87,7 +87,7 @@ const PrintPDCardPreview: React.FC<PrintPDCardPreviewProps> = ({ isOpen, onClose
       <div className="id-card-preview-container p-8 bg-gray-50 dark:bg-gray-900/50 max-h-[75vh] overflow-y-auto custom-scrollbar print:p-0 print:bg-white print:overflow-visible print:max-h-none">
         {loading ? (
             <div className="flex justify-center py-20">
-                <p className="text-gray-500">Memuat data siswa...</p>
+                <p className="text-gray-500 font-medium">Memuat data siswa...</p>
             </div>
         ) : students.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 justify-items-center print:grid-cols-3 print:gap-4">
@@ -188,20 +188,19 @@ const PrintPDCardPreview: React.FC<PrintPDCardPreviewProps> = ({ isOpen, onClose
           body * {
             visibility: hidden;
           }
-          .modal-backdrop {
+          .modal-backdrop, .print\\:hidden {
             display: none !important;
           }
-          .print\\:hidden {
-            display: none !important;
-          }
-          .modal-content, .print-content, .print-content * {
+          .id-card-preview-container, .id-card-preview-container * {
             visibility: visible !important;
           }
-          .print-content {
+          .id-card-preview-container {
             position: absolute !important;
             left: 0 !important;
             top: 0 !important;
             width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
           }
           [role="dialog"] {
             position: absolute !important;
