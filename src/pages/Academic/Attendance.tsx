@@ -52,15 +52,15 @@ export default function Attendance() {
   return (
     <>
       <PageMeta
-        title="SIMAK | Presensi Siswa"
-        description="Halaman pengelolaan kehadiran siswa"
+        title="SIMAK | Presensi Peserta Didik"
+        description="Halaman pengelolaan kehadiran peserta didik"
       />
       <div className="space-y-6">
         {/* Header Actions */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-gray-800 dark:text-white/90">
-              Presensi Siswa
+              Presensi Peserta Didik
             </h1>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
               Pantau dan kelola tingkat kehadiran peserta didik.
@@ -105,7 +105,7 @@ export default function Attendance() {
               </span>
               <Input
                 type="text"
-                placeholder="Cari Nama Siswa atau NIPD..."
+                placeholder="Cari Nama Peserta Didik atau NIPD..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"

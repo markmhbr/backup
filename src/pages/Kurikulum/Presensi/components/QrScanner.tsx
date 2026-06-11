@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect } from "react";
 import { Html5QrcodeScanner, Html5QrcodeScanType } from "html5-qrcode";
 
 interface QrScannerProps {
@@ -18,37 +18,51 @@ const QrScanner: React.FC<QrScannerProps> = ({
   aspectRatio = 1.0,
   disableFlip = false,
 }) => {
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
   const containerId = "qr-reader";
 
   useEffect(() => {
-    // Inisialisasi scanner
-    scannerRef.current = new Html5QrcodeScanner(
-      containerId,
-      {
-        fps,
-        qrbox,
-        aspectRatio,
-        disableFlip,
-        rememberLastUsedCamera: true,
-        supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
-      },
-      /* verbose= */ false
-    );
+    let isMounted = true;
+    let scanner: Html5QrcodeScanner | null = null;
 
-    scannerRef.current.render(
-      (decodedText) => {
-        onScanSuccess(decodedText);
-      },
-      (errorMessage) => {
-        if (onScanError) onScanError(errorMessage);
-      }
-    );
+    // Delay 100ms to allow potential React StrictMode synchronous double-mount cycles to settle
+    const timer = setTimeout(() => {
+      if (!isMounted) return;
+
+      const container = document.getElementById(containerId);
+      if (!container) return;
+
+      // Prevent double initialization if container is already populated
+      if (container.innerHTML.trim() !== "") return;
+
+      scanner = new Html5QrcodeScanner(
+        containerId,
+        {
+          fps,
+          qrbox,
+          aspectRatio,
+          disableFlip,
+          rememberLastUsedCamera: true,
+          supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
+        },
+        /* verbose= */ false
+      );
+
+      scanner.render(
+        (decodedText) => {
+          onScanSuccess(decodedText);
+        },
+        (errorMessage) => {
+          if (onScanError) onScanError(errorMessage);
+        }
+      );
+    }, 100);
 
     // Cleanup saat component unmount
     return () => {
-      if (scannerRef.current) {
-        scannerRef.current.clear().catch((error) => {
+      isMounted = false;
+      clearTimeout(timer);
+      if (scanner) {
+        scanner.clear().catch((error) => {
           console.error("Failed to clear html5QrcodeScanner", error);
         });
       }

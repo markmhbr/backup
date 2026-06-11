@@ -94,84 +94,44 @@ const PrintPDCardPreview: React.FC<PrintPDCardPreviewProps> = ({ isOpen, onClose
             {students.map((student) => (
               <div 
                 key={student.peserta_didik_id} 
-                className="id-card-vertical relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden shadow-md print:shadow-none print:border print:border-gray-300"
+                className="id-card-vertical relative bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-800 rounded-xl overflow-hidden print:shadow-none print:border print:border-gray-400 flex flex-col items-center justify-center p-3 gap-3"
                 style={{ 
                   width: '5.5cm', 
                   height: '8.5cm',
                   pageBreakInside: 'avoid'
                 }}
               >
-                {/* Vertical Card Header */}
-                <div className="h-20 bg-brand-500 flex flex-col items-center justify-center p-2 text-center">
-                  <img src="/images/logo/logo-icon.svg" alt="Logo" className="w-8 h-8 brightness-0 invert mb-1" />
-                  <h5 className="text-[10px] font-bold text-white uppercase leading-tight">Kartu Pelajar</h5>
-                  <p className="text-[7px] text-white/90 uppercase tracking-tighter">SMK SIMAK INDONESIA</p>
-                </div>
-
                 {/* Photo Area */}
-                <div className="flex justify-center -mt-6 relative z-10">
-                  <div className="w-20 h-24 bg-white dark:bg-gray-800 p-0.5 rounded-md shadow-sm border border-gray-100 dark:border-gray-700">
-                      <div className="w-full h-full overflow-hidden rounded flex items-center justify-center bg-gray-50">
-                          <img src={student.foto ? `/storage/${student.foto}` : "/images/user/user-01.jpg"} alt={student.nama} className="w-full h-full object-cover" />
-                      </div>
-                  </div>
+                <div className="w-18 h-22 bg-gray-50 dark:bg-gray-800 p-0.5 rounded border border-gray-200 dark:border-gray-700 flex items-center justify-center overflow-hidden">
+                  <img 
+                    src={student.foto ? `/storage/${student.foto}` : "/images/user/user-01.jpg"} 
+                    alt={student.nama} 
+                    className="w-full h-full object-cover rounded" 
+                  />
                 </div>
 
-                {/* Class Badge */}
-                <div className="flex justify-center mt-2">
-                  <span className="px-2 py-0 bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400 rounded-full text-[8px] font-bold uppercase border border-brand-100 dark:border-brand-500/20">
-                      {rombelName}
-                  </span>
+                {/* NISN */}
+                <div className="text-center">
+                  <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase leading-none mb-1">NISN</p>
+                  <p className="text-[14px] font-black text-gray-900 dark:text-white leading-none">{student.nisn || "-"}</p>
                 </div>
-
-                {/* Details Area */}
-                <div className="px-3 py-3 space-y-2 text-center">
-                  <div>
-                    <p className="text-[7px] text-gray-400 uppercase font-bold tracking-widest leading-none mb-1">Nama Lengkap</p>
-                    <p className="text-[10px] font-extrabold text-gray-800 dark:text-white leading-tight uppercase line-clamp-2">{student.nama}</p>
-                  </div>
-
-                  <div className="grid grid-cols-2 border-t border-gray-100 dark:border-white/[0.05] pt-2 gap-2">
-                    <div>
-                      <p className="text-[7px] text-gray-400 uppercase font-bold mb-0.5">NISN</p>
-                      <p className="text-[9px] font-bold text-gray-800 dark:text-white leading-none">{student.nisn || "-"}</p>
+                
+                {/* QR Code Section */}
+                <div className="bg-white p-1 rounded border border-gray-200 shadow-sm">
+                  {student.qr_token ? (
+                    <QRCodeSVG 
+                      value={student.qr_token} 
+                      size={96} 
+                      level="M" 
+                      includeMargin={false}
+                      fgColor="#000000"
+                      bgColor="#FFFFFF"
+                    />
+                  ) : (
+                    <div className="w-[96px] h-[96px] flex items-center justify-center bg-gray-50 text-[6px] text-gray-400 border border-dashed rounded font-bold uppercase">
+                       No Token
                     </div>
-                    <div>
-                      <p className="text-[7px] text-gray-400 uppercase font-bold mb-0.5">NIPD</p>
-                      <p className="text-[9px] font-bold text-gray-800 dark:text-white leading-none">{student.nipd || "-"}</p>
-                    </div>
-                  </div>
-                  
-                  {/* QR Code Section */}
-                  <div className="flex justify-center pt-2 relative z-20">
-                    <div className="bg-white p-1 rounded border border-gray-200 shadow-sm inline-block">
-                      {student.qr_token ? (
-                        <QRCodeSVG 
-                          value={student.qr_token} 
-                          size={42} 
-                          level="M" 
-                          includeMargin={true}
-                          fgColor="#000000"
-                          bgColor="#FFFFFF"
-                        />
-                      ) : (
-                        <div className="w-[42px] h-[42px] flex items-center justify-center bg-gray-50 text-[6px] text-gray-400 border border-dashed rounded font-bold uppercase">
-                           No Token
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="pt-1">
-                      <p className="text-[7px] text-gray-400 uppercase font-bold mb-0.5">Jenis Kelamin</p>
-                      <p className="text-[9px] font-bold text-gray-800 dark:text-white leading-none">{student.jenis_kelamin === "L" ? "Laki-laki" : "Perempuan"}</p>
-                  </div>
-                </div>
-
-                {/* Card Footer Decoration */}
-                <div className="absolute bottom-0 left-0 w-full h-0.5 bg-brand-500"></div>
-                <div className="absolute bottom-1.5 left-0 w-full text-center">
-                  <p className="text-[6px] text-gray-300 italic font-medium tracking-tight">Berlaku selama menjadi siswa aktif</p>
+                  )}
                 </div>
               </div>
             ))}

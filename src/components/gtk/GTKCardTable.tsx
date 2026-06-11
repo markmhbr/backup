@@ -19,6 +19,7 @@ interface GTKCard {
   nama: string;
   foto?: string;
   nuptk: string;
+  nik?: string;
   jabatan_ptk_id_str: string;
   jenis_ptk_id_str: string;
 }

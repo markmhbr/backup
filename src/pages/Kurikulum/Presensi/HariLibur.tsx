@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import PageMeta from "../../../components/common/PageMeta";
-import { absensiService } from "../../../services/absensiService";
+import { presensiService } from "../../../services/presensiService";
 import ComponentCard from "../../../components/common/ComponentCard";
 import { useSekolah } from "../../../context/SekolahContext";
 
@@ -19,7 +19,7 @@ const HariLibur: React.FC = () => {
     if (!sekolah) return;
     setLoading(true);
     try {
-      const response = await absensiService.getHariLibur(sekolah.sekolah_id);
+      const response = await presensiService.getHariLibur(sekolah.sekolah_id);
       setHolidays(response);
     } catch (error) {
       console.error("Gagal mengambil data hari libur:", error);
@@ -38,7 +38,7 @@ const HariLibur: React.FC = () => {
 
     setLoading(true);
     try {
-      await absensiService.createHariLibur(sekolah.sekolah_id, formData);
+      await presensiService.createHariLibur(sekolah.sekolah_id, formData);
       alert("Berhasil menambahkan hari libur!");
       setFormData({
         nama: "",
@@ -58,7 +58,7 @@ const HariLibur: React.FC = () => {
     if (!sekolah || !window.confirm("Yakin ingin menghapus hari libur ini?")) return;
 
     try {
-      await absensiService.deleteHariLibur(sekolah.sekolah_id, id);
+      await presensiService.deleteHariLibur(sekolah.sekolah_id, id);
       fetchHolidays();
     } catch (error) {
       alert("Gagal menghapus hari libur");
@@ -78,7 +78,7 @@ const HariLibur: React.FC = () => {
             Hari Libur Sekolah
           </h3>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Atur kalender libur sekolah untuk memvalidasi sistem absensi otomatis.
+            Atur kalender libur sekolah untuk memvalidasi sistem presensi otomatis.
           </p>
         </div>
       </div>

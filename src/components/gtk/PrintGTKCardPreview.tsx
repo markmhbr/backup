@@ -8,6 +8,7 @@ interface GTKCardData {
   nama: string;
   avatar: string;
   nuptk: string;
+  nik?: string;
   jabatan: string;
   jenis: "Guru" | "Tendik";
   qr_token?: string;
@@ -58,64 +59,47 @@ const PrintGTKCardPreview: React.FC<PrintGTKCardPreviewProps> = ({ isOpen, onClo
       {/* Printable Content */}
       <div className="p-10 flex justify-center bg-gray-50 dark:bg-gray-900/50 print:p-0 print:bg-white">
         <div 
-          className="id-card-vertical relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden shadow-lg print:shadow-none print:border print:border-gray-300"
+          className="id-card-vertical relative bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-800 rounded-xl overflow-hidden print:shadow-none print:border print:border-gray-400 flex flex-col items-center justify-center p-3 gap-3"
           style={{ 
             width: '5.5cm', 
             height: '8.5cm'
           }}
         >
-          {/* Vertical Card Header */}
-          <div className="h-24 bg-brand-500 flex flex-col items-center justify-center p-4 text-center">
-            <img src="/images/logo/logo-icon.svg" alt="Logo" className="w-10 h-10 brightness-0 invert mb-1" />
-            <h5 className="text-[10px] font-bold text-white uppercase leading-tight">Kartu Identitas {person.jenis}</h5>
-            <p className="text-[8px] text-white/90 uppercase tracking-tighter">SMK SIMAK INDONESIA</p>
-          </div>
-
           {/* Photo Area */}
-          <div className="flex justify-center -mt-8 relative z-10">
-            <div className="w-24 h-32 bg-white dark:bg-gray-800 p-1 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
-                <div className="w-full h-full overflow-hidden rounded-md flex items-center justify-center bg-gray-50">
-                    <img src={person.avatar} alt={person.nama} className="w-full h-full object-cover" />
-                </div>
-            </div>
+          <div className="w-18 h-22 bg-gray-50 dark:bg-gray-800 p-0.5 rounded border border-gray-200 dark:border-gray-700 flex items-center justify-center overflow-hidden">
+            <img 
+              src={person.avatar || "/images/user/user-01.jpg"} 
+              alt={person.nama} 
+              className="w-full h-full object-cover rounded" 
+            />
           </div>
 
-          {/* Details Area */}
-          <div className="px-4 py-4 space-y-3 text-center">
-            <div>
-              <p className="text-[8px] text-gray-400 uppercase font-bold tracking-widest leading-none mb-1">Nama Lengkap</p>
-              <p className="text-[11px] font-extrabold text-gray-800 dark:text-white leading-tight uppercase line-clamp-2">{person.nama}</p>
-            </div>
-
-            <div className="space-y-2 border-t border-gray-100 dark:border-white/[0.05] pt-3">
-              <div>
-                <p className="text-[8px] text-gray-400 uppercase font-bold mb-0.5">NUPTK</p>
-                <p className="text-[10px] font-bold text-gray-800 dark:text-white leading-none">{person.nuptk}</p>
-              </div>
-              <div>
-                <p className="text-[8px] text-gray-400 uppercase font-bold mb-0.5">Jabatan</p>
-                <p className="text-[10px] font-bold text-gray-800 dark:text-white leading-none uppercase">{person.jabatan}</p>
-              </div>
-            </div>
-
-            {/* QR Code Section */}
-            <div className="flex justify-center pt-2">
-              <div className="bg-white p-1 rounded border border-gray-100 shadow-sm">
-                {person.qr_token || "" ? (
-                  <QRCodeSVG value={person.qr_token || ""} size={42} />
-                ) : (
-                  <div className="w-[42px] h-[42px] flex items-center justify-center bg-gray-50 text-[6px] text-gray-400 border border-dashed rounded font-bold">
-                     NO QR
-                  </div>
-                )}
-              </div>
-            </div>
+          {/* NUPTK / NIK */}
+          <div className="text-center">
+            <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase leading-none mb-1">
+              {person.nuptk ? "NUPTK" : "NIK"}
+            </p>
+            <p className="text-[14px] font-black text-gray-900 dark:text-white leading-none">
+              {person.nuptk || person.nik || "-"}
+            </p>
           </div>
 
-          {/* Card Footer Decoration */}
-          <div className="absolute bottom-0 left-0 w-full h-1 bg-brand-500"></div>
-          <div className="absolute bottom-2 left-0 w-full text-center">
-            <p className="text-[7px] text-gray-300 italic font-medium tracking-tight">SIMAK Admin Panel System</p>
+          {/* QR Code Section */}
+          <div className="bg-white p-1 rounded border border-gray-200 shadow-sm">
+            {person.qr_token ? (
+              <QRCodeSVG 
+                value={person.qr_token} 
+                size={96} 
+                level="M" 
+                includeMargin={false}
+                fgColor="#000000"
+                bgColor="#FFFFFF"
+              />
+            ) : (
+              <div className="w-[96px] h-[96px] flex items-center justify-center bg-gray-50 text-[6px] text-gray-400 border border-dashed rounded font-bold uppercase">
+                 No Token
+              </div>
+            )}
           </div>
         </div>
       </div>

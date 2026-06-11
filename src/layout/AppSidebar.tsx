@@ -186,37 +186,37 @@ const navItems: NavItem[] = [
         icon: <DotIcon />,
       },
       {
-        name: "Absensi",
+        name: "Presensi",
         icon: <DotIcon />,
         subItems: [
           {
             name: "Scanner QR",
-            path: "/kurikulum/absensi/scanner",
+            path: "/kurikulum/presensi/scanner",
             icon: <DotIcon />,
           },
           {
-            name: "Absensi PD",
-            path: "/kurikulum/absensi/siswa",
+            name: "Presensi Peserta Didik",
+            path: "/kurikulum/presensi/pesertadidik",
             icon: <DotIcon />,
           },
           {
-            name: "Absensi GTK",
-            path: "/kurikulum/absensi/gtk",
+            name: "Presensi GTK",
+            path: "/kurikulum/presensi/gtk",
             icon: <DotIcon />,
           },
           {
-            name: "Absensi Mapel",
-            path: "/kurikulum/absensi/mapel",
+            name: "Presensi Mapel",
+            path: "/kurikulum/presensi/mapel",
             icon: <DotIcon />,
           },
           {
-            name: "Izin / Sakit",
-            path: "/kurikulum/absensi/izin",
+            name: "Izin",
+            path: "/kurikulum/presensi/izin",
             icon: <DotIcon />,
           },
           {
             name: "Hari Libur",
-            path: "/kurikulum/absensi/hari-libur",
+            path: "/kurikulum/presensi/hari-libur",
             icon: <DotIcon />,
           },
         ],

@@ -34,11 +34,11 @@ import { useAuth } from "./context/AuthContext";
 import { getRoleSlug } from "./services/roleUtils";
 import PengaturanJam from "./pages/Kurikulum/PengaturanJam";
 import JadwalPelajaran from "./pages/Kurikulum/JadwalPelajaran";
-import AbsensiPD from "./pages/Kurikulum/Absensi/AbsensiPD";
-import AbsensiGTK from "./pages/Kurikulum/Absensi/AbsensiGTK";
-import HariLibur from "./pages/Kurikulum/Absensi/HariLibur";
-import Scanner from "./pages/Kurikulum/Absensi/Scanner";
-import IzinSakit from "./pages/Kurikulum/Absensi/IzinSakit";
+import PresensiPD from "./pages/Kurikulum/Presensi/PresensiPD";
+import PresensiGTK from "./pages/Kurikulum/Presensi/PresensiGTK";
+import HariLibur from "./pages/Kurikulum/Presensi/HariLibur";
+import Scanner from "./pages/Kurikulum/Presensi/Scanner";
+import IzinSakit from "./pages/Kurikulum/Presensi/IzinSakit";
 
 function HomeRedirect() {
   const { user, isAuthenticated } = useAuth();
@@ -86,12 +86,12 @@ export default function App() {
             {/* Kurikulum */}
             <Route path="kurikulum/pengaturan-jam" element={<PengaturanJam />} />
             <Route path="kurikulum/jadwal-pelajaran" element={<JadwalPelajaran />} />
-            <Route path="kurikulum/absensi/scanner" element={<Scanner />} />
-            <Route path="kurikulum/absensi/siswa" element={<AbsensiPD />} />
-            <Route path="kurikulum/absensi/gtk" element={<AbsensiGTK />} />
-            <Route path="kurikulum/absensi/mapel" element={<Blank />} />
-            <Route path="kurikulum/absensi/izin" element={<IzinSakit />} />
-            <Route path="kurikulum/absensi/hari-libur" element={<HariLibur />} />
+            <Route path="kurikulum/presensi/scanner" element={<Scanner />} />
+            <Route path="kurikulum/presensi/pesertadidik" element={<PresensiPD />} />
+            <Route path="kurikulum/presensi/gtk" element={<PresensiGTK />} />
+            <Route path="kurikulum/presensi/mapel" element={<Blank />} />
+            <Route path="kurikulum/presensi/izin" element={<IzinSakit />} />
+            <Route path="kurikulum/presensi/hari-libur" element={<HariLibur />} />
 
             {/* Other */}
             <Route path="sync-api" element={<ApiSyncPage />} />
