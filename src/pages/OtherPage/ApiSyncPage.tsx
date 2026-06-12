@@ -5,8 +5,10 @@ import Input from "../../components/form/input/InputField";
 import Label from "../../components/form/Label";
 import Swal from "sweetalert2";
 import { dapodikService } from "../../services/dapodikService";
+import { useAuth } from "../../context/AuthContext";
 
 export default function ApiSyncPage() {
+  const { logout } = useAuth();
   const [syncKey, setSyncKey] = useState("");
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
@@ -36,12 +38,12 @@ export default function ApiSyncPage() {
         
         Swal.fire({
           title: "Berhasil!",
-          text: "Sinkronisasi berhasil. Aplikasi akan memuat ulang.",
+          text: "Sinkronisasi berhasil. Anda akan keluar secara otomatis dalam 2 detik.",
           icon: "success",
           timer: 2000,
           showConfirmButton: false,
         }).then(() => {
-          window.location.reload();
+          logout();
         });
       }
     } catch (err: any) {

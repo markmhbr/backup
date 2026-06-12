@@ -23,8 +23,8 @@ export default function SignIn() {
   return (
     <>
       <PageMeta
-        title="React.js SignIn Dashboard | SIMAK - Next.js Admin Dashboard Template"
-        description="This is React.js SignIn Tables Dashboard page for SIMAK - React.js Tailwind CSS Admin Dashboard Template"
+        title="Sign In | SIMAK"
+        description="Halaman masuk SIMAK (Sistem Informasi Manajemen Akademik) Sekolah."
       />
       <AuthLayout>
         <SignInForm />

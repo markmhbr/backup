@@ -11,8 +11,8 @@ export default function NotFound() {
   return (
     <>
       <PageMeta
-        title="React.js 404 Dashboard | SIMAK - React.js Admin Dashboard Template"
-        description="This is React.js 404 Dashboard page for SIMAK - React.js Tailwind CSS Admin Dashboard Template"
+        title="Halaman Tidak Ditemukan | SIMAK"
+        description="Halaman yang Anda cari tidak ditemukan di sistem SIMAK."
       />
       <div className="relative flex flex-col items-center justify-center min-h-screen p-6 overflow-hidden z-1">
         <GridShape />
