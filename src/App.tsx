@@ -39,6 +39,8 @@ import PresensiGTK from "./pages/Kurikulum/Presensi/PresensiGTK";
 import HariLibur from "./pages/Kurikulum/Presensi/HariLibur";
 import Scanner from "./pages/Kurikulum/Presensi/Scanner";
 import IzinSakit from "./pages/Kurikulum/Presensi/IzinSakit";
+import IndisiplinerData from "./pages/indisipliner/IndisiplinerData";
+import KeuanganData from "./pages/keuangan/KeuanganData";
 
 function HomeRedirect() {
   const { user, isAuthenticated } = useAuth();
@@ -92,6 +94,12 @@ export default function App() {
             <Route path="kurikulum/presensi/mapel" element={<Blank />} />
             <Route path="kurikulum/presensi/izin" element={<IzinSakit />} />
             <Route path="kurikulum/presensi/hari-libur" element={<HariLibur />} />
+
+            {/* Indisipliner */}
+            <Route path="indisipliner" element={<IndisiplinerData />} />
+
+            {/* Keuangan */}
+            <Route path="keuangan" element={<KeuanganData />} />
 
             {/* Other */}
             <Route path="sync-api" element={<ApiSyncPage />} />

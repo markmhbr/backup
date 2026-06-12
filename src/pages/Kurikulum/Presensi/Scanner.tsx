@@ -8,6 +8,30 @@ import Swal from "sweetalert2";
 const Scanner: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string, data?: any } | null>(null);
+  const [voiceEnabled, setVoiceEnabled] = useState(() => {
+    const saved = localStorage.getItem("presensi_voice_enabled");
+    return saved !== null ? saved === "true" : true;
+  });
+
+  const speak = (text: string) => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'id-ID';
+      
+      const voices = window.speechSynthesis.getVoices();
+      const idVoice = voices.find(v => v.lang.toLowerCase().includes('id'));
+      if (idVoice) {
+        utterance.voice = idVoice;
+      }
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
+  const handleVoiceToggle = (checked: boolean) => {
+    setVoiceEnabled(checked);
+    localStorage.setItem("presensi_voice_enabled", String(checked));
+  };
 
   const handleScan = async (scannedToken: string) => {
     if (!scannedToken || loading) return;
@@ -34,7 +58,12 @@ const Scanner: React.FC = () => {
       
       const fotoUrl = profile.foto 
         ? `${backendBaseURL}/storage/${profile.foto}` 
-        : '/images/user/user-01.jpg';
+        : '/images/default/profile.jpg';
+      
+      // Speak success
+      if (voiceEnabled) {
+        speak(`${profile.nama} sudah melakukan presensi ${statusText.toLowerCase()}`);
+      }
 
       // Show beautiful SweetAlert2 modal
       Swal.fire({
@@ -42,7 +71,7 @@ const Scanner: React.FC = () => {
         html: `
           <div class="flex flex-col items-center gap-4 mt-2">
             <div class="w-28 h-28 rounded-full overflow-hidden border-4 border-green-500 shadow-md">
-              <img src="${fotoUrl}" alt="${profile.nama}" class="w-full h-full object-cover" onerror="this.src='/images/user/user-01.jpg'" />
+              <img src="${fotoUrl}" alt="${profile.nama}" class="w-full h-full object-cover" onerror="this.src='/images/default/profile.jpg'" />
             </div>
             <div class="text-center">
               <h4 class="text-lg font-bold text-gray-800 dark:text-white/90">${profile.nama}</h4>
@@ -74,11 +103,28 @@ const Scanner: React.FC = () => {
     } catch (error: any) {
       const errorMsg = error.response?.data?.message || "Gagal mencatat kehadiran. QR Token tidak dikenal atau sekolah sedang libur.";
       
+      // Speak error
+      if (voiceEnabled) {
+        const lowerMsg = errorMsg.toLowerCase();
+        if (
+          lowerMsg.includes("belum saatnya presensi pulang") || 
+          lowerMsg.includes("belum selesai") || 
+          lowerMsg.includes("belum tiba") ||
+          lowerMsg.includes("sudah melakukan presensi")
+        ) {
+          speak("Anda sudah melakukan presensi masuk");
+        } else {
+          speak("Presensi gagal");
+        }
+      }
+
       Swal.fire({
         title: 'Presensi Gagal!',
         text: errorMsg,
         icon: 'error',
-        confirmButtonColor: '#ef4444',
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true,
         background: document.documentElement.classList.contains('dark') ? '#1e293b' : '#ffffff',
         color: document.documentElement.classList.contains('dark') ? '#f1f5f9' : '#1e293b',
       });
@@ -98,7 +144,7 @@ const Scanner: React.FC = () => {
         description="Scanner QR Code untuk kehadiran Peserta Didik dan GTK"
       />
       
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 mb-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 mb-6">
         <div>
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
             Scanner Kehadiran
@@ -106,6 +152,27 @@ const Scanner: React.FC = () => {
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             Gunakan kamera untuk melakukan presensi massal Peserta Didik dan GTK secara otomatis.
           </p>
+        </div>
+
+        {/* Voice Feedback Toggle */}
+        <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/40 px-4 py-2.5 rounded-xl border border-gray-100 dark:border-gray-800 shrink-0">
+          <div className="flex flex-col">
+            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+              Suara Presensi
+            </span>
+            <span className="text-[10px] text-gray-400">
+              Sebut nama saat berhasil
+            </span>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={voiceEnabled}
+              onChange={(e) => handleVoiceToggle(e.target.checked)}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-green-500"></div>
+          </label>
         </div>
       </div>
       
@@ -190,3 +257,4 @@ const Scanner: React.FC = () => {
 };
 
 export default Scanner;
+

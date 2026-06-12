@@ -68,9 +68,12 @@ const PrintGTKCardPreview: React.FC<PrintGTKCardPreviewProps> = ({ isOpen, onClo
           {/* Photo Area */}
           <div className="w-18 h-22 bg-gray-50 dark:bg-gray-800 p-0.5 rounded border border-gray-200 dark:border-gray-700 flex items-center justify-center overflow-hidden">
             <img 
-              src={person.avatar || "/images/user/user-01.jpg"} 
+              src={person.avatar || "/images/default/profile.jpg"} 
               alt={person.nama} 
               className="w-full h-full object-cover rounded" 
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = "/images/default/profile.jpg";
+              }}
             />
           </div>
 

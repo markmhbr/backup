@@ -16,6 +16,7 @@ import {
   TableIcon,
   UserCircleIcon,
   BoltIcon,
+  GroupIcon,
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
 import SidebarWidget from "./SidebarWidget";
@@ -220,6 +221,43 @@ const navItems: NavItem[] = [
             icon: <DotIcon />,
           },
         ],
+      },
+    ],
+  },
+  {
+    icon: <GroupIcon />,
+    name: "Indisipliner",
+    subItems: [
+      {
+        name: "Peserta Didik",
+        path: "/indisipliner?tab=peserta-didik",
+        icon: <DotIcon />,
+      },
+      {
+        name: "GTK",
+        path: "/indisipliner?tab=gtk",
+        icon: <DotIcon />,
+      },
+    ],
+  },
+  {
+    icon: <TableIcon />,
+    name: "Keuangan",
+    subItems: [
+      {
+        name: "Pengaturan Tagihan",
+        path: "/keuangan?tab=pengaturan",
+        icon: <DotIcon />,
+      },
+      {
+        name: "Tagihan SPP",
+        path: "/keuangan?tab=tagihan",
+        icon: <DotIcon />,
+      },
+      {
+        name: "Laporan & Rekap",
+        path: "/keuangan?tab=laporan",
+        icon: <DotIcon />,
       },
     ],
   },

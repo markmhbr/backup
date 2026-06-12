@@ -49,6 +49,12 @@ const PrintPDCardPreview: React.FC<PrintPDCardPreviewProps> = ({ isOpen, onClose
     }
   }, [isOpen, rombelId]);
 
+  const getBackendBaseURL = () => {
+    return import.meta.env.VITE_API_URL 
+      ? import.meta.env.VITE_API_URL.replace('/api', '') 
+      : 'https://centralsimak.smakniscjr.sch.id';
+  };
+
   const handlePrint = () => {
     window.print();
   };
@@ -104,16 +110,23 @@ const PrintPDCardPreview: React.FC<PrintPDCardPreviewProps> = ({ isOpen, onClose
                 {/* Photo Area */}
                 <div className="w-18 h-22 bg-gray-50 dark:bg-gray-800 p-0.5 rounded border border-gray-200 dark:border-gray-700 flex items-center justify-center overflow-hidden">
                   <img 
-                    src={student.foto ? `/storage/${student.foto}` : "/images/user/user-01.jpg"} 
+                    src={student.foto ? `${getBackendBaseURL()}/storage/${student.foto}` : "/images/default/profile.jpg"} 
                     alt={student.nama} 
                     className="w-full h-full object-cover rounded" 
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = "/images/default/profile.jpg";
+                    }}
                   />
                 </div>
 
-                {/* NISN */}
-                <div className="text-center">
-                  <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase leading-none mb-1">NISN</p>
-                  <p className="text-[14px] font-black text-gray-900 dark:text-white leading-none">{student.nisn || "-"}</p>
+                {/* Nama & NISN */}
+                <div className="text-center px-2 w-full">
+                  <p className="text-[11px] font-bold text-gray-900 dark:text-white uppercase leading-tight mb-1 truncate" title={student.nama}>
+                    {student.nama}
+                  </p>
+                  <p className="text-[12px] font-black text-gray-500 dark:text-gray-400 leading-none">
+                    {student.nisn || "-"}
+                  </p>
                 </div>
                 
                 {/* QR Code Section */}
