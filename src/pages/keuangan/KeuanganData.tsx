@@ -439,8 +439,13 @@ export default function KeuanganData() {
           </div>
           <div className="flex flex-wrap items-center gap-3">
             {activeTab === "pengaturan" && (
-              <Button variant="primary" size="sm" onClick={() => setIsConfigModalOpen(true)}>
-                <PlusIcon className="w-5 h-5 mr-2" /> Tambah Pengaturan
+              <Button
+                variant="outline"
+                size="sm"
+                startIcon={<PlusIcon className="size-4 fill-current" />}
+                onClick={() => setIsConfigModalOpen(true)}
+              >
+                Tambah Pengaturan
               </Button>
             )}
             {activeTab === "tagihan" && (

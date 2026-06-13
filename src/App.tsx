@@ -41,6 +41,7 @@ import Scanner from "./pages/Kurikulum/Presensi/Scanner";
 import IzinSakit from "./pages/Kurikulum/Presensi/IzinSakit";
 import IndisiplinerData from "./pages/indisipliner/IndisiplinerData";
 import KeuanganData from "./pages/keuangan/KeuanganData";
+import SuratData from "./pages/Surat/SuratData";
 
 function HomeRedirect() {
   const { user, isAuthenticated } = useAuth();
@@ -100,6 +101,9 @@ export default function App() {
 
             {/* Keuangan */}
             <Route path="keuangan" element={<KeuanganData />} />
+
+            {/* Administrasi Surat */}
+            <Route path="surat" element={<SuratData />} />
 
             {/* Other */}
             <Route path="sync-api" element={<ApiSyncPage />} />

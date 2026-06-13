@@ -262,6 +262,37 @@ const navItems: NavItem[] = [
     ],
   },
   {
+    icon: <DocsIcon />,
+    name: "Administrasi Surat",
+    subItems: [
+      {
+        name: "Pengaturan Nomor",
+        path: "/surat?tab=pengaturan",
+        icon: <DotIcon />,
+      },
+      {
+        name: "Template Surat",
+        path: "/surat?tab=template",
+        icon: <DotIcon />,
+      },
+      {
+        name: "Surat Masuk",
+        path: "/surat?tab=masuk",
+        icon: <DotIcon />,
+      },
+      {
+        name: "Surat Keluar",
+        path: "/surat?tab=keluar",
+        icon: <DotIcon />,
+      },
+      {
+        name: "Arsip Surat",
+        path: "/surat?tab=arsip",
+        icon: <DotIcon />,
+      },
+    ],
+  },
+  {
     icon: <CalenderIcon />,
     name: "Kalender",
     path: "/calendar",

@@ -481,7 +481,7 @@ export default function PengaturanJam() {
               Kelola template jadwal (jenis jadwal) dan atur slot waktu kegiatan untuk setiap template.
             </p>
           </div>
-          <Button onClick={handleAddJenisJadwal} startIcon={<PlusIcon className="size-4 fill-current" />}>
+          <Button variant="outline" onClick={handleAddJenisJadwal} startIcon={<PlusIcon className="size-4 fill-current" />}>
             Tambah Jenis Jadwal
           </Button>
         </div>
@@ -614,7 +614,7 @@ export default function PengaturanJam() {
                       <Button size="sm" variant="outline" onClick={handleEditJamKerjaHariIni} startIcon={<PencilIcon className="size-4 fill-current" />}>
                         Ubah Jam Kerja Hari Ini
                       </Button>
-                      <Button size="sm" onClick={handleAddSlot} startIcon={<PlusIcon className="size-4 fill-current" />}>
+                      <Button size="sm" variant="outline" onClick={handleAddSlot} startIcon={<PlusIcon className="size-4 fill-current" />}>
                         Tambah Slot
                       </Button>
                     </div>
