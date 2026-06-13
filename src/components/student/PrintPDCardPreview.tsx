@@ -96,58 +96,71 @@ const PrintPDCardPreview: React.FC<PrintPDCardPreviewProps> = ({ isOpen, onClose
                 <p className="text-gray-500 font-medium">Memuat data siswa...</p>
             </div>
         ) : students.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 justify-items-center print:grid-cols-3 print:gap-4">
-            {students.map((student) => (
-              <div 
-                key={student.peserta_didik_id} 
-                className="id-card-vertical relative bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-800 rounded-xl overflow-hidden print:shadow-none print:border print:border-gray-400 flex flex-col items-center justify-center p-3 gap-3"
-                style={{ 
-                  width: '5.5cm', 
-                  height: '8.5cm',
-                  pageBreakInside: 'avoid'
-                }}
-              >
-                {/* Photo Area */}
-                <div className="w-18 h-22 bg-gray-50 dark:bg-gray-800 p-0.5 rounded border border-gray-200 dark:border-gray-700 flex items-center justify-center overflow-hidden">
-                  <img 
-                    src={student.foto ? `${getBackendBaseURL()}/storage/${student.foto}` : "/images/default/profile.jpg"} 
-                    alt={student.nama} 
-                    className="w-full h-full object-cover rounded" 
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = "/images/default/profile.jpg";
-                    }}
-                  />
-                </div>
+          <div className="flex flex-col gap-8 print:gap-0">
+            {(() => {
+              const chunks = [];
+              for (let i = 0; i < students.length; i += 9) {
+                chunks.push(students.slice(i, i + 9));
+              }
+              return chunks.map((pageStudents, pageIndex) => (
+                <div 
+                  key={pageIndex}
+                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 justify-items-center print-page print:grid-cols-3"
+                >
+                  {pageStudents.map((student) => (
+                    <div 
+                      key={student.peserta_didik_id} 
+                      className="id-card-vertical relative bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-800 rounded-xl overflow-hidden print:shadow-none print:border print:border-gray-400 flex flex-col items-center justify-center p-3 gap-3"
+                      style={{ 
+                        width: '5.5cm', 
+                        height: '8.5cm',
+                        pageBreakInside: 'avoid'
+                      }}
+                    >
+                      {/* Photo Area */}
+                      <div className="w-18 h-22 bg-gray-50 dark:bg-gray-800 p-0.5 rounded border border-gray-200 dark:border-gray-700 flex items-center justify-center overflow-hidden">
+                        <img 
+                          src={student.foto ? `${getBackendBaseURL()}/storage/${student.foto}` : "/images/default/profile.jpg"} 
+                          alt={student.nama} 
+                          className="w-full h-full object-cover rounded" 
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = "/images/default/profile.jpg";
+                          }}
+                        />
+                      </div>
 
-                {/* Nama & NISN */}
-                <div className="text-center px-2 w-full">
-                  <p className="text-[11px] font-bold text-gray-900 dark:text-white uppercase leading-tight mb-1 truncate" title={student.nama}>
-                    {student.nama}
-                  </p>
-                  <p className="text-[12px] font-black text-gray-500 dark:text-gray-400 leading-none">
-                    {student.nisn || "-"}
-                  </p>
-                </div>
-                
-                {/* QR Code Section */}
-                <div className="bg-white p-1 rounded border border-gray-200 shadow-sm">
-                  {student.qr_token ? (
-                    <QRCodeSVG 
-                      value={student.qr_token} 
-                      size={96} 
-                      level="M" 
-                      includeMargin={false}
-                      fgColor="#000000"
-                      bgColor="#FFFFFF"
-                    />
-                  ) : (
-                    <div className="w-[96px] h-[96px] flex items-center justify-center bg-gray-50 text-[6px] text-gray-400 border border-dashed rounded font-bold uppercase">
-                       No Token
+                      {/* Nama & NISN */}
+                      <div className="text-center px-2 w-full">
+                        <p className="text-[11px] font-bold text-gray-900 dark:text-white uppercase leading-tight mb-1 truncate" title={student.nama}>
+                          {student.nama}
+                        </p>
+                        <p className="text-[12px] font-black text-gray-500 dark:text-gray-400 leading-none">
+                          {student.nisn || "-"}
+                        </p>
+                      </div>
+                      
+                      {/* QR Code Section */}
+                      <div className="bg-white p-1 rounded border border-gray-200 shadow-sm">
+                        {student.qr_token ? (
+                          <QRCodeSVG 
+                            value={student.qr_token} 
+                            size={96} 
+                            level="M" 
+                            includeMargin={false}
+                            fgColor="#000000"
+                            bgColor="#FFFFFF"
+                          />
+                        ) : (
+                          <div className="w-[96px] h-[96px] flex items-center justify-center bg-gray-50 text-[6px] text-gray-400 border border-dashed rounded font-bold uppercase">
+                             No Token
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  )}
+                  ))}
                 </div>
-              </div>
-            ))}
+              ));
+            })()}
           </div>
         ) : (
             <div className="flex justify-center py-20">
@@ -156,29 +169,6 @@ const PrintPDCardPreview: React.FC<PrintPDCardPreviewProps> = ({ isOpen, onClose
         )}
       </div>
 
-      <style dangerouslySetInnerHTML={{ __html: `
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          .id-card-print-area, .id-card-print-area * {
-            visibility: visible !important;
-          }
-          .id-card-print-area {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-          }
-          .id-card-vertical {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-            border: 1px solid #d1d5db !important;
-          }
-        }
-      `}} />
     </Modal>
   );
 };

@@ -110,32 +110,6 @@ const PrintGTKCardPreview: React.FC<PrintGTKCardPreviewProps> = ({ isOpen, onClo
         </div>
       </div>
 
-      {/* Global CSS for printing this specific modal content */}
-      <style dangerouslySetInnerHTML={{ __html: `
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          .id-card-print-area, .id-card-print-area * {
-            visibility: visible !important;
-          }
-          .id-card-print-area {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            display: flex !important;
-            justify-content: center !important;
-          }
-          .id-card-vertical {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-            border: 1px solid #d1d5db !important;
-          }
-        }
-      `}} />
     </Modal>
   );
 };
