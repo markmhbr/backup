@@ -1,20 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
 import {
-  BoxCubeIcon,
   BoxIcon,
-  CalenderIcon,
   ChevronDownIcon,
   DocsIcon,
   DotIcon,
   GridIcon,
   HorizontaLDots,
-  ListIcon,
-  PageIcon,
-  PieChartIcon,
   PlugInIcon,
   TableIcon,
-  UserCircleIcon,
   BoltIcon,
   GroupIcon,
 } from "../icons";
@@ -293,38 +287,6 @@ const navItems: NavItem[] = [
     ],
   },
   {
-    icon: <CalenderIcon />,
-    name: "Kalender",
-    path: "/calendar",
-  },
-  {
-    icon: <UserCircleIcon />,
-    name: "Profil Pengguna",
-    path: "/profile",
-  },
-  {
-    name: "Formulir",
-    icon: <ListIcon />,
-    subItems: [
-      {
-        name: "Elemen Formulir",
-        path: "/form-elements",
-        icon: <DotIcon />,
-      },
-    ],
-  },
-  {
-    name: "Tabel",
-    icon: <TableIcon />,
-    subItems: [
-      {
-        name: "Tabel Dasar",
-        path: "/basic-tables",
-        icon: <DotIcon />,
-      },
-    ],
-    },
-    {
     name: "Pengaturan",
     icon: <PlugInIcon />,
     subItems: [
@@ -332,93 +294,6 @@ const navItems: NavItem[] = [
         name: "Sync API",
         path: "/sync-api",
         icon: <BoltIcon />,
-      },
-    ],
-  },
-  {
-    name: "Halaman",
-    icon: <PageIcon />,
-    subItems: [
-      {
-        name: "Halaman Kosong",
-        path: "/blank",
-        icon: <DotIcon />,
-      },
-      {
-        name: "Error 404",
-        path: "/error-404",
-        icon: <DotIcon />,
-      },
-    ],
-  },
-];
-
-const othersItems: NavItem[] = [
-  {
-    icon: <PieChartIcon />,
-    name: "Grafik",
-    subItems: [
-      {
-        name: "Grafik Garis",
-        path: "/line-chart",
-        icon: <DotIcon />,
-      },
-      {
-        name: "Grafik Batang",
-        path: "/bar-chart",
-        icon: <DotIcon />,
-      },
-    ],
-  },
-  {
-    icon: <BoxCubeIcon />,
-    name: "Elemen UI",
-    subItems: [
-      {
-        name: "Alert",
-        path: "/alerts",
-        icon: <DotIcon />,
-      },
-      {
-        name: "Avatar",
-        path: "/avatars",
-        icon: <DotIcon />,
-      },
-      {
-        name: "Badge",
-        path: "/badge",
-        icon: <DotIcon />,
-      },
-      {
-        name: "Tombol",
-        path: "/buttons",
-        icon: <DotIcon />,
-      },
-      {
-        name: "Gambar",
-        path: "/images",
-        icon: <DotIcon />,
-      },
-      {
-        name: "Video",
-        path: "/videos",
-        icon: <DotIcon />,
-      },
-    ],
-  },
-  {
-    icon: <PlugInIcon />,
-    name: "Autentikasi",
-    subItems: [
-      {
-        name: "Masuk",
-        path: "/signin",
-        icon: <DotIcon />,
-      },
-      {
-        name: "Daftar",
-        path: "/signup",
-        icon: <DotIcon />,
       },
     ],
   },
@@ -482,8 +357,7 @@ const AppSidebar: React.FC = () => {
     };
 
     const activeMain = findActiveMenus(navItems, "main");
-    const activeOthers = findActiveMenus(othersItems, "others");
-    setOpenSubmenus([...activeMain, ...activeOthers]);
+    setOpenSubmenus(activeMain);
   }, [location, isSubItemActive]);
 
   const toggleSubmenu = (key: string) => {
@@ -671,22 +545,6 @@ const AppSidebar: React.FC = () => {
                 )}
               </h2>
               {renderMenuItems(filteredNavItems, "main")}
-            </div>
-            <div className="">
-              <h2
-                className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 ${
-                  !isExpanded && !isHovered
-                    ? "lg:justify-center"
-                    : "justify-start"
-                }`}
-              >
-                {isExpanded || isHovered || isMobileOpen ? (
-                  "Others"
-                ) : (
-                  <HorizontaLDots />
-                )}
-              </h2>
-              {renderMenuItems(othersItems, "others")}
             </div>
           </div>
         </nav>
