@@ -59,6 +59,15 @@ api.interceptors.response.use(
       !originalRequest._retry && 
       !originalRequest.url?.includes('/auth/login')
     ) {
+      // Cek apakah error disebabkan oleh domain belum terdaftar atau API Key tidak valid
+      // agar tidak menendang user keluar (sesi berakhir) saat setup awal/sinkronisasi
+      const errorMessage = error.response?.data?.message || '';
+      if (
+        errorMessage.includes('Sistem belum terhubung') ||
+        errorMessage.includes('API Key')
+      ) {
+        return Promise.reject(error);
+      }
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
