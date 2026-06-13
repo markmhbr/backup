@@ -158,9 +158,8 @@ const PrintPDCardPreview: React.FC<PrintPDCardPreviewProps> = ({ isOpen, onClose
 
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
-          body {
-            visibility: hidden !important;
-            background: white !important;
+          body * {
+            visibility: hidden;
           }
           .id-card-print-area, .id-card-print-area * {
             visibility: visible !important;
