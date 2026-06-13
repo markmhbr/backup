@@ -16,7 +16,8 @@ const Scanner: React.FC = () => {
   const speak = (text: string) => {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
+      // Konversi ke lowercase agar browser tidak mengeja nama kapital (ALL CAPS) sebagai singkatan/akronim
+      const utterance = new SpeechSynthesisUtterance(text.toLowerCase());
       utterance.lang = 'id-ID';
       
       const voices = window.speechSynthesis.getVoices();

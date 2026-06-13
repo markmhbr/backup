@@ -57,7 +57,7 @@ const PrintGTKCardPreview: React.FC<PrintGTKCardPreviewProps> = ({ isOpen, onClo
       </div>
 
       {/* Printable Content */}
-      <div className="p-10 flex justify-center bg-gray-50 dark:bg-gray-900/50 print:p-0 print:bg-white">
+      <div className="id-card-print-area p-10 flex justify-center bg-gray-50 dark:bg-gray-900/50 print:p-0 print:bg-white">
         <div 
           className="id-card-vertical relative bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-800 rounded-xl overflow-hidden print:shadow-none print:border print:border-gray-400 flex flex-col items-center justify-center p-3 gap-3"
           style={{ 
@@ -77,13 +77,16 @@ const PrintGTKCardPreview: React.FC<PrintGTKCardPreviewProps> = ({ isOpen, onClo
             />
           </div>
 
-          {/* NUPTK / NIK */}
-          <div className="text-center">
-            <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase leading-none mb-1">
-              {person.nuptk ? "NUPTK" : "NIK"}
+          {/* Nama, Jabatan & NUPTK/NIK */}
+          <div className="text-center px-2 w-full">
+            <p className="text-[11px] font-bold text-gray-900 dark:text-white uppercase leading-tight mb-1 truncate" title={person.nama}>
+              {person.nama}
             </p>
-            <p className="text-[14px] font-black text-gray-900 dark:text-white leading-none">
-              {person.nuptk || person.nik || "-"}
+            <p className="text-[10px] font-medium text-gray-500 dark:text-gray-400 leading-none mb-1">
+              {person.jabatan || "-"}
+            </p>
+            <p className="text-[10px] font-black text-gray-500 dark:text-gray-400 leading-none">
+              {person.nuptk ? `NUPTK: ${person.nuptk}` : `NIK: ${person.nik || "-"}`}
             </p>
           </div>
 
@@ -110,30 +113,27 @@ const PrintGTKCardPreview: React.FC<PrintGTKCardPreviewProps> = ({ isOpen, onClo
       {/* Global CSS for printing this specific modal content */}
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
-          body * {
-            visibility: hidden;
+          body {
+            visibility: hidden !important;
+            background: white !important;
           }
-          .modal-backdrop {
-            display: none !important;
-          }
-          .print\\:hidden {
-            display: none !important;
-          }
-          .modal-content, .print-content, .print-content * {
+          .id-card-print-area, .id-card-print-area * {
             visibility: visible !important;
           }
-          [role="dialog"] {
+          .id-card-print-area {
             position: absolute !important;
-            left: 50% !important;
-            top: 50% !important;
-            transform: translate(-50%, -50%) !important;
-            width: auto !important;
-            height: auto !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
-            background: white !important;
-            box-shadow: none !important;
-            border: none !important;
+            display: flex !important;
+            justify-content: center !important;
+          }
+          .id-card-vertical {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            border: 1px solid #d1d5db !important;
           }
         }
       `}} />

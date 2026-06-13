@@ -90,7 +90,7 @@ const PrintPDCardPreview: React.FC<PrintPDCardPreviewProps> = ({ isOpen, onClose
       </div>
 
       {/* Printable Content */}
-      <div className="id-card-preview-container p-8 bg-gray-50 dark:bg-gray-900/50 max-h-[75vh] overflow-y-auto custom-scrollbar print:p-0 print:bg-white print:overflow-visible print:max-h-none">
+      <div className="id-card-preview-container id-card-print-area p-8 bg-gray-50 dark:bg-gray-900/50 max-h-[75vh] overflow-y-auto custom-scrollbar print:p-0 print:bg-white print:overflow-visible print:max-h-none">
         {loading ? (
             <div className="flex justify-center py-20">
                 <p className="text-gray-500 font-medium">Memuat data siswa...</p>
@@ -157,35 +157,26 @@ const PrintPDCardPreview: React.FC<PrintPDCardPreviewProps> = ({ isOpen, onClose
       </div>
 
       <style dangerouslySetInnerHTML={{ __html: `
-        @media print { .id-card-preview-container, .id-card-preview-container * { visibility: visible !important; } .id-card-preview-container { position: absolute !important; left: 0; top: 0; width: 100%; }
-          body * {
-            visibility: hidden;
+        @media print {
+          body {
+            visibility: hidden !important;
+            background: white !important;
           }
-          .modal-backdrop, .print\\:hidden {
-            display: none !important;
-          }
-          .id-card-preview-container, .id-card-preview-container * {
+          .id-card-print-area, .id-card-print-area * {
             visibility: visible !important;
           }
-          .id-card-preview-container {
+          .id-card-print-area {
             position: absolute !important;
             left: 0 !important;
             top: 0 !important;
             width: 100% !important;
-            padding: 0 !important;
             margin: 0 !important;
+            padding: 0 !important;
           }
-          [role="dialog"] {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
-            height: auto !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            background: white !important;
-            box-shadow: none !important;
-            border: none !important;
+          .id-card-vertical {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            border: 1px solid #d1d5db !important;
           }
         }
       `}} />
