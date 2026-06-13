@@ -18,21 +18,25 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes("node_modules")) {
-            if (id.includes("@fullcalendar")) {
-              return "fullcalendar";
+            // Hanya pisahkan library murni non-React yang berukuran besar
+            if (id.includes("node_modules/apexcharts")) {
+              return "apexcharts";
             }
-            if (id.includes("leaflet") || id.includes("react-leaflet")) {
+            if (id.includes("node_modules/leaflet")) {
               return "leaflet";
             }
-            if (id.includes("apexcharts") || id.includes("react-apexcharts")) {
-              return "charts";
-            }
-            if (id.includes("swiper")) {
-              return "swiper";
-            }
-            if (id.includes("sweetalert2")) {
+            if (id.includes("node_modules/sweetalert2")) {
               return "sweetalert2";
             }
+            if (id.includes("node_modules/swiper")) {
+              return "swiper";
+            }
+            if (id.includes("node_modules/@fullcalendar") && !id.includes("@fullcalendar/react")) {
+              return "fullcalendar";
+            }
+            
+            // Biarkan React, React-DOM, dan wrapper React (react-apexcharts, react-leaflet, @fullcalendar/react)
+            // tetap berada di satu chunk 'vendor' utama untuk menghindari masalah urutan inisialisasi di React 19.
             return "vendor";
           }
         },
