@@ -57,13 +57,24 @@ function getBackendUrlFromEnv() {
 // Set URL Backend Pusat secara dinamis dari .env
 define('BACKEND_URL', getBackendUrlFromEnv());
 
-// 1. Alur Setup Key (Menyimpan Key dari UI Frontend)
+// 1. Alur Setup Key (Menyimpan Key via POST JSON atau GET URL)
 if (isset($_GET['action']) && $_GET['action'] === 'setup') {
+    $apiKey = '';
+    
+    // Coba baca dari POST JSON
     $input = json_decode(file_get_contents('php://input'), true);
     if (isset($input['apiKey'])) {
-        $keyContent = "<?php\n// Terproteksi\ndefine('API_KEY', '" . addslashes($input['apiKey']) . "');\n";
+        $apiKey = $input['apiKey'];
+    } 
+    // Coba baca dari GET parameter '?key=...'
+    elseif (isset($_GET['key'])) {
+        $apiKey = $_GET['key'];
+    }
+
+    if (!empty($apiKey)) {
+        $keyContent = "<?php\n// Terproteksi\ndefine('API_KEY', '" . addslashes($apiKey) . "');\n";
         file_put_contents(KEY_FILE, $keyContent);
-        echo json_encode(["status" => "success", "message" => "Key berhasil disimpan"]);
+        echo json_encode(["status" => "success", "message" => "API Key berhasil dihubungkan! Silakan refresh halaman login sekolah Anda."]);
         exit;
     }
 }

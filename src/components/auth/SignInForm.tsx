@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
 import { EyeCloseIcon, EyeIcon } from "../../icons";
 import Label from "../form/Label";
@@ -8,6 +8,7 @@ import { useAuth } from "../../context/AuthContext";
 import { QRCodeSVG } from "qrcode.react";
 import { Modal } from "../ui/modal";
 import { getRoleSlug } from "../../services/roleUtils";
+import axios from "axios";
 
 export default function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
@@ -24,6 +25,49 @@ export default function SignInForm() {
 
   const { login, verify2FA, setAuthData } = useAuth();
   const navigate = useNavigate();
+
+  const [apiKeyInput, setApiKeyInput] = useState("");
+  const [setupLoading, setSetupLoading] = useState(false);
+  const [setupSuccess, setSetupSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    const checkConnection = async () => {
+      try {
+        await axios.get("/api.php");
+      } catch (err: any) {
+        if (
+          err.response?.status === 400 &&
+          err.response?.data?.message?.includes("Sistem belum terhubung")
+        ) {
+          setError(err.response.data.message);
+        }
+      }
+    };
+    checkConnection();
+  }, []);
+
+  const handleSetupApiKey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSetupLoading(true);
+    setSetupSuccess(null);
+    try {
+      const response = await axios.post("/api.php?action=setup", {
+        apiKey: apiKeyInput,
+      });
+      if (response.data.status === "success") {
+        setSetupSuccess("Sekolah berhasil terhubung! Memuat ulang...");
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data?.message || "Gagal menghubungkan API Key."
+      );
+    } finally {
+      setSetupLoading(false);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,83 +136,125 @@ export default function SignInForm() {
             </p>
           </div>
 
-          {error && !is2FAModalOpen && (
+          {error && !is2FAModalOpen && !error.includes("Sistem belum terhubung") && (
             <div className="p-3 mb-6 text-sm text-red-500 bg-red-100 rounded-lg dark:bg-red-500/10">
               {error}
             </div>
           )}
 
           <div>
-            <form onSubmit={handleLogin}>
-              <div className="space-y-6">
-                <div>
-                  <Label>
-                    Username <span className="text-error-500">*</span>{" "}
-                  </Label>
-                  <Input
-                    placeholder="Enter your username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    required
-                  />
+            {error && error.includes("Sistem belum terhubung") ? (
+              <div>
+                <div className="p-4 mb-6 text-sm text-yellow-800 bg-yellow-100 border border-yellow-200 rounded-xl dark:bg-yellow-500/10 dark:text-yellow-400 dark:border-yellow-900/30">
+                  <h3 className="font-semibold mb-1">Sekolah Belum Terhubung</h3>
+                  <p>Aplikasi ini belum terhubung ke sistem pusat. Silakan masukkan Key API Sekolah Anda untuk mengaktifkan koneksi.</p>
                 </div>
-                <div>
-                  <Label>
-                    Password <span className="text-error-500">*</span>{" "}
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Enter your password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                    />
-                    <span
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute z-30 -translate-y-1/2 cursor-pointer right-4 top-1/2"
-                    >
-                      {showPassword ? (
-                        <EyeIcon className="fill-gray-500 dark:fill-gray-400 size-5" />
-                      ) : (
-                        <EyeCloseIcon className="fill-gray-500 dark:fill-gray-400 size-5" />
-                      )}
-                    </span>
+                
+                <form onSubmit={handleSetupApiKey}>
+                  <div className="space-y-6">
+                    <div>
+                      <Label>
+                        Key API Sekolah <span className="text-error-500">*</span>
+                      </Label>
+                      <Input
+                        placeholder="Masukkan Key API (contoh: simak_api_...)"
+                        value={apiKeyInput}
+                        onChange={(e) => setApiKeyInput(e.target.value)}
+                        required
+                      />
+                    </div>
+                    {setupSuccess && (
+                      <div className="p-3 text-sm text-green-600 bg-green-100 rounded-lg dark:bg-green-500/10">
+                        {setupSuccess}
+                      </div>
+                    )}
+                    <div>
+                      <Button
+                        className="w-full"
+                        size="sm"
+                        disabled={setupLoading}
+                        type="submit"
+                      >
+                        {setupLoading ? "Menghubungkan..." : "Hubungkan Sekolah"}
+                      </Button>
+                    </div>
                   </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <Link
-                    to="/reset-password"
-                    className="text-sm text-brand-500 hover:text-brand-600 dark:text-brand-400"
-                  >
-                    Forgot password?
-                  </Link>
-                </div>
-                <div>
-                  <Button
-                    className="w-full"
-                    size="sm"
-                    disabled={loading}
-                    type="submit"
-                  >
-                    {loading ? "Processing..." : "Sign In"}
-                  </Button>
-                </div>
+                </form>
               </div>
-            </form>
+            ) : (
+              <>
+                <form onSubmit={handleLogin}>
+                  <div className="space-y-6">
+                    <div>
+                      <Label>
+                        Username <span className="text-error-500">*</span>{" "}
+                      </Label>
+                      <Input
+                        placeholder="Enter your username"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label>
+                        Password <span className="text-error-500">*</span>{" "}
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          type={showPassword ? "text" : "password"}
+                          placeholder="Enter your password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          required
+                        />
+                        <span
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute z-30 -translate-y-1/2 cursor-pointer right-4 top-1/2"
+                        >
+                          {showPassword ? (
+                            <EyeIcon className="fill-gray-500 dark:fill-gray-400 size-5" />
+                          ) : (
+                            <EyeCloseIcon className="fill-gray-500 dark:fill-gray-400 size-5" />
+                          )}
+                        </span>
+                      </div>
+                    </div>
 
-            <div className="mt-5">
-              <p className="text-sm font-normal text-center text-gray-700 dark:text-gray-400 sm:text-start">
-                Don&apos;t have an account? {""}
-                <Link
-                  to="/signup"
-                  className="text-brand-500 hover:text-brand-600 dark:text-brand-400"
-                >
-                  Sign Up
-                </Link>
-              </p>
-            </div>
+                    <div className="flex items-center justify-between">
+                      <Link
+                        to="/reset-password"
+                        className="text-sm text-brand-500 hover:text-brand-600 dark:text-brand-400"
+                      >
+                        Forgot password?
+                      </Link>
+                    </div>
+                    <div>
+                      <Button
+                        className="w-full"
+                        size="sm"
+                        disabled={loading}
+                        type="submit"
+                      >
+                        {loading ? "Processing..." : "Sign In"}
+                      </Button>
+                    </div>
+                  </div>
+                </form>
+
+                <div className="mt-5">
+                  <p className="text-sm font-normal text-center text-gray-700 dark:text-gray-400 sm:text-start">
+                    Don&apos;t have an account? {""}
+                    <Link
+                      to="/signup"
+                      className="text-brand-500 hover:text-brand-600 dark:text-brand-400"
+                    >
+                      Sign Up
+                    </Link>
+                  </p>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
