@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Konfigurasi Axios dengan praktik keamanan dasar
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'https://centralsimak.smakniscjr.sch.id/api',
+  baseURL: '/api.php',
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
