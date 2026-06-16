@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import Button from "../../components/ui/button/Button";
 import Input from "../../components/form/input/InputField";
 import Select from "../../components/form/Select";
 import { DownloadIcon, PrinterIcon, UserCircleIcon, CheckCircleIcon, SearchIcon, PencilIcon } from "../../icons";
-import { dapodikService } from "../../services/dapodikService";
+
 import Swal from "sweetalert2";
 import StudentTable from "../../components/student/StudentTable";
 import PDKeluarTable from "../../components/student/PDKeluarTable";
@@ -35,8 +35,6 @@ export default function StudentData() {
   const [completenessFilter, setCompletenessFilter] = useState("all");
   const [gradeFilter, setGradeFilter] = useState("all");
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { isOpen, openModal, closeModal } = useModal();
 
@@ -115,91 +113,11 @@ export default function StudentData() {
     window.print();
   };
 
-  const handleTriggerUpload = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    try {
-      setIsUploading(true);
-      const text = await file.text();
-      const jsonData = JSON.parse(text);
-      
-      if (jsonData.length === 0) {
-        Swal.fire("Info", "File JSON kosong.", "info");
-        return;
-      }
-
-      // Filter status Lulus agar tidak ikut tersinkron sesuai instruksi
-      const filteredData = jsonData.filter((item: any) => item.status !== 'Lulus');
-
-      if (filteredData.length === 0) {
-        Swal.fire("Info", "Tidak ada data Peserta Didik (selain Lulus) di dalam file JSON.", "info");
-        return;
-      }
-
-      const chunkSize = 100;
-      const totalChunks = Math.ceil(filteredData.length / chunkSize);
-      let successCount = 0;
-
-      Swal.fire({
-        title: 'Sinkronisasi...',
-        html: `Memproses <b>0</b> dari ${filteredData.length} data...`,
-        allowOutsideClick: false,
-        didOpen: () => {
-          Swal.showLoading();
-        }
-      });
-
-      for (let i = 0; i < totalChunks; i++) {
-        const chunk = filteredData.slice(i * chunkSize, (i + 1) * chunkSize);
-        await dapodikService.uploadSyncData('pesertadidik', chunk);
-        successCount += chunk.length;
-        Swal.update({
-          html: `Memproses <b>${successCount}</b> dari ${filteredData.length} data...`
-        });
-      }
-      
-      Swal.fire({
-        title: "Berhasil!",
-        text: `Berhasil mensinkronisasi ${successCount} data Peserta Didik.`,
-        icon: "success",
-        confirmButtonColor: "#10b981",
-      }).then(() => {
-        window.location.reload();
-      });
-      
-    } catch (error) {
-      console.error(error);
-      Swal.fire({
-        title: "Gagal!",
-        text: "Terjadi kesalahan saat mengupload data sinkronisasi.",
-        icon: "error",
-        confirmButtonColor: "#d33",
-      });
-    } finally {
-      setIsUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-    }
-  };
-
   return (
     <>
       <PageMeta
         title="Peserta Didik | SIMAK Admin Panel"
         description="Student data management page"
-      />
-      <input 
-        type="file" 
-        accept=".json" 
-        ref={fileInputRef} 
-        onChange={handleFileUpload} 
-        className="hidden" 
       />
       <div className="space-y-6">
         {/* Header Section */}
@@ -261,15 +179,6 @@ export default function StudentData() {
               onClick={handlePrint}
             >
               Cetak
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              className="min-w-[110px]"
-              disabled={isUploading}
-              onClick={handleTriggerUpload}
-            >
-              {isUploading ? "Uploading..." : "Upload JSON Dapodik"}
             </Button>
           </div>
         </div>
