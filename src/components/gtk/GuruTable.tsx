@@ -30,7 +30,7 @@ export default function GuruTable({ onSelectionChange, searchTerm, completenessF
     const fetchData = async () => {
       setLoading(true);
       try {
-        const result = await dapodikService.getGTK(itemsPerPage, searchTerm, currentPage, 'guru');
+        const result = await dapodikService.getGTK(itemsPerPage, searchTerm, currentPage, 'guru', 'aktif');
         if (result.status === 'success') {
           setData(result.data);
           setTotal(result.meta.total);

@@ -133,11 +133,19 @@ export default function StudentData() {
         return;
       }
 
-      await dapodikService.uploadSyncData('pesertadidik', jsonData);
+      // Filter status Lulus agar tidak ikut tersinkron sesuai instruksi
+      const filteredData = jsonData.filter((item: any) => item.status !== 'Lulus');
+
+      if (filteredData.length === 0) {
+        Swal.fire("Info", "Tidak ada data Peserta Didik (selain Lulus) di dalam file JSON.", "info");
+        return;
+      }
+
+      await dapodikService.uploadSyncData('pesertadidik', filteredData);
       
       Swal.fire({
         title: "Berhasil!",
-        text: `Berhasil mensinkronisasi ${jsonData.length} data Peserta Didik.`,
+        text: `Berhasil mensinkronisasi ${filteredData.length} data Peserta Didik.`,
         icon: "success",
         confirmButtonColor: "#10b981",
       }).then(() => {
