@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router";
+import { useSearchParams, useParams, useNavigate } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import Button from "../../components/ui/button/Button";
 import Input from "../../components/form/input/InputField";
@@ -12,10 +12,11 @@ import PDKeluarTable from "../../components/student/PDKeluarTable";
 import RekapPDTable from "../../components/student/RekapPDTable";
 import RekapPDKompetensiTable from "../../components/student/RekapPDKompetensiTable";
 import RekapPDUsiaTable from "../../components/student/RekapPDUsiaTable";
-import { useModal } from "../../hooks/useModal";
-import EditStudentModal from "../../components/student/EditStudentModal";
+
 
 export default function StudentData() {
+  const { role } = useParams();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get("tab") as "aktif" | "rekap" | "keluar";
   
@@ -36,7 +37,7 @@ export default function StudentData() {
   const [gradeFilter, setGradeFilter] = useState("all");
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  const { isOpen, openModal, closeModal } = useModal();
+
 
   const completenessOptions = [
     { value: "all", label: "Semua Kelengkapan" },
@@ -63,7 +64,9 @@ export default function StudentData() {
   };
 
   const handleEditData = () => {
-    openModal();
+    if (selectedStudentIds.length === 1) {
+      navigate(`/${role}/student-data/edit/${selectedStudentIds[0]}`);
+    }
   };
 
   const handleRegister = () => {
@@ -279,11 +282,7 @@ export default function StudentData() {
         </div>
       </div>
 
-      <EditStudentModal 
-        isOpen={isOpen}
-        onClose={closeModal}
-        selectedIds={selectedStudentIds}
-      />
+
     </>
   );
 }

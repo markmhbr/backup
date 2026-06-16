@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router";
+import { useSearchParams, useParams, useNavigate } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import Button from "../../components/ui/button/Button";
 import Input from "../../components/form/input/InputField";
@@ -13,10 +13,11 @@ import NonAktifTable from "../../components/gtk/NonAktifTable";
 import RekapGTKTable from "../../components/gtk/RekapGTKTable";
 import RekapGTKPendidikanTable from "../../components/gtk/RekapGTKPendidikanTable";
 import RekapGTKUsiaTable from "../../components/gtk/RekapGTKUsiaTable";
-import { useModal } from "../../hooks/useModal";
-import EditGTKModal from "../../components/gtk/EditGTKModal";
+
 
 export default function GTKData() {
+  const { role } = useParams();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get("tab") as "guru" | "tendik" | "rekap" | "nonaktif";
   
@@ -36,7 +37,7 @@ export default function GTKData() {
   const [completenessFilter, setCompletenessFilter] = useState("all");
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  const { isOpen, openModal, closeModal } = useModal();
+
 
   const completenessOptions = [
     { value: "all", label: "Semua Kelengkapan" },
@@ -56,7 +57,9 @@ export default function GTKData() {
   };
 
   const handleEditData = () => {
-    openModal();
+    if (selectedGTKIds.length === 1) {
+      navigate(`/${role}/gtk-data/edit/${selectedGTKIds[0]}`);
+    }
   };
 
   const handleRegister = () => {
@@ -273,11 +276,7 @@ export default function GTKData() {
         </div>
       </div>
 
-      <EditGTKModal 
-        isOpen={isOpen}
-        onClose={closeModal}
-        selectedIds={selectedGTKIds}
-      />
+
     </>
   );
 }

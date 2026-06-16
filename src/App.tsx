@@ -20,6 +20,8 @@ import Home from "./pages/Dashboard/Home";
 import SchoolProfile from "./pages/DataMaster/SchoolProfile";
 import GTKData from "./pages/DataMaster/GTKData";
 import StudentData from "./pages/DataMaster/StudentData";
+import EditStudentPage from "./pages/DataMaster/EditStudentPage";
+import EditGTKPage from "./pages/DataMaster/EditGTKPage";
 import ClassData from "./pages/DataMaster/ClassData";
 import SubjectData from "./pages/DataMaster/SubjectData";
 import SarprasData from "./pages/DataMaster/SarprasData";
@@ -75,7 +77,9 @@ export default function App() {
             {/* Data Master */}
             <Route path="school-profile" element={<SchoolProfile />} />
             <Route path="gtk-data" element={<GTKData />} />
+            <Route path="gtk-data/edit/:id" element={<EditGTKPage />} />
             <Route path="student-data" element={<StudentData />} />
+            <Route path="student-data/edit/:id" element={<EditStudentPage />} />
             <Route path="class-data" element={<ClassData />} />
             <Route path="subject-data" element={<SubjectData />} />
             <Route path="sarpras-data" element={<SarprasData />} />
