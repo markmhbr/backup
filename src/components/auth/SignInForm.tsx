@@ -69,11 +69,18 @@ export default function SignInForm() {
         }
       } else {
         // Mode Production: Simpan ke file key.php di hosting sekolah
-        const response = await axios.post("/api.php?action=setup", {
+        const localResponse = await axios.post("/api.php?action=setup", {
           apiKey: apiKeyInput,
         });
-        if (response.data.status === "success") {
-          setSetupSuccess("Sekolah berhasil terhubung! Memuat ulang...");
+        
+        if (localResponse.data.status === "success") {
+          // Setelah key.php tersimpan lokal, kita HARUS mendaftarkan domain ini ke Server Pusat
+          // Panggilan ini sekarang akan lolos karena key.php sudah ada, sehingga api.php akan mem-forward ke pusat
+          await api.post("/auth/system-setup", {
+            apiKey: apiKeyInput,
+          });
+
+          setSetupSuccess("Sekolah berhasil terhubung ke Server Pusat! Memuat ulang...");
           setTimeout(() => {
             window.location.reload();
           }, 2000);
