@@ -141,11 +141,31 @@ export default function StudentData() {
         return;
       }
 
-      await dapodikService.uploadSyncData('pesertadidik', filteredData);
+      const chunkSize = 100;
+      const totalChunks = Math.ceil(filteredData.length / chunkSize);
+      let successCount = 0;
+
+      Swal.fire({
+        title: 'Sinkronisasi...',
+        html: `Memproses <b>0</b> dari ${filteredData.length} data...`,
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+
+      for (let i = 0; i < totalChunks; i++) {
+        const chunk = filteredData.slice(i * chunkSize, (i + 1) * chunkSize);
+        await dapodikService.uploadSyncData('pesertadidik', chunk);
+        successCount += chunk.length;
+        Swal.update({
+          html: `Memproses <b>${successCount}</b> dari ${filteredData.length} data...`
+        });
+      }
       
       Swal.fire({
         title: "Berhasil!",
-        text: `Berhasil mensinkronisasi ${filteredData.length} data Peserta Didik.`,
+        text: `Berhasil mensinkronisasi ${successCount} data Peserta Didik.`,
         icon: "success",
         confirmButtonColor: "#10b981",
       }).then(() => {
