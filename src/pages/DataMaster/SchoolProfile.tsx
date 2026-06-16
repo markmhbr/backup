@@ -9,6 +9,15 @@ import Swal from "sweetalert2";
 import { DownloadIcon, PrinterIcon, PlusIcon, TrashBinIcon } from "../../icons";
 import { dapodikService } from "../../services/dapodikService";
 
+const format3Digits = (value: string | number | null | undefined): string => {
+  if (value === null || value === undefined || value === "") return "";
+  const numStr = String(value).trim();
+  if (/^\d+$/.test(numStr)) {
+    return numStr.padStart(3, "0");
+  }
+  return numStr;
+};
+
 export default function SchoolProfile() {
   const [activeTab, setActiveTab] = useState<
     "profil" | "administrasi" | "alamat" | "kontak" | "map"
@@ -27,20 +36,10 @@ export default function SchoolProfile() {
     cabangDinas: "",
     namaKepalaSekolah: "",
     namaOperator: "",
-    skPendirian: "",
-    tanggalSK: "",
-    tanggalIzinOperasional: "",
     bentukPendidikan: "",
     logo: "",
   });
 
-  const [administrasiData, setAdministrasiData] = useState({
-    kebutuhanDilayani: "",
-    statusKepemilikan: "",
-    mbs: "",
-    namaWajibPajak: "",
-    npwp: "",
-  });
 
   const [alamatData, setAlamatData] = useState({
     jalan: "",
@@ -88,7 +87,7 @@ export default function SchoolProfile() {
             statusSekolah: s.status_sekolah_str || prev.statusSekolah,
             bentukPendidikan: s.bentuk_pendidikan_id_str || prev.bentukPendidikan,
             namaKepalaSekolah: s.nama_kepala_sekolah || prev.namaKepalaSekolah,
-            skPendirian: s.spmb || prev.skPendirian,
+            namaOperator: s.nama_operator || prev.namaOperator,
             logo: s.logo || prev.logo
           }));
 
@@ -184,7 +183,6 @@ export default function SchoolProfile() {
 
   const tabs = [
     { id: "profil", label: "Profil" },
-    { id: "administrasi", label: "Administrasi" },
     { id: "alamat", label: "Alamat" },
     { id: "kontak", label: "Kontak" },
     { id: "map", label: "Map" },
@@ -195,33 +193,58 @@ export default function SchoolProfile() {
     setProfileData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleAdministrasiChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setAdministrasiData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Tampilkan preview lokal sementara
       const reader = new FileReader();
       reader.onloadend = () => {
         setLogoPreview(reader.result as string);
-        setProfileData((prev) => ({ ...prev, logo: file.name }));
       };
       reader.readAsDataURL(file);
+
+      // Unggah langsung ke server backend
+      try {
+        Swal.fire({
+          title: "Mengunggah...",
+          text: "Sedang mengompresi dan menyimpan logo sekolah",
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading();
+          },
+        });
+
+        const result = await dapodikService.uploadLogo(file);
+
+        if (result.status === "success" && result.data?.logo) {
+          // Gunakan URL absolut dari server
+          setLogoPreview(result.data.logo);
+          setProfileData((prev) => ({ ...prev, logo: result.data.logo }));
+          
+          Swal.fire({
+            title: "Berhasil!",
+            text: "Logo sekolah berhasil diperbarui.",
+            icon: "success",
+            timer: 1500,
+            showConfirmButton: false,
+          });
+        } else {
+          throw new Error("Gagal menerima data respon dari server.");
+        }
+      } catch (err: any) {
+        console.error(err);
+        Swal.fire({
+          title: "Gagal Mengunggah!",
+          text: err.response?.data?.message || err.message || "Gagal mengunggah logo.",
+          icon: "error",
+          confirmButtonColor: "#465fff",
+        });
+      }
     }
   };
 
-  const handleSelectChange = (
-    value: string,
-    name: string,
-    stateType: "profile" | "administrasi" = "profile"
-  ) => {
-    if (stateType === "profile") {
-      setProfileData((prev) => ({ ...prev, [name]: value }));
-    } else {
-      setAdministrasiData((prev) => ({ ...prev, [name]: value }));
-    }
+  const handleSelectChange = (value: string, name: string) => {
+    setProfileData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleAlamatChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -364,14 +387,7 @@ export default function SchoolProfile() {
                   <td className="border border-gray-300 p-2 font-semibold">Operator</td>
                   <td className="border border-gray-300 p-2">{profileData.namaOperator}</td>
                 </tr>
-                <tr>
-                  <td className="border border-gray-300 p-2 font-semibold">SK Pendirian / Tanggal</td>
-                  <td className="border border-gray-300 p-2">{profileData.skPendirian} / {profileData.tanggalSK}</td>
-                </tr>
-                <tr>
-                  <td className="border border-gray-300 p-2 font-semibold">Izin Operasional</td>
-                  <td className="border border-gray-300 p-2">{profileData.tanggalIzinOperasional}</td>
-                </tr>
+
                 <tr>
                   <td className="border border-gray-300 p-2 font-semibold">Koordinat (Lintang/Bujur)</td>
                   <td className="border border-gray-300 p-2">{profileData.lintang} / {profileData.bujur}</td>
@@ -380,38 +396,9 @@ export default function SchoolProfile() {
             </table>
           </section>
 
-          {/* Section 2: Administrasi */}
+          {/* Section 2: Alamat */}
           <section>
-            <h3 className="text-sm font-bold bg-gray-100 p-2 border border-gray-300 uppercase mb-2">II. Data Administrasi</h3>
-            <table className="w-full border-collapse border border-gray-300 text-xs">
-              <tbody>
-                <tr>
-                  <td className="border border-gray-300 p-2 font-semibold w-1/3">Kebutuhan Dilayani</td>
-                  <td className="border border-gray-300 p-2">{administrasiData.kebutuhanDilayani}</td>
-                </tr>
-                <tr>
-                  <td className="border border-gray-300 p-2 font-semibold">Status Kepemilikan</td>
-                  <td className="border border-gray-300 p-2">{administrasiData.statusKepemilikan}</td>
-                </tr>
-                <tr>
-                  <td className="border border-gray-300 p-2 font-semibold">MBS</td>
-                  <td className="border border-gray-300 p-2">{administrasiData.mbs}</td>
-                </tr>
-                <tr>
-                  <td className="border border-gray-300 p-2 font-semibold">Nama Wajib Pajak</td>
-                  <td className="border border-gray-300 p-2">{administrasiData.namaWajibPajak}</td>
-                </tr>
-                <tr>
-                  <td className="border border-gray-300 p-2 font-semibold">NPWP</td>
-                  <td className="border border-gray-300 p-2">{administrasiData.npwp}</td>
-                </tr>
-              </tbody>
-            </table>
-          </section>
-
-          {/* Section 3: Alamat */}
-          <section>
-            <h3 className="text-sm font-bold bg-gray-100 p-2 border border-gray-300 uppercase mb-2">III. Alamat Lengkap</h3>
+            <h3 className="text-sm font-bold bg-gray-100 p-2 border border-gray-300 uppercase mb-2">II. Alamat Lengkap</h3>
             <table className="w-full border-collapse border border-gray-300 text-xs">
               <tbody>
                 <tr>
@@ -420,7 +407,7 @@ export default function SchoolProfile() {
                 </tr>
                 <tr>
                   <td className="border border-gray-300 p-2 font-semibold">RT / RW</td>
-                  <td className="border border-gray-300 p-2">{alamatData.rt} / {alamatData.rw}</td>
+                  <td className="border border-gray-300 p-2">{format3Digits(alamatData.rt)} / {format3Digits(alamatData.rw)}</td>
                 </tr>
                 <tr>
                   <td className="border border-gray-300 p-2 font-semibold">Desa / Kelurahan</td>
@@ -446,9 +433,9 @@ export default function SchoolProfile() {
             </table>
           </section>
 
-          {/* Section 4: Kontak */}
+          {/* Section 3: Kontak */}
           <section>
-            <h3 className="text-sm font-bold bg-gray-100 p-2 border border-gray-300 uppercase mb-2">IV. Informasi Kontak</h3>
+            <h3 className="text-sm font-bold bg-gray-100 p-2 border border-gray-300 uppercase mb-2">III. Informasi Kontak</h3>
             <table className="w-full border-collapse border border-gray-300 text-xs">
               <tbody>
                 <tr>
@@ -481,9 +468,9 @@ export default function SchoolProfile() {
             </table>
           </section>
 
-          {/* Section 5: Data Periodik */}
+          {/* Section 4: Data Periodik */}
           <section>
-            <h3 className="text-sm font-bold bg-gray-100 p-2 border border-gray-300 uppercase mb-2">V. Data Periodik</h3>
+            <h3 className="text-sm font-bold bg-gray-100 p-2 border border-gray-300 uppercase mb-2">IV. Data Periodik</h3>
             <table className="w-full border-collapse border border-gray-300 text-xs">
               <tbody>
                 <tr>
@@ -502,9 +489,9 @@ export default function SchoolProfile() {
             </table>
           </section>
 
-          {/* Section 6: Listrik & Internet */}
+          {/* Section 5: Listrik & Internet */}
           <section>
-            <h3 className="text-sm font-bold bg-gray-100 p-2 border border-gray-300 uppercase mb-2">VI. Listrik & Internet</h3>
+            <h3 className="text-sm font-bold bg-gray-100 p-2 border border-gray-300 uppercase mb-2">V. Listrik & Internet</h3>
             <table className="w-full border-collapse border border-gray-300 text-xs">
               <tbody>
                 <tr>
@@ -567,9 +554,9 @@ export default function SchoolProfile() {
             </table>
           </section>
 
-          {/* Section 7: Kompetensi Keahlian */}
+          {/* Section 6: Kompetensi Keahlian */}
           <section>
-            <h3 className="text-sm font-bold bg-gray-100 p-2 border border-gray-300 uppercase mb-2">VII. Kompetensi Keahlian</h3>
+            <h3 className="text-sm font-bold bg-gray-100 p-2 border border-gray-300 uppercase mb-2">VI. Kompetensi Keahlian</h3>
             <table className="w-full border-collapse border border-gray-300 text-xs text-center">
               <thead>
                 <tr className="bg-gray-50">
@@ -592,9 +579,9 @@ export default function SchoolProfile() {
             </table>
           </section>
 
-          {/* Section 8: Akreditasi */}
+          {/* Section 7: Akreditasi */}
           <section className="break-inside-avoid">
-            <h3 className="text-sm font-bold bg-gray-100 p-2 border border-gray-300 uppercase mb-2">VIII. Akreditasi</h3>
+            <h3 className="text-sm font-bold bg-gray-100 p-2 border border-gray-300 uppercase mb-2">VII. Akreditasi</h3>
             <table className="w-full border-collapse border border-gray-300 text-xs">
               <tbody>
                 <tr>
@@ -787,35 +774,7 @@ export default function SchoolProfile() {
                         disabled
                       />
                     </div>
-                    <div>
-                      <Label>SK Pendirian</Label>
-                      <Input
-                        name="skPendirian"
-                        value={profileData.skPendirian}
-                        onChange={handleProfileChange}
-                        disabled
-                      />
-                    </div>
-                    <div>
-                      <Label>Tanggal SK</Label>
-                      <Input
-                        name="tanggalSK"
-                        type="date"
-                        value={profileData.tanggalSK}
-                        onChange={handleProfileChange}
-                        disabled
-                      />
-                    </div>
-                    <div>
-                      <Label>Tanggal Izin Operasional</Label>
-                      <Input
-                        name="tanggalIzinOperasional"
-                        type="date"
-                        value={profileData.tanggalIzinOperasional}
-                        onChange={handleProfileChange}
-                        disabled
-                      />
-                    </div>
+
                     <div>
                       <Label>Lintang</Label>
                       <Input
@@ -843,63 +802,6 @@ export default function SchoolProfile() {
             </div>
           )}
 
-          {activeTab === "administrasi" && (
-            <div className="space-y-6 tab-content">
-              <h4 className="text-md font-semibold text-gray-800 dark:text-white/90 no-print">
-                Data Administrasi
-              </h4>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div>
-                  <Label>Kebutuhan di Layani</Label>
-                  <Input
-                    name="kebutuhanDilayani"
-                    value={administrasiData.kebutuhanDilayani}
-                    onChange={handleAdministrasiChange}
-                    disabled
-                  />
-                </div>
-                <div>
-                  <Label>Status Kepemilikan</Label>
-                  <Input
-                    name="statusKepemilikan"
-                    value={administrasiData.statusKepemilikan}
-                    onChange={handleAdministrasiChange}
-                    disabled
-                  />
-                </div>
-                <div>
-                  <Label>MBS</Label>
-                  <Input
-                    name="mbs"
-                    value={administrasiData.mbs}
-                    onChange={handleAdministrasiChange}
-                    disabled
-                  />
-                </div>
-                <div>
-                  <Label>Nama Wajib Pajak</Label>
-                  <Input
-                    name="namaWajibPajak"
-                    value={administrasiData.namaWajibPajak}
-                    onChange={handleAdministrasiChange}
-                    disabled
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <Label>NPWP</Label>
-                  <Input
-                    name="npwp"
-                    value={administrasiData.npwp}
-                    onChange={handleAdministrasiChange}
-                    disabled
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end no-print">
-                <Button onClick={handleSave}>Simpan Perubahan</Button>
-              </div>
-            </div>
-          )}
 
           {activeTab === "alamat" && (
             <div className="space-y-6 tab-content">
@@ -921,7 +823,7 @@ export default function SchoolProfile() {
                     <Label>Rt</Label>
                     <Input
                       name="rt"
-                      value={alamatData.rt}
+                      value={format3Digits(alamatData.rt)}
                       onChange={handleAlamatChange}
                       disabled
                     />
@@ -930,7 +832,7 @@ export default function SchoolProfile() {
                     <Label>Rw</Label>
                     <Input
                       name="rw"
-                      value={alamatData.rw}
+                      value={format3Digits(alamatData.rw)}
                       onChange={handleAlamatChange}
                       disabled
                     />

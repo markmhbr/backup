@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Konfigurasi Axios dengan praktik keamanan dasar
 const api = axios.create({
-  baseURL: '/api.php',
+  baseURL: import.meta.env.DEV ? (import.meta.env.VITE_API_URL || 'http://localhost:3000/api') : '/api.php',
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',

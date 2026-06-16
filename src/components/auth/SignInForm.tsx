@@ -9,6 +9,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { Modal } from "../ui/modal";
 import { getRoleSlug } from "../../services/roleUtils";
 import axios from "axios";
+import api from "../../services/api";
 
 export default function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
@@ -33,8 +34,12 @@ export default function SignInForm() {
   useEffect(() => {
     const checkConnection = async () => {
       try {
-        await axios.get("/api.php");
+        const res = await api.get('/auth/system-info');
+        if (res.data && res.data.isConfigured === false) {
+          setError("Sistem belum terhubung. Silakan hubungkan API Key terlebih dahulu.");
+        }
       } catch (err: any) {
+        // Tangkap error jika jembatan proxy (api.php) di production mengembalikan error 400
         if (
           err.response?.status === 400 &&
           err.response?.data?.message?.includes("Sistem belum terhubung")
@@ -51,14 +56,28 @@ export default function SignInForm() {
     setSetupLoading(true);
     setSetupSuccess(null);
     try {
-      const response = await axios.post("/api.php?action=setup", {
-        apiKey: apiKeyInput,
-      });
-      if (response.data.status === "success") {
-        setSetupSuccess("Sekolah berhasil terhubung! Memuat ulang...");
-        setTimeout(() => {
-          window.location.reload();
-        }, 2000);
+      if (import.meta.env.DEV) {
+        // Mode Development: Daftarkan langsung ke database backend lokal
+        const response = await api.post("/auth/system-setup", {
+          apiKey: apiKeyInput,
+        });
+        if (response.data) {
+          setSetupSuccess("API Key berhasil didaftarkan di backend lokal! Memuat ulang...");
+          setTimeout(() => {
+            window.location.reload();
+          }, 2000);
+        }
+      } else {
+        // Mode Production: Simpan ke file key.php di hosting sekolah
+        const response = await axios.post("/api.php?action=setup", {
+          apiKey: apiKeyInput,
+        });
+        if (response.data.status === "success") {
+          setSetupSuccess("Sekolah berhasil terhubung! Memuat ulang...");
+          setTimeout(() => {
+            window.location.reload();
+          }, 2000);
+        }
       }
     } catch (err: any) {
       setError(

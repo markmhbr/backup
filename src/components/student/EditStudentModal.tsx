@@ -7,6 +7,25 @@ import Select from "../form/Select";
 import Swal from "sweetalert2";
 import { dapodikService } from "../../services/dapodikService";
 
+const format3Digits = (value: string | number | null | undefined): string => {
+  if (value === null || value === undefined || value === "") return "";
+  const numStr = String(value).trim();
+  if (/^\d+$/.test(numStr)) {
+    return numStr.padStart(3, "0");
+  }
+  return numStr;
+};
+
+const sanitizeRtRw = (value: string | number | null | undefined): string => {
+  if (value === null || value === undefined || value === "") return "";
+  const numStr = String(value).trim();
+  if (/^\d+$/.test(numStr)) {
+    const stripped = numStr.replace(/^0+/, '');
+    return stripped === "" ? "0" : stripped;
+  }
+  return numStr;
+};
+
 interface EditStudentModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -17,7 +36,79 @@ const EditStudentModal: React.FC<EditStudentModalProps> = ({ isOpen, onClose, se
   const [activeTab, setActiveTab] = useState("Profil");
   const [formData, setFormData] = useState<any>({});
   const [loading, setLoading] = useState(false);
+  const [uploadedDocs, setUploadedDocs] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Helper function to convert to Title Case
+  const toTitleCase = (str: string) => {
+    return str ? str.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase()) : "";
+  };
+
+  // Regional Data State
+  const [provinces, setProvinces] = useState<any[]>([]);
+  const [regencies, setRegencies] = useState<any[]>([]);
+  const [districts, setDistricts] = useState<any[]>([]);
+  const [villages, setVillages] = useState<any[]>([]);
+
+  const [selectedProvinceId, setSelectedProvinceId] = useState("");
+  const [selectedRegencyId, setSelectedRegencyId] = useState("");
+  const [selectedDistrictId, setSelectedDistrictId] = useState("");
+  const [selectedVillageId, setSelectedVillageId] = useState("");
+
+  // Fetch Provinces on Mount
+  useEffect(() => {
+    fetch("https://www.emsifa.com/api-wilayah-indonesia/api/provinces.json")
+      .then(res => res.json())
+      .then(data => {
+        const formatted = data.map((p: any) => ({ value: p.id, label: toTitleCase(p.name) }));
+        setProvinces(formatted.sort((a: any, b: any) => a.label.localeCompare(b.label)));
+      });
+  }, []);
+
+  // Fetch Regencies
+  useEffect(() => {
+    if (selectedProvinceId) {
+      fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/regencies/${selectedProvinceId}.json`)
+        .then(res => res.json())
+        .then(data => {
+          const formatted = data.map((r: any) => ({ value: r.id, label: toTitleCase(r.name) }));
+          setRegencies(formatted.sort((a: any, b: any) => a.label.localeCompare(b.label)));
+        });
+    } else {
+      setRegencies([]);
+    }
+    setDistricts([]);
+    setVillages([]);
+  }, [selectedProvinceId]);
+
+  // Fetch Districts
+  useEffect(() => {
+    if (selectedRegencyId) {
+      fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/districts/${selectedRegencyId}.json`)
+        .then(res => res.json())
+        .then(data => {
+          const formatted = data.map((d: any) => ({ value: d.id, label: toTitleCase(d.name) }));
+          setDistricts(formatted.sort((a: any, b: any) => a.label.localeCompare(b.label)));
+        });
+    } else {
+      setDistricts([]);
+    }
+    setVillages([]);
+  }, [selectedRegencyId]);
+
+  // Fetch Villages
+  useEffect(() => {
+    if (selectedDistrictId) {
+      fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/villages/${selectedDistrictId}.json`)
+        .then(res => res.json())
+        .then(data => {
+          const formatted = data.map((v: any) => ({ value: v.id, label: toTitleCase(v.name) }));
+          setVillages(formatted.sort((a: any, b: any) => a.label.localeCompare(b.label)));
+        });
+    } else {
+      setVillages([]);
+    }
+  }, [selectedDistrictId]);
 
   const tabs = [
     "Profil",
@@ -35,8 +126,10 @@ const EditStudentModal: React.FC<EditStudentModalProps> = ({ isOpen, onClose, se
           const result = await dapodikService.getPesertaDidikDetail(selectedIds[0]);
           if (result.status === "success" && result.data) {
             const data = result.data;
+            setUploadedDocs(data.uploaded_docs || []);
             setFormData({
               id: data.peserta_didik_id,
+              sekolahId: data.sekolah_id || "",
               nama: data.nama,
               tempatLahir: data.tempat_lahir || "",
               tanggalLahir: data.tanggal_lahir ? data.tanggal_lahir.split('T')[0] : "",
@@ -51,11 +144,12 @@ const EditStudentModal: React.FC<EditStudentModalProps> = ({ isOpen, onClose, se
               anakKe: data.anak_keberapa || "",
               avatar: data.foto || "",
               jalan: data.alamat_jalan || "",
-              rt: data.rt || "",
-              rw: data.rw || "",
+              rt: format3Digits(data.rt),
+              rw: format3Digits(data.rw),
               provinsi: data.provinsi || "",
               kabupaten: data.kabupaten_kota || "",
               kecamatan: data.kecamatan || "",
+              desaKelurahan: data.desa_kelurahan || "",
               kodePos: data.kode_pos || "",
               tempatTinggal: data.jenis_tinggal_id_str || "",
               transportasi: data.alat_transportasi_id_str || "",
@@ -97,6 +191,50 @@ const EditStudentModal: React.FC<EditStudentModalProps> = ({ isOpen, onClose, se
               pendidikanWali: data.pendidikan_wali_id_str || "",
               penghasilanWali: data.penghasilan_wali_id_str || "",
             });
+
+            // Pre-populate regional data names to their matching EMSIFA IDs
+            try {
+              const provRes = await fetch("https://www.emsifa.com/api-wilayah-indonesia/api/provinces.json");
+              const provData = await provRes.json();
+              const formattedProvinces = provData.map((p: any) => ({ value: p.id, label: toTitleCase(p.name) }));
+              
+              const matchedProv = formattedProvinces.find((p: any) => p.label.toLowerCase() === (data.provinsi || '').toLowerCase());
+              if (matchedProv) {
+                setSelectedProvinceId(matchedProv.value);
+                
+                const regRes = await fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/regencies/${matchedProv.value}.json`);
+                const regData = await regRes.json();
+                const formattedRegencies = regData.map((r: any) => ({ value: r.id, label: toTitleCase(r.name) }));
+                setRegencies(formattedRegencies);
+                
+                const matchedReg = formattedRegencies.find((r: any) => r.label.toLowerCase() === (data.kabupaten_kota || '').toLowerCase());
+                if (matchedReg) {
+                  setSelectedRegencyId(matchedReg.value);
+                  
+                  const distRes = await fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/districts/${matchedReg.value}.json`);
+                  const distData = await distRes.json();
+                  const formattedDistricts = distData.map((d: any) => ({ value: d.id, label: toTitleCase(d.name) }));
+                  setDistricts(formattedDistricts);
+                  
+                  const matchedDist = formattedDistricts.find((d: any) => d.label.toLowerCase() === (data.kecamatan || '').toLowerCase());
+                  if (matchedDist) {
+                    setSelectedDistrictId(matchedDist.value);
+                    
+                    const vilRes = await fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/villages/${matchedDist.value}.json`);
+                    const vilData = await vilRes.json();
+                    const formattedVillages = vilData.map((v: any) => ({ value: v.id, label: toTitleCase(v.name) }));
+                    setVillages(formattedVillages);
+                    
+                    const matchedVil = formattedVillages.find((v: any) => v.label.toLowerCase() === (data.desa_kelurahan || '').toLowerCase());
+                    if (matchedVil) {
+                      setSelectedVillageId(matchedVil.value);
+                    }
+                  }
+                }
+              }
+            } catch (regError) {
+              console.error("Gagal memetakan data wilayah:", regError);
+            }
           }
         } catch (error) {
           Swal.fire("Error", "Gagal mengambil data peserta didik", "error");
@@ -115,20 +253,44 @@ const EditStudentModal: React.FC<EditStudentModalProps> = ({ isOpen, onClose, se
     setFormData((prev: any) => ({ ...prev, [field]: value }));
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 500 * 1024) {
         Swal.fire({ title: "File Terlalu Besar", text: "Ukuran foto maksimal adalah 500Kb", icon: "error", confirmButtonColor: "#465FFF" });
         return;
       }
-      const previewUrl = URL.createObjectURL(file);
-      setFormData((prev: any) => ({ ...prev, avatar: previewUrl }));
+      
+      setLoading(true);
+      try {
+        const result = await dapodikService.uploadSiswaFoto(selectedIds[0], file);
+        if (result.status === "success" && result.data) {
+          const relativePath = result.data.filePath;
+          const host = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace("/api", "") : "http://localhost:3000";
+          const fullUrl = `${host}${relativePath}`;
+          setFormData((prev: any) => ({ ...prev, avatar: fullUrl }));
+          Swal.fire({ title: "Berhasil", text: "Foto profil berhasil diperbarui", icon: "success", confirmButtonColor: "#465FFF" });
+        }
+      } catch (error: any) {
+        Swal.fire("Error", error.response?.data?.message || "Gagal mengunggah foto profil", "error");
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
   const handleSave = async () => {
     if (selectedIds.length !== 1) return;
+
+    if (formData.noKK && formData.noKK.length !== 16) {
+      Swal.fire({
+        title: "Validasi Gagal",
+        text: "Nomor Kartu Keluarga (KK) harus tepat 16 digit.",
+        icon: "error",
+        confirmButtonColor: "#465FFF"
+      });
+      return;
+    }
 
     setLoading(true);
     try {
@@ -147,11 +309,12 @@ const EditStudentModal: React.FC<EditStudentModalProps> = ({ isOpen, onClose, se
         anak_keberapa: formData.anakKe ? String(formData.anakKe) : null,
         foto: formData.avatar,
         alamat_jalan: formData.jalan,
-        rt: formData.rt,
-        rw: formData.rw,
+        rt: sanitizeRtRw(formData.rt),
+        rw: sanitizeRtRw(formData.rw),
         provinsi: formData.provinsi,
         kabupaten_kota: formData.kabupaten,
         kecamatan: formData.kecamatan,
+        desa_kelurahan: formData.desaKelurahan,
         kode_pos: formData.kodePos,
         jenis_tinggal_id_str: formData.tempatTinggal,
         alat_transportasi_id_str: formData.transportasi,
@@ -205,6 +368,76 @@ const EditStudentModal: React.FC<EditStudentModalProps> = ({ isOpen, onClose, se
       });
     } catch (error) {
       Swal.fire("Error", "Gagal menyimpan data", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const studentDocTypes = [
+    { name: "Ijazah Sekolah Asal", key: "ijazah_sekolah_asal" },
+    { name: "Kartu Keluarga", key: "kartu_keluarga" },
+    { name: "Akta Kelahiran", key: "akta_kelahiran" },
+    { name: "KTP Ayah", key: "ktp_ayah" },
+    { name: "KTP Ibu", key: "ktp_ibu" },
+  ];
+
+  const handleUploadDoc = async (docName: string, file: File | undefined) => {
+    if (!file) return;
+    
+    const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+    const isImage = ['.jpg', '.jpeg', '.png', '.webp'].includes(ext);
+    const maxSize = isImage ? 100 * 1024 : 200 * 1024;
+    
+    if (file.size > maxSize) {
+      Swal.fire({
+        title: "File Terlalu Besar",
+        text: `Ukuran maksimal file adalah ${isImage ? "100Kb" : "200Kb"}. Silakan kompres terlebih dahulu.`,
+        icon: "error",
+        confirmButtonColor: "#465FFF",
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await dapodikService.uploadSiswaDokumen(selectedIds[0], file, docName);
+      
+      const result = await dapodikService.getPesertaDidikDetail(selectedIds[0]);
+      if (result.status === "success" && result.data) {
+        setUploadedDocs(result.data.uploaded_docs || []);
+      }
+      Swal.fire({ title: "Berhasil", text: "Dokumen berhasil diunggah", icon: "success", confirmButtonColor: "#465FFF" });
+    } catch (error: any) {
+      Swal.fire("Error", error.response?.data?.message || "Gagal mengunggah dokumen", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteDoc = async (fileName: string, docLabel: string) => {
+    const confirm = await Swal.fire({
+      title: "Hapus Dokumen?",
+      text: `Apakah Anda yakin ingin menghapus dokumen "${docLabel}"?`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Ya, Hapus!",
+      cancelButtonText: "Batal",
+      confirmButtonColor: "#EF4444",
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    setLoading(true);
+    try {
+      await dapodikService.deleteSiswaDokumen(selectedIds[0], fileName);
+      
+      const result = await dapodikService.getPesertaDidikDetail(selectedIds[0]);
+      if (result.status === "success" && result.data) {
+        setUploadedDocs(result.data.uploaded_docs || []);
+      }
+      Swal.fire({ title: "Berhasil", text: "Dokumen berhasil dihapus", icon: "success", confirmButtonColor: "#465FFF" });
+    } catch (error: any) {
+      Swal.fire("Error", error.response?.data?.message || "Gagal menghapus dokumen", "error");
     } finally {
       setLoading(false);
     }
@@ -276,7 +509,7 @@ const EditStudentModal: React.FC<EditStudentModalProps> = ({ isOpen, onClose, se
                   <div className="space-y-2"><Label>NISN</Label><Input value={formData.nisn || ""} placeholder="NISN harus 10 digit" maxLength={10} onChange={(e) => handleInputChange("nisn", e.target.value)} /></div>
                   <div className="space-y-2"><Label>NIPD</Label><Input value={formData.nipd || ""} placeholder="Masukkan NIPD" onChange={(e) => handleInputChange("nipd", e.target.value)} /></div>
                   <div className="space-y-2"><Label>NIK</Label><Input value={formData.nik || ""} placeholder="NIK harus 16 digit" maxLength={16} onChange={(e) => handleInputChange("nik", e.target.value)} /></div>
-                  <div className="space-y-2"><Label>No. Kartu Keluarga</Label><Input value={formData.noKK || ""} placeholder="Nomor KK harus 16 digit" maxLength={16} onChange={(e) => handleInputChange("noKK", e.target.value)} /></div>
+                  <div className="space-y-2"><Label>No. Kartu Keluarga</Label><Input value={formData.noKK || ""} placeholder="Nomor KK harus 16 digit" maxLength={16} onChange={(e) => handleInputChange("noKK", e.target.value.replace(/\D/g, ''))} /></div>
                   <div className="space-y-2"><Label>No. Register Akte Lahir</Label><Input value={formData.noAkte || ""} placeholder="Masukkan Nomor Register Akta Lahir" onChange={(e) => handleInputChange("noAkte", e.target.value)} /></div>
                   <div className="space-y-2"><Label>Berkebutuhan Khusus</Label><Input value={formData.kebutuhanKhusus || ""} placeholder="Masukkan Kebutuhan Khusus" onChange={(e) => handleInputChange("kebutuhanKhusus", e.target.value)} /></div>
                   <div className="space-y-2"><Label>Agama</Label><Input value={formData.agama || ""} placeholder="Masukkan Agama" onChange={(e) => handleInputChange("agama", e.target.value)} /></div>
@@ -290,11 +523,26 @@ const EditStudentModal: React.FC<EditStudentModalProps> = ({ isOpen, onClose, se
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2"><Label>Jalan atau Kampung</Label><Input value={formData.jalan || ""} onChange={(e) => handleInputChange("jalan", e.target.value)} /></div>
-                  <div className="space-y-2"><Label>RT</Label><Input value={formData.rt || ""} onChange={(e) => handleInputChange("rt", e.target.value)} /></div>
-                  <div className="space-y-2"><Label>RW</Label><Input value={formData.rw || ""} onChange={(e) => handleInputChange("rw", e.target.value)} /></div>
-                  <div className="space-y-2"><Label>Provinsi</Label><Input value={formData.provinsi || ""} onChange={(e) => handleInputChange("provinsi", e.target.value)} /></div>
-                  <div className="space-y-2"><Label>Kab./Kota</Label><Input value={formData.kabupaten || ""} onChange={(e) => handleInputChange("kabupaten", e.target.value)} /></div>
-                  <div className="space-y-2"><Label>Kecamatan</Label><Input value={formData.kecamatan || ""} onChange={(e) => handleInputChange("kecamatan", e.target.value)} /></div>
+                  <div className="space-y-2">
+                    <Label>RT</Label>
+                    <Input 
+                      value={formData.rt || ""} 
+                      onChange={(e) => handleInputChange("rt", e.target.value.replace(/\D/g, ''))} 
+                      onBlur={() => handleInputChange("rt", format3Digits(formData.rt))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>RW</Label>
+                    <Input 
+                      value={formData.rw || ""} 
+                      onChange={(e) => handleInputChange("rw", e.target.value.replace(/\D/g, ''))} 
+                      onBlur={() => handleInputChange("rw", format3Digits(formData.rw))}
+                    />
+                  </div>
+                  <div className="space-y-2"><Label>Provinsi</Label><Select placeholder="Pilih Provinsi" options={provinces} value={selectedProvinceId} onChange={(val) => {setSelectedProvinceId(val); handleInputChange("provinsi", provinces.find(p=>p.value===val)?.label || ""); }} /></div>
+                  <div className="space-y-2"><Label>Kab./Kota</Label><Select placeholder="Pilih Kab/Kota" options={regencies} value={selectedRegencyId} disabled={!selectedProvinceId} onChange={(val) => {setSelectedRegencyId(val); handleInputChange("kabupaten", regencies.find(r=>r.value===val)?.label || ""); }} /></div>
+                  <div className="space-y-2"><Label>Kecamatan</Label><Select placeholder="Pilih Kecamatan" options={districts} value={selectedDistrictId} disabled={!selectedRegencyId} onChange={(val) => {setSelectedDistrictId(val); handleInputChange("kecamatan", districts.find(d=>d.value===val)?.label || ""); }} /></div>
+                  <div className="space-y-2"><Label>Desa/Kelurahan</Label><Select placeholder="Pilih Desa/Kelurahan" options={villages} value={selectedVillageId} disabled={!selectedDistrictId} onChange={(val) => { setSelectedVillageId(val); handleInputChange("desaKelurahan", villages.find(v=>v.value===val)?.label || ""); }} /></div>
                   <div className="space-y-2"><Label>Kode Pos</Label><Input value={formData.kodePos || ""} onChange={(e) => handleInputChange("kodePos", e.target.value)} /></div>
                   <div className="space-y-2"><Label>Tempat Tinggal</Label><Input value={formData.tempatTinggal || ""} onChange={(e) => handleInputChange("tempatTinggal", e.target.value)} /></div>
                   <div className="space-y-2"><Label>Transportasi</Label><Input value={formData.transportasi || ""} onChange={(e) => handleInputChange("transportasi", e.target.value)} /></div>
@@ -325,7 +573,7 @@ const EditStudentModal: React.FC<EditStudentModalProps> = ({ isOpen, onClose, se
                   <div className="space-y-2"><Label>No. Handphone</Label><Input value={formData.noHp || ""} onChange={(e) => handleInputChange("noHp", e.target.value)} /></div>
                   <div className="space-y-2"><Label>No. Whatsapp</Label><Input value={formData.noWa || ""} onChange={(e) => handleInputChange("noWa", e.target.value)} /></div>
                   <div className="space-y-2"><Label>Email Aktif</Label><Input type="email" value={formData.emailAktif || ""} onChange={(e) => handleInputChange("emailAktif", e.target.value)} /></div>
-                  <div className="space-y-2"><Label>Email Akun</Label><Input type="email" value={formData.emailAkun || ""} onChange={(e) => handleInputChange("emailAkun", e.target.value)} /></div>
+                  <div className="space-y-2"><Label>Email Akun</Label><Input type="email" value={formData.emailAkun || ""} disabled /></div>
                 </div>
               </div>
             </div>
@@ -402,26 +650,44 @@ const EditStudentModal: React.FC<EditStudentModalProps> = ({ isOpen, onClose, se
 
         {activeTab === "Dokumen" && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label>Ijazah Sekolah Asal</Label>
-              <input type="file" className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 dark:file:bg-white/[0.05] dark:file:text-white dark:hover:file:bg-white/[0.1] border border-gray-200 dark:border-gray-800 rounded-lg h-11 px-2" />
-            </div>
-            <div className="space-y-2">
-              <Label>Kartu Keluarga</Label>
-              <input type="file" className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 dark:file:bg-white/[0.05] dark:file:text-white dark:hover:file:bg-white/[0.1] border border-gray-200 dark:border-gray-800 rounded-lg h-11 px-2" />
-            </div>
-            <div className="space-y-2">
-              <Label>Akta Kelahiran</Label>
-              <input type="file" className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 dark:file:bg-white/[0.05] dark:file:text-white dark:hover:file:bg-white/[0.1] border border-gray-200 dark:border-gray-800 rounded-lg h-11 px-2" />
-            </div>
-            <div className="space-y-2">
-              <Label>KTP Ayah</Label>
-              <input type="file" className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 dark:file:bg-white/[0.05] dark:file:text-white dark:hover:file:bg-white/[0.1] border border-gray-200 dark:border-gray-800 rounded-lg h-11 px-2" />
-            </div>
-            <div className="space-y-2">
-              <Label>KTP Ibu</Label>
-              <input type="file" className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 dark:file:bg-white/[0.05] dark:file:text-white dark:hover:file:bg-white/[0.1] border border-gray-200 dark:border-gray-800 rounded-lg h-11 px-2" />
-            </div>
+            {studentDocTypes.map((docType) => {
+              const existingFile = uploadedDocs.find(f => f.startsWith(docType.key));
+              const fileUrl = existingFile 
+                ? `${import.meta.env.VITE_API_BASE_URL || "http://localhost:3000"}/storage/${formData.sekolahId}/siswa/${selectedIds[0]}/dokumen/${existingFile}` 
+                : "";
+
+              return (
+                <div key={docType.key} className="space-y-2 border border-gray-150 dark:border-white/[0.05] p-4 rounded-xl bg-gray-50/20 dark:bg-white/[0.01]">
+                  <Label>{docType.name}</Label>
+                  {existingFile ? (
+                    <div className="flex items-center justify-between gap-4 bg-white dark:bg-gray-950 p-2.5 px-3.5 rounded-lg border border-gray-200 dark:border-white/[0.05] shadow-theme-xs">
+                      <a 
+                        href={fileUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-sm font-medium text-brand-500 hover:underline truncate max-w-[200px]"
+                        title={existingFile}
+                      >
+                        {existingFile}
+                      </a>
+                      <button 
+                        onClick={() => handleDeleteDoc(existingFile, docType.name)} 
+                        className="text-xs font-semibold text-error-500 hover:text-error-600 transition-colors"
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                  ) : (
+                    <input 
+                      type="file" 
+                      className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 dark:file:bg-white/[0.05] dark:file:text-white dark:hover:file:bg-white/[0.1] border border-gray-200 dark:border-gray-800 rounded-lg h-11 px-2 flex items-center bg-white dark:bg-gray-950" 
+                      onChange={(e) => handleUploadDoc(docType.name, e.target.files?.[0])}
+                      accept=".pdf,.jpg,.jpeg,.png,.webp"
+                    />
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

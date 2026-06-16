@@ -1,6 +1,5 @@
 import React from "react";
 import GridShape from "../../components/common/GridShape";
-import { Link } from "react-router";
 import ThemeTogglerTwo from "../../components/common/ThemeTogglerTwo";
 
 export default function AuthLayout({
@@ -16,17 +15,14 @@ export default function AuthLayout({
           <div className="relative flex items-center justify-center z-1">
             {/* <!-- ===== Common Grid Shape Start ===== --> */}
             <GridShape />
-            <div className="flex flex-col items-center max-w-xs">
-              <Link to="/" className="block mb-4">
-                <img
-                  width={231}
-                  height={48}
-                  src="/images/logo/auth-logo.svg"
-                  alt="Logo"
-                />
-              </Link>
-              <p className="text-center text-gray-400 dark:text-white/60">
-                Free and Open-Source Tailwind CSS Admin Dashboard Template
+            <div className="flex flex-col items-center max-w-sm text-center">
+              {/* Singkatan (Ukuran Besar & Bold) */}
+              <h1 className="text-4xl font-extrabold tracking-wider text-white dark:text-brand-950 mb-2">
+                SIMAK
+              </h1>
+              {/* Kepanjangan (Ukuran Sedang) */}
+              <p className="text-lg font-medium text-gray-300 dark:text-brand-900/80">
+                Sistem Informasi Manajemen Akademik
               </p>
             </div>
           </div>

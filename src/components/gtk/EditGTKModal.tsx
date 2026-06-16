@@ -9,6 +9,25 @@ import { dapodikService } from "../../services/dapodikService";
 import Swal from "sweetalert2";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "../ui/table";
 
+const format3Digits = (value: string | number | null | undefined): string => {
+  if (value === null || value === undefined || value === "") return "";
+  const numStr = String(value).trim();
+  if (/^\d+$/.test(numStr)) {
+    return numStr.padStart(3, "0");
+  }
+  return numStr;
+};
+
+const sanitizeRtRw = (value: string | number | null | undefined): string => {
+  if (value === null || value === undefined || value === "") return "";
+  const numStr = String(value).trim();
+  if (/^\d+$/.test(numStr)) {
+    const stripped = numStr.replace(/^0+/, '');
+    return stripped === "" ? "0" : stripped;
+  }
+  return numStr;
+};
+
 interface EditGTKModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -39,6 +58,7 @@ const EditGTKModal: React.FC<EditGTKModalProps> = ({ isOpen, onClose, selectedId
   const [selectedProvinceId, setSelectedProvinceId] = useState("");
   const [selectedRegencyId, setSelectedRegencyId] = useState("");
   const [selectedDistrictId, setSelectedDistrictId] = useState("");
+  const [selectedVillageId, setSelectedVillageId] = useState("");
 
   const [errors, setErrors] = useState<any>({});
 
@@ -159,8 +179,8 @@ const EditGTKModal: React.FC<EditGTKModalProps> = ({ isOpen, onClose, selectedId
               npwp: data.npwp || "",
               
               kampungJalan: data.alamat_jalan || "",
-              rt: data.rt || "",
-              rw: data.rw || "",
+              rt: format3Digits(data.rt),
+              rw: format3Digits(data.rw),
               dusun: data.dusun || "",
               provinsi: data.provinsi || "",
               kotaKabupaten: data.kabupaten_kota || "",
@@ -186,7 +206,9 @@ const EditGTKModal: React.FC<EditGTKModalProps> = ({ isOpen, onClose, selectedId
               
               pendidikanTerakhir: data.pendidikan_terakhir || "",
               bidangStudi: data.bidang_studi_terakhir || "",
-              riwayatPendidikan: data.rwy_pend_formal ? (typeof data.rwy_pend_formal === 'string' ? JSON.parse(data.rwy_pend_formal) : data.rwy_pend_formal) : [],
+              riwayatPendidikan: (data.riwayat_pendidikan_formal && data.riwayat_pendidikan_formal.length > 0)
+                ? data.riwayat_pendidikan_formal
+                : (data.rwy_pend_formal ? (typeof data.rwy_pend_formal === 'string' ? JSON.parse(data.rwy_pend_formal) : data.rwy_pend_formal) : []),
               
               lisensiKepsek: data.lisensi_kepsek ? "Ya" : "Tidak",
               nuk: data.nuks || "",
@@ -253,6 +275,11 @@ const EditGTKModal: React.FC<EditGTKModalProps> = ({ isOpen, onClose, selectedId
                     const vilData = await vilRes.json();
                     const formattedVillages = vilData.map((v: any) => ({ value: v.id, label: toTitleCase(v.name) }));
                     setVillages(formattedVillages);
+                    
+                    const matchedVil = formattedVillages.find((v: any) => v.label.toLowerCase() === (data.desa_kelurahan || '').toLowerCase());
+                    if (matchedVil) {
+                      setSelectedVillageId(matchedVil.value);
+                    }
                   }
                 }
               }
@@ -301,19 +328,33 @@ const EditGTKModal: React.FC<EditGTKModalProps> = ({ isOpen, onClose, selectedId
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 500 * 1024) {
         Swal.fire({ title: "File Terlalu Besar", text: "Ukuran foto maksimal adalah 500Kb", icon: "error", confirmButtonColor: "#465FFF" });
         return;
       }
-      const previewUrl = URL.createObjectURL(file);
-      setFormData((prev: any) => ({ ...prev, avatar: previewUrl }));
+      
+      setLoading(true);
+      try {
+        const result = await dapodikService.uploadGtkFoto(selectedIds[0], file);
+        if (result.status === "success" && result.data) {
+          const relativePath = result.data.filePath;
+          const host = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace("/api", "") : "http://localhost:3000";
+          const fullUrl = `${host}${relativePath}`;
+          setFormData((prev: any) => ({ ...prev, avatar: fullUrl }));
+          Swal.fire({ title: "Berhasil", text: "Foto profil berhasil diperbarui", icon: "success", confirmButtonColor: "#465FFF" });
+        }
+      } catch (error: any) {
+        Swal.fire("Error", error.response?.data?.message || "Gagal mengunggah foto profil", "error");
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
-  const handleAddDocument = () => {
+  const handleAddDocument = async () => {
     if (!docName || !docFile) {
       Swal.fire({
         title: "Data Tidak Lengkap",
@@ -324,25 +365,73 @@ const EditGTKModal: React.FC<EditGTKModalProps> = ({ isOpen, onClose, selectedId
       return;
     }
 
-    const newDoc = {
-      id: Date.now(),
-      nama: docName,
-      fileUrl: URL.createObjectURL(docFile),
-      fileType: docFile.type,
-    };
+    // Validate size: images max 100KB, pdf max 200KB
+    const ext = docFile.name.substring(docFile.name.lastIndexOf('.')).toLowerCase();
+    const isImage = ['.jpg', '.jpeg', '.png', '.webp'].includes(ext);
+    const maxSize = isImage ? 100 * 1024 : 200 * 1024;
+    
+    if (docFile.size > maxSize) {
+      Swal.fire({
+        title: "File Terlalu Besar",
+        text: `Ukuran maksimal file adalah ${isImage ? "100Kb" : "200Kb"}. Silakan kompres terlebih dahulu.`,
+        icon: "error",
+        confirmButtonColor: "#465FFF",
+      });
+      return;
+    }
 
-    setPendingDocs((prev) => [...prev, newDoc]); 
-
-    // Reset local state
-    setDocName("");
-    setDocFile(null);
-    if (docFileInputRef.current) {
-      docFileInputRef.current.value = "";
+    setLoading(true);
+    try {
+      await dapodikService.uploadGtkDokumen(selectedIds[0], docFile, docName);
+      
+      // Reload GTK data
+      const result = await dapodikService.getGtkDetail(selectedIds[0]);
+      if (result.status === "success" && result.data) {
+        setPendingDocs(result.data.foto_dokumen || []);
+      }
+      
+      // Reset local state
+      setDocName("");
+      setDocFile(null);
+      if (docFileInputRef.current) {
+        docFileInputRef.current.value = "";
+      }
+      Swal.fire({ title: "Berhasil", text: "Dokumen berhasil ditambahkan", icon: "success", confirmButtonColor: "#465FFF" });
+    } catch (error: any) {
+      Swal.fire("Error", error.response?.data?.message || "Gagal mengunggah dokumen", "error");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleRemovePendingDocument = (id: number) => {
-    setPendingDocs((prev) => prev.filter((d) => d.id !== id));
+  const handleRemovePendingDocument = async (doc: any) => {
+    const confirm = await Swal.fire({
+      title: "Hapus Dokumen?",
+      text: `Apakah Anda yakin ingin menghapus dokumen "${doc.nama}"?`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Ya, Hapus!",
+      cancelButtonText: "Batal",
+      confirmButtonColor: "#EF4444",
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    setLoading(true);
+    try {
+      await dapodikService.deleteGtkDokumen(selectedIds[0], doc.fileName);
+      
+      // Reload GTK data
+      const result = await dapodikService.getGtkDetail(selectedIds[0]);
+      if (result.status === "success" && result.data) {
+        setPendingDocs(result.data.foto_dokumen || []);
+      }
+      Swal.fire({ title: "Berhasil", text: "Dokumen berhasil dihapus", icon: "success", confirmButtonColor: "#465FFF" });
+    } catch (error: any) {
+      Swal.fire("Error", error.response?.data?.message || "Gagal menghapus dokumen", "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCheckCoordinates = () => {
@@ -450,6 +539,16 @@ const EditGTKModal: React.FC<EditGTKModalProps> = ({ isOpen, onClose, selectedId
   const handleSave = async () => {
     if (selectedIds.length !== 1) return;
 
+    if (formData.kk && formData.kk.length !== 16) {
+      Swal.fire({
+        title: "Gagal Menyimpan",
+        text: "Nomor KK harus tepat 16 digit.",
+        icon: "error",
+        confirmButtonColor: "#465FFF"
+      });
+      return;
+    }
+
     let hasError = false;
     const newErrors: any = {};
     
@@ -503,8 +602,8 @@ const EditGTKModal: React.FC<EditGTKModalProps> = ({ isOpen, onClose, selectedId
         npwp: formData.npwp,
         
         alamat_jalan: formData.kampungJalan,
-        rt: formData.rt,
-        rw: formData.rw,
+        rt: sanitizeRtRw(formData.rt),
+        rw: sanitizeRtRw(formData.rw),
         dusun: formData.dusun,
         provinsi: formData.provinsi,
         kabupaten_kota: formData.kotaKabupaten,
@@ -535,7 +634,7 @@ const EditGTKModal: React.FC<EditGTKModalProps> = ({ isOpen, onClose, selectedId
         mampu_menangani_kebutuhan_khusus: formData.kebutuhanKhusus,
         keahlian_braille: formData.keahlianBraille === "Ya",
         keahlian_bahasa_isyarat: formData.bahasaIsyarat === "Ya",
-        
+
         no_telepon_rumah: formData.noTelpRumah,
         no_hp: formData.noHp,
         no_wa: formData.noWa,
@@ -647,20 +746,20 @@ const EditGTKModal: React.FC<EditGTKModalProps> = ({ isOpen, onClose, selectedId
             </div>
             
             <div className="w-full lg:w-2/3 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>Nama</Label><Input value={formData.nama || ""} disabled /></div>
-                <div className="space-y-2"><Label>NIK</Label><Input value={formData.nik || ""} disabled /></div>
-                <div className="space-y-2"><Label>Nomor KK</Label><Input value={formData.kk || ""} disabled /></div>
-                <div className="space-y-2"><Label>NUPTK</Label><Input value={formData.nuptk || ""} disabled /></div>
-                <div className="space-y-2"><Label>NIP/NIY/NIGB</Label><Input value={formData.nipNiyNigb || ""} disabled /></div>
-                <div className="space-y-2"><Label>Jenis Kelamin</Label><Input value={formData.jk === "L" ? "Laki-laki" : formData.jk === "P" ? "Perempuan" : formData.jk || ""} disabled /></div>
-                <div className="space-y-2"><Label>Tempat Lahir</Label><Input value={formData.tempatLahir || ""} disabled /></div>
-                <div className="space-y-2"><Label>Tanggal Lahir</Label><Input type="date" value={formData.tanggalLahir || ""} disabled /></div>
-                <div className="space-y-2"><Label>Nama Ibu Kandung</Label><Input value={formData.ibuKandung || ""} disabled /></div>
-                <div className="space-y-2"><Label>Agama</Label><Input value={formData.agama || ""} disabled /></div>
-                <div className="space-y-2"><Label>Kewarganegaraan</Label><Input value={formData.kewarganegaraan || ""} disabled /></div>
-                <div className="space-y-2"><Label>Status Perkawinan</Label><Input value={formData.statusPerkawinan || ""} disabled /></div>
-                <div className="space-y-2"><Label>Nama Pasangan</Label><Input value={formData.namaPasangan || ""} disabled /></div>
-                <div className="space-y-2"><Label>Pekerjaan Pasangan</Label><Input value={formData.pekerjaanPasangan || ""} disabled /></div>
+                <div className="space-y-2"><Label>Nama</Label><Input value={formData.nama || ""} onChange={(e) => handleInputChange("nama", e.target.value)} /></div>
+                <div className="space-y-2"><Label>NIK</Label><Input value={formData.nik || ""} maxLength={16} onChange={(e) => handleInputChange("nik", e.target.value.replace(/\D/g, ''))} /></div>
+                <div className="space-y-2"><Label>Nomor KK</Label><Input value={formData.kk || ""} maxLength={16} onChange={(e) => handleInputChange("kk", e.target.value.replace(/\D/g, ''))} /></div>
+                <div className="space-y-2"><Label>NUPTK</Label><Input value={formData.nuptk || ""} onChange={(e) => handleInputChange("nuptk", e.target.value.replace(/\D/g, ''))} /></div>
+                <div className="space-y-2"><Label>NIP/NIY/NIGB</Label><Input value={formData.nipNiyNigb || ""} onChange={(e) => handleInputChange("nipNiyNigb", e.target.value)} /></div>
+                <div className="space-y-2"><Label>Jenis Kelamin</Label><Select value={formData.jk} options={[{value:"L",label:"Laki-laki"},{value:"P",label:"Perempuan"}]} onChange={(val) => handleInputChange("jk", val)} /></div>
+                <div className="space-y-2"><Label>Tempat Lahir</Label><Input value={formData.tempatLahir || ""} onChange={(e) => handleInputChange("tempatLahir", e.target.value)} /></div>
+                <div className="space-y-2"><Label>Tanggal Lahir</Label><Input type="date" value={formData.tanggalLahir || ""} onChange={(e) => handleInputChange("tanggalLahir", e.target.value)} /></div>
+                <div className="space-y-2"><Label>Nama Ibu Kandung</Label><Input value={formData.ibuKandung || ""} onChange={(e) => handleInputChange("ibuKandung", e.target.value)} /></div>
+                <div className="space-y-2"><Label>Agama</Label><Input value={formData.agama || ""} onChange={(e) => handleInputChange("agama", e.target.value)} /></div>
+                <div className="space-y-2"><Label>Kewarganegaraan</Label><Input value={formData.kewarganegaraan || ""} onChange={(e) => handleInputChange("kewarganegaraan", e.target.value)} /></div>
+                <div className="space-y-2"><Label>Status Perkawinan</Label><Input value={formData.statusPerkawinan || ""} onChange={(e) => handleInputChange("statusPerkawinan", e.target.value)} /></div>
+                <div className="space-y-2"><Label>Nama Pasangan</Label><Input value={formData.namaPasangan || ""} onChange={(e) => handleInputChange("namaPasangan", e.target.value)} /></div>
+                <div className="space-y-2"><Label>Pekerjaan Pasangan</Label><Input value={formData.pekerjaanPasangan || ""} onChange={(e) => handleInputChange("pekerjaanPasangan", e.target.value)} /></div>
                 <div className="space-y-2">
                   <Label>Nama Wajib Pajak <span className="text-red-500">*</span></Label>
                   <Input 
@@ -684,12 +783,29 @@ const EditGTKModal: React.FC<EditGTKModalProps> = ({ isOpen, onClose, selectedId
         {activeTab === "Alamat" && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2"><Label>Kampung/Jalan</Label><Input value={formData.kampungJalan || ""} onChange={(e) => handleInputChange("kampungJalan", e.target.value)} /></div>
-            <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label>RT</Label><Input value={formData.rt || ""} onChange={(e) => handleInputChange("rt", e.target.value)} /></div><div className="space-y-2"><Label>RW</Label><Input value={formData.rw || ""} onChange={(e) => handleInputChange("rw", e.target.value)} /></div></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>RT</Label>
+                <Input 
+                  value={formData.rt || ""} 
+                  onChange={(e) => handleInputChange("rt", e.target.value.replace(/\D/g, ''))} 
+                  onBlur={() => handleInputChange("rt", format3Digits(formData.rt))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>RW</Label>
+                <Input 
+                  value={formData.rw || ""} 
+                  onChange={(e) => handleInputChange("rw", e.target.value.replace(/\D/g, ''))} 
+                  onBlur={() => handleInputChange("rw", format3Digits(formData.rw))}
+                />
+              </div>
+            </div>
             <div className="space-y-2"><Label>Dusun</Label><Input value={formData.dusun || ""} onChange={(e) => handleInputChange("dusun", e.target.value)} /></div>
             <div className="space-y-2"><Label>Provinsi</Label><Select placeholder="Pilih Provinsi" options={provinces} value={selectedProvinceId} onChange={(val) => {setSelectedProvinceId(val); handleInputChange("provinsi", provinces.find(p=>p.value===val)?.label || ""); }} /></div>
             <div className="space-y-2"><Label>Kab./Kota</Label><Select placeholder="Pilih Kab/Kota" options={regencies} value={selectedRegencyId} disabled={!selectedProvinceId} onChange={(val) => {setSelectedRegencyId(val); handleInputChange("kotaKabupaten", regencies.find(r=>r.value===val)?.label || ""); }} /></div>
             <div className="space-y-2"><Label>Kecamatan</Label><Select placeholder="Pilih Kecamatan" options={districts} value={selectedDistrictId} disabled={!selectedRegencyId} onChange={(val) => {setSelectedDistrictId(val); handleInputChange("kecamatan", districts.find(d=>d.value===val)?.label || ""); }} /></div>
-            <div className="space-y-2"><Label>Desa/Kelurahan</Label><Select placeholder="Pilih Desa/Kelurahan" options={villages} disabled={!selectedDistrictId} onChange={(val) => { handleInputChange("desaKelurahan", villages.find(v=>v.value===val)?.label || ""); }} /></div>
+            <div className="space-y-2"><Label>Desa/Kelurahan</Label><Select placeholder="Pilih Desa/Kelurahan" options={villages} value={selectedVillageId} disabled={!selectedDistrictId} onChange={(val) => { setSelectedVillageId(val); handleInputChange("desaKelurahan", villages.find(v=>v.value===val)?.label || ""); }} /></div>
             <div className="space-y-2"><Label>Kode Pos</Label><Input value={formData.kodePos || ""} onChange={(e) => handleInputChange("kodePos", e.target.value)} /></div>
             <div className="space-y-2">
               <Label>Lintang <span className="text-red-500">*</span></Label>
@@ -816,7 +932,7 @@ const EditGTKModal: React.FC<EditGTKModalProps> = ({ isOpen, onClose, selectedId
                                 formData.riwayatPendidikan.map((r: any, i: number) => (
                                     <TableRow key={i}>
                                         <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{r.jenjang || r.jenjang_pendidikan_id_str || "-"}</TableCell>
-                                        <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{r.institusi || r.nama_satuan_pendidikan || "-"}</TableCell>
+                                        <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{r.institusi || r.nama_satuan_pendidikan || r.satuan_pendidikan_formal || "-"}</TableCell>
                                         <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{r.tahunLulus || r.tahun_lulus || "-"}</TableCell>
                                         <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{r.ipk || r.ipk_rata_rata_nilai || "-"}</TableCell>
                                     </TableRow>
@@ -1049,10 +1165,18 @@ const EditGTKModal: React.FC<EditGTKModalProps> = ({ isOpen, onClose, selectedId
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                         {pendingDocs.map((doc: any) => (
                             <div key={doc.id} className="border border-gray-200 dark:border-white/[0.05] rounded-xl p-3 flex flex-col items-center relative group">
-                                <button onClick={() => handleRemovePendingDocument(doc.id)} className="absolute top-2 right-2 bg-error-500 text-white p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={() => handleRemovePendingDocument(doc)} className="absolute top-2 right-2 bg-error-500 text-white p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity">
                                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                                 </button>
-                                <span className="text-sm font-medium text-gray-800 dark:text-white/90 text-center truncate w-full" title={doc.nama}>{doc.nama}</span>
+                                <a 
+                                  href={doc.fileUrl.startsWith('/') ? `${import.meta.env.VITE_API_BASE_URL || "http://localhost:3000"}${doc.fileUrl}` : doc.fileUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-sm font-medium text-brand-500 hover:underline text-center truncate w-full"
+                                  title={doc.nama}
+                                >
+                                  {doc.nama}
+                                </a>
                             </div>
                         ))}
                     </div>

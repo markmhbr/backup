@@ -46,6 +46,16 @@ export const dapodikService = {
     }
   },
 
+  uploadSyncData: async (endpoint: string, data: any[]) => {
+    try {
+      const response = await api.post(`/sync/${endpoint}`, data);
+      return response.data;
+    } catch (error: any) {
+      console.error(`Gagal upload sync data untuk ${endpoint}:`, error);
+      throw error;
+    }
+  },
+
   getGTK: async (limit: number = 10, search: string = '', page: number = 1, type?: 'guru' | 'tendik', status?: 'aktif' | 'non-aktif') => {
     try {
       let url = `/dapodik/gtk?limit=${limit}&page=${page}&search=${search}`;
@@ -250,5 +260,69 @@ export const dapodikService = {
       console.error(`Error updating peserta didik ${id}:`, error);
       throw error;
     }
+  },
+
+  uploadLogo: async (file: File) => {
+    try {
+      const formData = new FormData();
+      formData.append('logo', file);
+      const response = await api.post('/dapodik/sekolah/logo', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Gagal mengunggah logo sekolah:', error);
+      throw error;
+    }
+  },
+
+  uploadSiswaDokumen: async (uuid: string, file: File, docName: string) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('nama_dokumen', docName);
+    const response = await api.post(`/dapodik/siswa/${uuid}/upload-dokumen`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  deleteSiswaDokumen: async (uuid: string, fileName: string) => {
+    const response = await api.delete(`/dapodik/siswa/${uuid}/dokumen/${fileName}`);
+    return response.data;
+  },
+
+  uploadGtkDokumen: async (uuid: string, file: File, docName: string) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('nama_dokumen', docName);
+    const response = await api.post(`/dapodik/gtk/${uuid}/upload-dokumen`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  deleteGtkDokumen: async (uuid: string, fileName: string) => {
+    const response = await api.delete(`/dapodik/gtk/${uuid}/dokumen/${fileName}`);
+    return response.data;
+  },
+
+  uploadSiswaFoto: async (uuid: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post(`/dapodik/siswa/${uuid}/upload-foto`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  uploadGtkFoto: async (uuid: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post(`/dapodik/gtk/${uuid}/upload-foto`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
   }
 };

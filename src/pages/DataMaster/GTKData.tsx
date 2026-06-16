@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import Button from "../../components/ui/button/Button";
 import Input from "../../components/form/input/InputField";
 import Select from "../../components/form/Select";
 import { DownloadIcon, PrinterIcon, UserCircleIcon, CheckCircleIcon, SearchIcon, PencilIcon } from "../../icons";
+import { dapodikService } from "../../services/dapodikService";
 import Swal from "sweetalert2";
 import GuruTable from "../../components/gtk/GuruTable";
 import TendikTable from "../../components/gtk/TendikTable";
@@ -34,6 +35,8 @@ export default function GTKData() {
   const [searchQuery, setSearchQuery] = useState("");
   const [completenessFilter, setCompletenessFilter] = useState("all");
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { isOpen, openModal, closeModal } = useModal();
 
@@ -105,11 +108,66 @@ export default function GTKData() {
     window.print();
   };
 
+  const handleTriggerUpload = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsUploading(true);
+      const text = await file.text();
+      const jsonData = JSON.parse(text);
+      
+      // Filter status Aktif saja sesuai instruksi
+      const activeData = jsonData.filter((item: any) => item.status === 'Aktif');
+
+      if (activeData.length === 0) {
+        Swal.fire("Info", "Tidak ada data GTK Aktif di dalam file JSON.", "info");
+        return;
+      }
+
+      await dapodikService.uploadSyncData('gtk', activeData);
+      
+      Swal.fire({
+        title: "Berhasil!",
+        text: `Berhasil mensinkronisasi ${activeData.length} data GTK Aktif.`,
+        icon: "success",
+        confirmButtonColor: "#10b981",
+      }).then(() => {
+        window.location.reload();
+      });
+      
+    } catch (error) {
+      console.error(error);
+      Swal.fire({
+        title: "Gagal!",
+        text: "Terjadi kesalahan saat mengupload data sinkronisasi.",
+        icon: "error",
+        confirmButtonColor: "#d33",
+      });
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
   return (
     <>
       <PageMeta
         title="GTK | SIMAK Admin Panel"
         description="GTK management page"
+      />
+      <input 
+        type="file" 
+        accept=".json" 
+        ref={fileInputRef} 
+        onChange={handleFileUpload} 
+        className="hidden" 
       />
       <div className="space-y-6">
         {/* Header Section */}
@@ -171,6 +229,15 @@ export default function GTKData() {
               onClick={handlePrint}
             >
               Cetak
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              className="min-w-[110px]"
+              disabled={isUploading}
+              onClick={handleTriggerUpload}
+            >
+              {isUploading ? "Uploading..." : "Upload JSON Dapodik"}
             </Button>
           </div>
         </div>
