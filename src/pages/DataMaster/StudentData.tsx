@@ -128,19 +128,16 @@ export default function StudentData() {
       const text = await file.text();
       const jsonData = JSON.parse(text);
       
-      // Filter status Aktif saja sesuai instruksi
-      const activeData = jsonData.filter((item: any) => item.status === 'Aktif');
-
-      if (activeData.length === 0) {
-        Swal.fire("Info", "Tidak ada data Peserta Didik Aktif di dalam file JSON.", "info");
+      if (jsonData.length === 0) {
+        Swal.fire("Info", "File JSON kosong.", "info");
         return;
       }
 
-      await dapodikService.uploadSyncData('pesertadidik', activeData);
+      await dapodikService.uploadSyncData('pesertadidik', jsonData);
       
       Swal.fire({
         title: "Berhasil!",
-        text: `Berhasil mensinkronisasi ${activeData.length} data Peserta Didik Aktif.`,
+        text: `Berhasil mensinkronisasi ${jsonData.length} data Peserta Didik.`,
         icon: "success",
         confirmButtonColor: "#10b981",
       }).then(() => {

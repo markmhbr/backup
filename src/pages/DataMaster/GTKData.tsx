@@ -121,19 +121,16 @@ export default function GTKData() {
       const text = await file.text();
       const jsonData = JSON.parse(text);
       
-      // Filter status Aktif saja sesuai instruksi
-      const activeData = jsonData.filter((item: any) => item.status === 'Aktif');
-
-      if (activeData.length === 0) {
-        Swal.fire("Info", "Tidak ada data GTK Aktif di dalam file JSON.", "info");
+      if (jsonData.length === 0) {
+        Swal.fire("Info", "File JSON kosong.", "info");
         return;
       }
 
-      await dapodikService.uploadSyncData('gtk', activeData);
+      await dapodikService.uploadSyncData('gtk', jsonData);
       
       Swal.fire({
         title: "Berhasil!",
-        text: `Berhasil mensinkronisasi ${activeData.length} data GTK Aktif.`,
+        text: `Berhasil mensinkronisasi ${jsonData.length} data GTK.`,
         icon: "success",
         confirmButtonColor: "#10b981",
       }).then(() => {
