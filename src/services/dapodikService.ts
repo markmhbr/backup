@@ -278,6 +278,16 @@ export const dapodikService = {
     }
   },
 
+  updateSekolah: async (data: any) => {
+    try {
+      const response = await api.patch('/dapodik/sekolah', data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Gagal memperbarui data sekolah:', error);
+      throw error;
+    }
+  },
+
   uploadSiswaDokumen: async (uuid: string, file: File, docName: string) => {
     const formData = new FormData();
     formData.append('file', file);

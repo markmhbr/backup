@@ -309,7 +309,8 @@ const AppSidebar: React.FC = () => {
 
   // Helper to prepend role prefix to path
   const getFullPath = (path?: string) => {
-    if (!path || path === "/" || path.startsWith("/signin") || path.startsWith("/signup")) return path;
+    if (!path || path.startsWith("/signin") || path.startsWith("/signup")) return path;
+    if (path === "/") return rolePrefix || "/";
     // Don't prepend if it already has the prefix
     if (path.startsWith(rolePrefix)) return path;
     return `${rolePrefix}${path}`;

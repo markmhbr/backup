@@ -57,7 +57,7 @@ export default function SchoolProfile() {
     telepon: string;
     website: string;
     nomorFax: string;
-    socialMedia: { platform: string; url: string }[];
+    socialMedia: string[];
   }>({
     email: "",
     telepon: "",
@@ -107,13 +107,21 @@ export default function SchoolProfile() {
             kodePos: s.kode_pos || prev.kodePos,
           }));
 
+          let socialMediaRaw = s.social_media;
+          let socialMediaUrls: string[] = [];
+          if (Array.isArray(socialMediaRaw)) {
+            socialMediaUrls = socialMediaRaw.map((item: any) => 
+              typeof item === 'string' ? item : (item.url || "")
+            ).filter(url => url !== "");
+          }
+
           setKontakData(prev => ({
             ...prev,
             email: s.email || prev.email,
             telepon: s.nomor_telepon || prev.telepon,
             website: s.website || prev.website,
             nomorFax: s.nomor_fax || prev.nomorFax,
-            socialMedia: Array.isArray(s.social_media) ? s.social_media : prev.socialMedia
+            socialMedia: socialMediaUrls
           }));
         }
       } catch (err) {
@@ -125,6 +133,45 @@ export default function SchoolProfile() {
 
     fetchSchoolData();
   }, []);
+
+  const getSocialMediaConfig = (url: string) => {
+    const lowerUrl = url.toLowerCase();
+    let domain = "";
+    try {
+      if (url) {
+        const urlObj = new URL(url.startsWith("http") ? url : `https://${url}`);
+        domain = urlObj.hostname;
+      }
+    } catch (e) {
+      domain = "";
+    }
+
+    const favicon = domain
+      ? `https://www.google.com/s2/favicons?domain=${domain}&sz=64`
+      : null;
+
+    if (lowerUrl.includes("facebook.com") || lowerUrl.includes("fb.com")) {
+      return { name: "Facebook", color: "text-blue-600", icon: "FB", favicon };
+    }
+    if (lowerUrl.includes("instagram.com")) {
+      return { name: "Instagram", color: "text-pink-600", icon: "IG", favicon };
+    }
+    if (lowerUrl.includes("twitter.com") || lowerUrl.includes("x.com")) {
+      return { name: "Twitter/X", color: "text-gray-900", icon: "X", favicon };
+    }
+    if (lowerUrl.includes("youtube.com") || lowerUrl.includes("youtu.be")) {
+      return { name: "YouTube", color: "text-red-600", icon: "YT", favicon };
+    }
+    if (lowerUrl.includes("tiktok.com")) {
+      return {
+        name: "TikTok",
+        color: "text-black dark:text-white",
+        icon: "TT",
+        favicon,
+      };
+    }
+    return { name: "Social Media", color: "text-gray-500", icon: "🔗", favicon };
+  };
 
   const [dataRinci] = useState({
     waktuPenyelenggaraan: "Pagi/6 Hari",
@@ -257,10 +304,10 @@ export default function SchoolProfile() {
     setKontakData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSocialMediaChange = (index: number, field: string, value: string) => {
+  const handleSocialMediaChange = (index: number, value: string) => {
     setKontakData((prev) => {
       const updatedSocial = [...prev.socialMedia];
-      updatedSocial[index] = { ...updatedSocial[index], [field]: value };
+      updatedSocial[index] = value;
       return { ...prev, socialMedia: updatedSocial };
     });
   };
@@ -268,7 +315,7 @@ export default function SchoolProfile() {
   const addSocialMedia = () => {
     setKontakData((prev) => ({
       ...prev,
-      socialMedia: [...prev.socialMedia, { platform: "", url: "" }],
+      socialMedia: [...prev.socialMedia, ""],
     }));
   };
 
@@ -279,13 +326,44 @@ export default function SchoolProfile() {
     }));
   };
 
-  const handleSave = () => {
-    Swal.fire({
-      title: "Berhasil!",
-      text: "Data Berhasil disimpan",
-      icon: "success",
-      confirmButtonColor: "#465fff",
-    });
+  const handleSave = async () => {
+    try {
+      Swal.fire({
+        title: "Menyimpan...",
+        text: "Sedang memperbarui profil sekolah",
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        },
+      });
+
+      const payload = {
+        nomor_telepon: kontakData.telepon,
+        email: kontakData.email,
+        website: kontakData.website,
+        nomor_fax: kontakData.nomorFax,
+        social_media: kontakData.socialMedia,
+        cabang_dinas: profileData.cabangDinas,
+      };
+
+      await dapodikService.updateSekolah(payload);
+
+      Swal.fire({
+        title: "Berhasil!",
+        text: "Profil sekolah berhasil diperbarui.",
+        icon: "success",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+    } catch (err: any) {
+      console.error(err);
+      Swal.fire({
+        title: "Gagal Menyimpan!",
+        text: err.response?.data?.message || err.message || "Terjadi kesalahan saat menyimpan data.",
+        icon: "error",
+        confirmButtonColor: "#465fff",
+      });
+    }
   };
 
   const handleExport = () => {
@@ -458,9 +536,21 @@ export default function SchoolProfile() {
                   <td className="border border-gray-300 p-2 font-semibold">Media Sosial</td>
                   <td className="border border-gray-300 p-2">
                     <ul className="list-disc pl-4">
-                      {kontakData.socialMedia.map((s, i) => (
-                        <li key={i}>{s.platform}: {s.url}</li>
-                      ))}
+                      {kontakData.socialMedia.map((url, i) => {
+                        const config = getSocialMediaConfig(url);
+                        return (
+                          <li key={i} className="flex items-center gap-2">
+                            {config.favicon && (
+                              <img
+                                src={config.favicon}
+                                alt=""
+                                className="w-3 h-3 object-contain"
+                              />
+                            )}
+                            {config.name}: {url}
+                          </li>
+                        );
+                      })}
                     </ul>
                   </td>
                 </tr>
@@ -959,34 +1049,47 @@ export default function SchoolProfile() {
                 </div>
                 
                 <div className="space-y-4">
-                  {kontakData.socialMedia.map((social, index) => (
-                    <div key={index} className="flex flex-col gap-4 p-4 rounded-xl border border-gray-100 dark:border-white/[0.05] bg-gray-50/50 dark:bg-white/[0.01] sm:flex-row sm:items-end">
-                      <div className="flex-1">
-                        <Label>Platform</Label>
-                        <Input
-                          value={social.platform}
-                          onChange={(e) => handleSocialMediaChange(index, "platform", e.target.value)}
-                        />
+                  {kontakData.socialMedia.map((url, index) => {
+                    const config = getSocialMediaConfig(url);
+                    return (
+                      <div key={index} className="flex flex-col gap-4 p-4 rounded-xl border border-gray-100 dark:border-white/[0.05] bg-gray-50/50 dark:bg-white/[0.01] sm:flex-row sm:items-end">
+                        <div className="flex-shrink-0 w-16 text-center">
+                          <Label>Platform</Label>
+                          <div
+                            className={`h-11 flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 font-bold ${config.color}`}
+                          >
+                            {config.favicon ? (
+                              <img
+                                src={config.favicon}
+                                alt={config.name}
+                                className="w-6 h-6 object-contain"
+                              />
+                            ) : (
+                              config.icon
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex-1">
+                          <Label>URL/Username ({config.name})</Label>
+                          <Input
+                            value={url}
+                            onChange={(e) => handleSocialMediaChange(index, e.target.value)}
+                            placeholder="https://..."
+                          />
+                        </div>
+                        <div className="flex-shrink-0">
+                          <Button
+                            variant="error-outline"
+                            size="sm"
+                            onClick={() => removeSocialMedia(index)}
+                            className="sm:mb-1"
+                          >
+                            <TrashBinIcon className="size-4" />
+                          </Button>
+                        </div>
                       </div>
-                      <div className="flex-[2]">
-                        <Label>URL/Username</Label>
-                        <Input
-                          value={social.url}
-                          onChange={(e) => handleSocialMediaChange(index, "url", e.target.value)}
-                        />
-                      </div>
-                      <div className="flex-shrink-0">
-                        <Button
-                          variant="error-outline"
-                          size="sm"
-                          onClick={() => removeSocialMedia(index)}
-                          className="sm:mb-1"
-                        >
-                          <TrashBinIcon className="size-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   
                   {kontakData.socialMedia.length === 0 && (
                     <div className="text-center py-6 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-xl">

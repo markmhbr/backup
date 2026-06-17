@@ -32,7 +32,7 @@ export default function StudentTable({ onSelectionChange, searchTerm, completene
       'nama', 'jenis_kelamin', 'nisn', 'nik', 'tempat_lahir', 'tanggal_lahir',
       'agama_id_str', 'alamat_jalan', 'rt', 'rw', 'provinsi', 'kabupaten_kota',
       'kecamatan', 'desa_kelurahan', 'nomor_telepon_seluler', 'email',
-      'nama_ayah', 'nama_ibu_kandung', 'tinggi_badan', 'berat_badan'
+      'nama_ayah', 'nama_ibu', 'tinggi_badan', 'berat_badan'
     ];
     let filled = 0;
     fields.forEach(f => {

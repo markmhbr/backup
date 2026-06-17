@@ -19,12 +19,27 @@ interface GuruTableProps {
   itemsPerPage: number;
 }
 
-export default function GuruTable({ onSelectionChange, searchTerm, completenessFilter: _completenessFilter, itemsPerPage }: GuruTableProps) {
+export default function GuruTable({ onSelectionChange, searchTerm, completenessFilter, itemsPerPage }: GuruTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [data, setData] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+
+  const calculateCompleteness = (item: any) => {
+    const fields = [
+      'nama', 'jenis_kelamin', 'tempat_lahir', 'tanggal_lahir', 
+      'nuptk', 'nik', 'no_kk', 'alamat_jalan', 'no_hp', 'email',
+      'sk_pengangkatan', 'tmt_pengangkatan', 'sumber_gaji', 'pendidikan_terakhir'
+    ];
+    let filled = 0;
+    fields.forEach(f => {
+      if (item[f] && item[f] !== '-' && item[f] !== '') {
+        filled++;
+      }
+    });
+    return Math.round((filled / fields.length) * 100);
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -32,8 +47,27 @@ export default function GuruTable({ onSelectionChange, searchTerm, completenessF
       try {
         const result = await dapodikService.getGTK(itemsPerPage, searchTerm, currentPage, 'guru', 'aktif');
         if (result.status === 'success') {
-          setData(result.data);
-          setTotal(result.meta.total);
+          let fetchedData = result.data || [];
+          
+          // Add calculated completeness to each item
+          fetchedData = fetchedData.map((item: any) => ({
+            ...item,
+            lengkapData: calculateCompleteness(item)
+          }));
+
+          // Filter by completeness if active
+          if (completenessFilter !== "all") {
+            if (completenessFilter === "100") {
+              fetchedData = fetchedData.filter((item: any) => item.lengkapData === 100);
+            } else if (completenessFilter === "99") {
+              fetchedData = fetchedData.filter((item: any) => item.lengkapData < 100);
+            } else if (completenessFilter === "50") {
+              fetchedData = fetchedData.filter((item: any) => item.lengkapData < 50);
+            }
+          }
+
+          setData(fetchedData);
+          setTotal(result.meta?.total || 0);
         }
       } catch (error) {
         console.error("Gagal mengambil data guru:", error);
@@ -43,7 +77,7 @@ export default function GuruTable({ onSelectionChange, searchTerm, completenessF
     };
 
     fetchData();
-  }, [currentPage, searchTerm, itemsPerPage]);
+  }, [currentPage, searchTerm, itemsPerPage, completenessFilter]);
 
   const totalPages = Math.ceil(total / itemsPerPage) || 1;
 
@@ -71,12 +105,6 @@ export default function GuruTable({ onSelectionChange, searchTerm, completenessF
   };
 
   const isAllSelected = data.length > 0 && data.every((item) => selectedRows.includes(item.ptk_id));
-
-  // Helper for completeness (calculate based on fields for now if not in DB)
-  const calculateCompleteness = (item: any) => {
-      // Logic could be more complex, but for now we use data from DB if available or dummy
-      return item.lengkap_data || 100; 
-  };
 
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03] relative">
@@ -120,8 +148,8 @@ export default function GuruTable({ onSelectionChange, searchTerm, completenessF
                   />
                 </TableCell>
                 <TableCell className="px-5 py-4 text-start">
-                  <Badge size="sm" color={item.ptk_induk ? "success" : "light"}>
-                    {item.ptk_induk ? "Ya" : "Tidak"}
+                  <Badge size="sm" color={item.ptk_induk === "1" || item.ptk_induk === 1 || item.ptk_induk === "Ya" ? "success" : "light"}>
+                    {item.ptk_induk === "1" || item.ptk_induk === 1 || item.ptk_induk === "Ya" ? "Ya" : "Tidak"}
                   </Badge>
                 </TableCell>
                 <TableCell className="px-5 py-4 text-start whitespace-nowrap">
@@ -135,12 +163,12 @@ export default function GuruTable({ onSelectionChange, searchTerm, completenessF
                   <div className="flex items-center gap-1.5">
                       <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-1.5 max-w-[60px]">
                           <div 
-                            className={`h-1.5 rounded-full ${calculateCompleteness(item) === 100 ? 'bg-success-500' : calculateCompleteness(item) < 50 ? 'bg-error-500' : 'bg-warning-500'}`} 
-                            style={{ width: `${calculateCompleteness(item)}%` }}
+                            className={`h-1.5 rounded-full ${item.lengkapData === 100 ? 'bg-success-500' : item.lengkapData < 50 ? 'bg-error-500' : 'bg-warning-500'}`} 
+                            style={{ width: `${item.lengkapData}%` }}
                           ></div>
                       </div>
-                      <span className={`text-theme-xs font-medium ${calculateCompleteness(item) === 100 ? 'text-success-500' : calculateCompleteness(item) < 50 ? 'text-error-500' : 'text-warning-500'}`}>
-                          {calculateCompleteness(item)}%
+                      <span className={`text-theme-xs font-medium ${item.lengkapData === 100 ? 'text-success-500' : item.lengkapData < 50 ? 'text-error-500' : 'text-warning-500'}`}>
+                          {item.lengkapData}%
                       </span>
                   </div>
                 </TableCell>
