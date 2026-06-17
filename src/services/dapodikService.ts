@@ -122,6 +122,26 @@ export const dapodikService = {
     }
   },
 
+  getRombelRekapKategori: async () => {
+    try {
+      const response = await api.get('/dapodik/rombongan-belajar/rekap-kategori');
+      return response.data;
+    } catch (error: any) {
+      console.error('Gagal mengambil rekap kategori rombel:', error);
+      throw error;
+    }
+  },
+
+  getRombelRekapKompetensi: async () => {
+    try {
+      const response = await api.get('/dapodik/rombongan-belajar/rekap-kompetensi');
+      return response.data;
+    } catch (error: any) {
+      console.error('Gagal mengambil rekap kompetensi rombel:', error);
+      throw error;
+    }
+  },
+
   getEkstrakurikuler: async (search: string = '') => {
     try {
       const response = await api.get(`/dapodik/ekstrakurikuler?search=${search}`);
@@ -148,16 +168,6 @@ export const dapodikService = {
       return response.data;
     } catch (error: any) {
       console.error('Gagal mengambil data tahun pelajaran:', error);
-      throw error;
-    }
-  },
-
-  getTanah: async () => {
-    try {
-      const response = await api.get('/dapodik/tanah');
-      return response.data;
-    } catch (error: any) {
-      console.error('Gagal mengambil data tanah:', error);
       throw error;
     }
   },
@@ -334,5 +344,35 @@ export const dapodikService = {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
+  },
+
+  getTanah: async (limit: number = 10, search: string = '', page: number = 1) => {
+    try {
+      const response = await api.get(`/dapodik/tanah?limit=${limit}&page=${page}&search=${search}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Gagal mengambil data tanah:', error);
+      throw error;
+    }
+  },
+
+  getBangunan: async (limit: number = 10, search: string = '', page: number = 1) => {
+    try {
+      const response = await api.get(`/dapodik/bangunan?limit=${limit}&page=${page}&search=${search}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Gagal mengambil data bangunan:', error);
+      throw error;
+    }
+  },
+
+  getRuang: async (limit: number = 10, search: string = '', page: number = 1) => {
+    try {
+      const response = await api.get(`/dapodik/ruang?limit=${limit}&page=${page}&search=${search}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Gagal mengambil data ruang:', error);
+      throw error;
+    }
   }
 };

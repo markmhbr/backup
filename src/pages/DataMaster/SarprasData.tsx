@@ -1,13 +1,22 @@
 import { useState } from "react";
 import PageMeta from "../../components/common/PageMeta";
+import TanahTable from "../../components/sarpras/TanahTable";
+import BangunanTable from "../../components/sarpras/BangunanTable";
+import RuangTable from "../../components/sarpras/RuangTable";
 import Input from "../../components/form/input/InputField";
 import Select from "../../components/form/Select";
 import { SearchIcon } from "../../icons";
-import SarprasTable from "../../components/school/SarprasTable";
 
 export default function SarprasData() {
+  const [activeTab, setActiveTab] = useState<"tanah" | "bangunan" | "ruang">("tanah");
   const [searchQuery, setSearchQuery] = useState("");
   const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  const tabs = [
+    { id: "tanah", label: "Tanah" },
+    { id: "bangunan", label: "Bangunan" },
+    { id: "ruang", label: "Ruangan" },
+  ];
 
   const rowsPerPageOptions = [
     { value: "10", label: "10" },
@@ -18,8 +27,8 @@ export default function SarprasData() {
   return (
     <>
       <PageMeta
-        title="SIMAK | Sarpras"
-        description="Halaman pengelolaan data sarana dan prasarana sekolah"
+        title="Sarana & Prasarana | SIMAK Admin Panel"
+        description="Data Tanah, Bangunan, dan Ruangan Sekolah"
       />
       <div className="space-y-6">
         {/* Header Section */}
@@ -29,9 +38,32 @@ export default function SarprasData() {
               Sarana & Prasarana
             </h3>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              Kelola daftar gedung, ruangan, and fasilitas fisik sekolah.
+              Kelola daftar tanah, gedung, dan ruangan sekolah Anda di sini.
             </p>
           </div>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="flex items-center gap-4 border-b border-gray-200 dark:border-gray-800 no-print">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => {
+                setActiveTab(tab.id as any);
+                setSearchQuery(""); // Reset search when changing tab
+              }}
+              className={`pb-3 text-sm font-medium transition-colors relative ${
+                activeTab === tab.id
+                  ? "text-brand-500"
+                  : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              }`}
+            >
+              {tab.label}
+              {activeTab === tab.id && (
+                <span className="absolute bottom-0 left-0 w-full h-0.5 bg-brand-500 rounded-full"></span>
+              )}
+            </button>
+          ))}
         </div>
 
         <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
@@ -51,7 +83,7 @@ export default function SarprasData() {
               </span>
               <Input
                 type="text"
-                placeholder="Cari Prasarana atau Kategori..."
+                placeholder={`Cari ${activeTab === 'tanah' ? 'Tanah' : activeTab === 'bangunan' ? 'Bangunan' : 'Ruangan'}...`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -59,11 +91,20 @@ export default function SarprasData() {
             </div>
           </div>
 
-          {/* Table Section */}
-          <SarprasTable 
-            searchTerm={searchQuery}
-            itemsPerPage={itemsPerPage}
-          />
+          {/* Tab Content */}
+          <div className="space-y-6">
+            {activeTab === "tanah" && (
+              <TanahTable searchTerm={searchQuery} itemsPerPage={itemsPerPage} />
+            )}
+
+            {activeTab === "bangunan" && (
+              <BangunanTable searchTerm={searchQuery} itemsPerPage={itemsPerPage} />
+            )}
+
+            {activeTab === "ruang" && (
+              <RuangTable searchTerm={searchQuery} itemsPerPage={itemsPerPage} />
+            )}
+          </div>
         </div>
       </div>
     </>

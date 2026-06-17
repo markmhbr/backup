@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -5,6 +6,7 @@ import {
   TableHeader,
   TableRow,
 } from "../ui/table";
+import { dapodikService } from "../../services/dapodikService";
 
 interface RekapRombelKategori {
   id: number;
@@ -15,16 +17,29 @@ interface RekapRombelKategori {
   total: number;
 }
 
-const rekapData: RekapRombelKategori[] = [
-  { id: 1, kategori: "Reguler", tingkat10: 12, tingkat11: 10, tingkat12: 10, total: 32 },
-  { id: 2, kategori: "Praktik", tingkat10: 24, tingkat11: 20, tingkat12: 20, total: 64 },
-  { id: 3, kategori: "Ekskul", tingkat10: 5, tingkat11: 5, tingkat12: 5, total: 15 },
-  { id: 4, kategori: "Matpel Pilihan", tingkat10: 0, tingkat11: 8, tingkat12: 8, total: 16 },
-];
-
 export default function RekapRombelKategoriTable() {
+  const [data, setData] = useState<RekapRombelKategori[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const result = await dapodikService.getRombelRekapKategori();
+        if (result.status === 'success') {
+          setData(result.data || []);
+        }
+      } catch (error) {
+        console.error("Gagal mengambil rekap kategori rombel:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
   // Calculate Grand Totals
-  const totals = rekapData.reduce((acc, curr) => ({
+  const totals = data.reduce((acc, curr) => ({
     tingkat10: acc.tingkat10 + curr.tingkat10,
     tingkat11: acc.tingkat11 + curr.tingkat11,
     tingkat12: acc.tingkat12 + curr.tingkat12,
@@ -37,7 +52,12 @@ export default function RekapRombelKategoriTable() {
   });
 
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
+    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03] relative">
+      {loading && (
+        <div className="absolute inset-0 bg-white/50 dark:bg-black/50 z-10 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500"></div>
+        </div>
+      )}
       <div className="max-w-full overflow-x-auto custom-scrollbar">
         <Table className="min-w-[800px]">
           <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
@@ -50,23 +70,33 @@ export default function RekapRombelKategoriTable() {
             </TableRow>
           </TableHeader>
           <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-            {rekapData.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell className="px-5 py-4 text-start font-medium text-gray-800 dark:text-white/90">{item.kategori}</TableCell>
-                <TableCell className="px-5 py-4 text-gray-500 text-center text-theme-sm dark:text-gray-400 border-l border-gray-100 dark:border-white/[0.05]">{item.tingkat10}</TableCell>
-                <TableCell className="px-5 py-4 text-gray-500 text-center text-theme-sm dark:text-gray-400 border-l border-gray-100 dark:border-white/[0.05]">{item.tingkat11}</TableCell>
-                <TableCell className="px-5 py-4 text-gray-500 text-center text-theme-sm dark:text-gray-400 border-l border-gray-100 dark:border-white/[0.05]">{item.tingkat12}</TableCell>
-                <TableCell className="px-5 py-4 text-gray-800 text-center text-theme-sm dark:text-white/90 font-semibold border-l border-gray-100 dark:border-white/[0.05]">{item.total}</TableCell>
+            {data.length > 0 ? (
+              <>
+                {data.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell className="px-5 py-4 text-start font-medium text-gray-800 dark:text-white/90">{item.kategori}</TableCell>
+                    <TableCell className="px-5 py-4 text-gray-500 text-center text-theme-sm dark:text-gray-400 border-l border-gray-100 dark:border-white/[0.05]">{item.tingkat10}</TableCell>
+                    <TableCell className="px-5 py-4 text-gray-500 text-center text-theme-sm dark:text-gray-400 border-l border-gray-100 dark:border-white/[0.05]">{item.tingkat11}</TableCell>
+                    <TableCell className="px-5 py-4 text-gray-500 text-center text-theme-sm dark:text-gray-400 border-l border-gray-100 dark:border-white/[0.05]">{item.tingkat12}</TableCell>
+                    <TableCell className="px-5 py-4 text-gray-800 text-center text-theme-sm dark:text-white/90 font-semibold border-l border-gray-100 dark:border-white/[0.05]">{item.total}</TableCell>
+                  </TableRow>
+                ))}
+                {/* Grand Total Row */}
+                <TableRow className="bg-gray-50 dark:bg-white/[0.02] font-bold text-gray-800 dark:text-white/90">
+                  <TableCell className="px-5 py-4 text-start">Jumlah Total</TableCell>
+                  <TableCell className="px-5 py-4 text-center border-l border-gray-100 dark:border-white/[0.05]">{totals.tingkat10}</TableCell>
+                  <TableCell className="px-5 py-4 text-center border-l border-gray-100 dark:border-white/[0.05]">{totals.tingkat11}</TableCell>
+                  <TableCell className="px-5 py-4 text-center border-l border-gray-100 dark:border-white/[0.05]">{totals.tingkat12}</TableCell>
+                  <TableCell className="px-5 py-4 text-center border-l border-gray-100 dark:border-white/[0.05] text-brand-500 font-extrabold">{totals.total}</TableCell>
+                </TableRow>
+              </>
+            ) : (
+              <TableRow>
+                <TableCell colSpan={5} className="px-5 py-10 text-center text-gray-500 dark:text-gray-400">
+                  Tidak ada data rekap tersedia
+                </TableCell>
               </TableRow>
-            ))}
-            {/* Grand Total Row */}
-            <TableRow className="bg-gray-50 dark:bg-white/[0.02] font-bold text-gray-800 dark:text-white/90">
-              <TableCell className="px-5 py-4 text-start">Jumlah Total</TableCell>
-              <TableCell className="px-5 py-4 text-center border-l border-gray-100 dark:border-white/[0.05]">{totals.tingkat10}</TableCell>
-              <TableCell className="px-5 py-4 text-center border-l border-gray-100 dark:border-white/[0.05]">{totals.tingkat11}</TableCell>
-              <TableCell className="px-5 py-4 text-center border-l border-gray-100 dark:border-white/[0.05]">{totals.tingkat12}</TableCell>
-              <TableCell className="px-5 py-4 text-center border-l border-gray-100 dark:border-white/[0.05] text-brand-500 font-extrabold">{totals.total}</TableCell>
-            </TableRow>
+            )}
           </TableBody>
         </Table>
       </div>
