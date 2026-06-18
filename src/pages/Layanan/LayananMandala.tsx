@@ -213,7 +213,7 @@ export default function LayananMandala() {
             </p>
           </div>
           <Button 
-            variant="primary" 
+            variant="outline" 
             size="sm"
             onClick={() => setIsNewModalOpen(true)}
             startIcon={<PlusIcon className="size-4 fill-current" />}

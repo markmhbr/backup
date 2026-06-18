@@ -300,6 +300,11 @@ const navItems: NavItem[] = [
         path: "/layanan?tab=pesertadidik",
         icon: <DotIcon />,
       },
+      {
+        name: "Pelaporan Dokumen",
+        path: "/pelaporan",
+        icon: <DotIcon />,
+      },
     ],
   },
   {

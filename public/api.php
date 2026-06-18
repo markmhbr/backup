@@ -100,20 +100,60 @@ curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $_SERVER['REQUEST_METHOD']);
 curl_setopt($ch, CURLOPT_TIMEOUT, CURL_TIMEOUT);
 curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, CURL_CONNECT_TIMEOUT);
 
-// Ambil body request jika ada
-$body = file_get_contents('php://input');
-if (!empty($body)) {
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
-}
-
 // Forward Headers & Sisipkan API Key otomatis
 $headers = [];
+$isMultipart = false;
 foreach (getallheaders() as $name => $value) {
-    if (strtolower($name) !== 'host' && strtolower($name) !== 'content-length') {
-        $headers[] = "$name: $value";
+    $lowerName = strtolower($name);
+    if ($lowerName === 'host' || $lowerName === 'content-length') {
+        continue;
     }
+    
+    // Deteksi jika request adalah multipart (untuk upload file)
+    if ($lowerName === 'content-type' && strpos($value, 'multipart/form-data') !== false) {
+        $isMultipart = true;
+        // JANGAN teruskan header Content-Type multipart karena cURL akan membuat boundary baru yang valid
+        continue;
+    }
+    
+    $headers[] = "$name: $value";
 }
 $headers[] = "x-api-key: " . API_KEY; // Sisipkan API Key rahasia
+
+// 4. Penanganan Body Request
+if ($isMultipart) {
+    // Untuk multipart, kita harus membangun array dari $_POST dan $_FILES
+    $postData = $_POST;
+    foreach ($_FILES as $key => $file) {
+        if (is_array($file['tmp_name'])) {
+            // Jika input file adalah array (misal name="files[]")
+            foreach ($file['tmp_name'] as $index => $tmpName) {
+                if (!empty($tmpName)) {
+                    $postData[$key . '[' . $index . ']'] = new CURLFile(
+                        $tmpName, 
+                        $file['type'][$index], 
+                        $file['name'][$index]
+                    );
+                }
+            }
+        } else {
+            if (!empty($file['tmp_name'])) {
+                $postData[$key] = new CURLFile(
+                    $file['tmp_name'], 
+                    $file['type'], 
+                    $file['name']
+                );
+            }
+        }
+    }
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+} else {
+    // Untuk request non-multipart (JSON, dsb), gunakan php://input
+    $body = file_get_contents('php://input');
+    if (!empty($body)) {
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+    }
+}
 
 curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 curl_setopt($ch, CURLOPT_HEADER, true); // Dapatkan response header dari backend pusat
