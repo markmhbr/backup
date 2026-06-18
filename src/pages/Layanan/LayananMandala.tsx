@@ -1,0 +1,533 @@
+import React, { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router";
+import PageMeta from "../../components/common/PageMeta";
+import ComponentCard from "../../components/common/ComponentCard";
+import { useSekolah } from "../../context/SekolahContext";
+import { dapodikService } from "../../services/dapodikService";
+import { layananMandalaService, LayananMaster, PermohonanLayanan } from "../../services/layananMandalaService";
+import { Modal } from "../../components/ui/modal";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHeader,
+  TableRow,
+} from "../../components/ui/table";
+import Pagination from "../../components/common/Pagination";
+import Select from "../../components/form/Select";
+import Button from "../../components/ui/button/Button";
+import Input from "../../components/form/input/InputField";
+import Badge from "../../components/ui/badge/Badge";
+import Avatar from "../../components/ui/avatar/Avatar";
+import { SearchIcon, PlusIcon, BoltIcon } from "../../icons";
+import Swal from "sweetalert2";
+
+export default function LayananMandala() {
+  const { sekolah } = useSekolah();
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab") || "gtk"; // "gtk" or "pesertadidik"
+
+  const [loading, setLoading] = useState(true);
+  const [permohonanList, setPermohonanList] = useState<PermohonanLayanan[]>([]);
+  const [masterLayanan, setMasterLayanan] = useState<LayananMaster[]>([]);
+  
+  // Search & Filters
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  const rowsPerPageOptions = [
+    { value: "10", label: "10" },
+    { value: "50", label: "50" },
+    { value: "100", label: "100" },
+  ];
+
+  // Modals
+  const [isNewModalOpen, setIsNewModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedPermohonan, setSelectedPermohonan] = useState<PermohonanLayanan | null>(null);
+
+  // Form New Request
+  const [newForm, setNewForm] = useState({
+    layanan_id: "",
+    ptk_id: "",
+    rombongan_belajar_id: "",
+    peserta_didik_id: "",
+    keterangan: "",
+  });
+
+  // Data for Selects
+  const [gtkList, setGtkList] = useState<any[]>([]);
+  const [rombelList, setRombelList] = useState<any[]>([]);
+  const [pdList, setPdList] = useState<any[]>([]);
+  const [pdSearch, setPdSearch] = useState("");
+  const [gtkSearch, setGtkSearch] = useState("");
+
+  const fetchData = useCallback(async () => {
+    if (!sekolah?.sekolah_id) return;
+    setLoading(true);
+    try {
+      const kategori = tabParam === "gtk" ? 0 : 1;
+      const [masterRes, permohonanRes] = await Promise.all([
+        dapodikService.getMasterLayanan(kategori),
+        layananMandalaService.getPermohonan({ 
+          sekolah_id: sekolah.sekolah_id,
+          kategori: kategori 
+        }),
+      ]);
+
+      setMasterLayanan(masterRes.data || []);
+      setPermohonanList(permohonanRes.data || []);
+    } catch (err) {
+      console.error("Gagal memuat data layanan:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [sekolah?.sekolah_id, tabParam]);
+
+  const fetchDapodikData = useCallback(async () => {
+    try {
+      if (tabParam === "gtk") {
+        const res = await dapodikService.getGTK(100, "", 1, undefined, "aktif");
+        setGtkList(res.data || []);
+      } else {
+        const res = await dapodikService.getRombonganBelajar("reguler", 100);
+        setRombelList(res.data || []);
+      }
+    } catch (err) {
+      console.error("Gagal memuat data dapodik:", err);
+    }
+  }, [tabParam]);
+
+  const fetchPdByRombel = useCallback(async (rombelId: string) => {
+    if (!rombelId) {
+      setPdList([]);
+      return;
+    }
+    try {
+      const res = await dapodikService.getRombelAnggota(rombelId);
+      setPdList(res.data || []);
+    } catch (err) {
+      console.error("Gagal memuat anggota rombel:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
+    if (isNewModalOpen) {
+      fetchDapodikData();
+    }
+  }, [isNewModalOpen, fetchDapodikData]);
+
+  useEffect(() => {
+    if (newForm.rombongan_belajar_id) {
+      fetchPdByRombel(newForm.rombongan_belajar_id);
+    }
+  }, [newForm.rombongan_belajar_id, fetchPdByRombel]);
+
+  const handleCreatePermohonan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!sekolah?.sekolah_id || !newForm.layanan_id) return;
+
+    try {
+      await layananMandalaService.createPermohonan({
+        layanan_id: newForm.layanan_id,
+        sekolah_id: sekolah.sekolah_id,
+        kategori: tabParam === "gtk" ? 0 : 1,
+        ptk_id: tabParam === "gtk" ? newForm.ptk_id : undefined,
+        peserta_didik_id: tabParam === "pesertadidik" ? newForm.peserta_didik_id : undefined,
+        keterangan: newForm.keterangan,
+      });
+
+      Swal.fire("Berhasil", "Permohonan layanan berhasil diajukan.", "success");
+      setIsNewModalOpen(false);
+      setNewForm({ layanan_id: "", ptk_id: "", rombongan_belajar_id: "", peserta_didik_id: "", keterangan: "" });
+      setPdSearch("");
+      setGtkSearch("");
+      fetchData();
+    } catch (error: any) {
+      Swal.fire("Gagal", error.response?.data?.message || "Terjadi kesalahan.", "error");
+    }
+  };
+
+  const getStatusBadge = (status: number) => {
+    switch (status) {
+      case 1: return <Badge color="light">Diajukan</Badge>;
+      case 2: return <Badge color="info">Diverifikasi</Badge>;
+      case 3: return <Badge color="primary">Diproses</Badge>;
+      case 4: return <Badge color="success">Selesai</Badge>;
+      case 5: return <Badge color="error">Ditolak</Badge>;
+      case 9: return <Badge color="warning">Dibatalkan</Badge>;
+      default: return <Badge color="light">Draft</Badge>;
+    }
+  };
+
+  const filteredData = permohonanList.filter((item) => {
+    const nameMatch = 
+      item.ptk?.nama?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.peserta_didik?.nama?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.layanan?.nama_layanan?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.nomor_permohonan?.toLowerCase().includes(searchTerm.toLowerCase());
+    return nameMatch;
+  });
+
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage) || 1;
+  const paginatedData = filteredData.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, itemsPerPage]);
+
+  const filteredPd = pdList.filter(pd => 
+    pd.nama?.toLowerCase().includes(pdSearch.toLowerCase()) ||
+    pd.nisn?.includes(pdSearch)
+  );
+
+  const filteredGtk = gtkList.filter(gtk => 
+    gtk.nama?.toLowerCase().includes(gtkSearch.toLowerCase()) ||
+    gtk.nuptk?.includes(gtkSearch) ||
+    gtk.nip?.includes(gtkSearch)
+  );
+
+  return (
+    <>
+      <PageMeta
+        title={`Layanan Mandala ${tabParam === "gtk" ? "GTK" : "Peserta Didik"} | SIMAK`}
+        description="Portal Layanan Terpadu Mandala"
+      />
+
+      <div className="space-y-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 mb-6">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
+              Layanan Mandala {tabParam === "gtk" ? "GTK" : "Peserta Didik"}
+            </h3>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              Ajukan dan pantau layanan administrasi terpadu Mandala secara online.
+            </p>
+          </div>
+          <Button 
+            variant="primary" 
+            size="sm"
+            onClick={() => setIsNewModalOpen(true)}
+            startIcon={<PlusIcon className="size-4 fill-current" />}
+          >
+            Buat Permohonan
+          </Button>
+        </div>
+
+        <ComponentCard title={`Riwayat Permohonan Layanan ${tabParam === "gtk" ? "GTK" : "Peserta Didik"}`}>
+          <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between no-print">
+            <div className="w-20">
+              <Select
+                options={rowsPerPageOptions}
+                defaultValue={itemsPerPage.toString()}
+                onChange={(value) => setItemsPerPage(parseInt(value))}
+              />
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 max-w-sm w-full lg:justify-end">
+              <div className="relative w-full">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                  <SearchIcon className="size-5" />
+                </span>
+                <Input
+                  type="text"
+                  placeholder="Cari permohonan..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="flex justify-center items-center py-20">
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-brand-500 border-t-transparent"></div>
+            </div>
+          ) : filteredData.length === 0 ? (
+            <div className="text-center py-20 border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-xl">
+              <p className="text-gray-400 italic text-sm">Tidak ada riwayat permohonan ditemukan</p>
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
+              <div className="max-w-full overflow-x-auto custom-scrollbar">
+                <Table>
+                  <TableHeader className="border-b border-gray-100 dark:border-white/[0.05] bg-gray-50/50 dark:bg-transparent">
+                    <TableRow>
+                      <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Nomor & Tanggal</TableCell>
+                      <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Pemohon</TableCell>
+                      <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Jenis Layanan</TableCell>
+                      <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-center text-xs dark:text-gray-400 whitespace-nowrap">Status</TableCell>
+                      <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-center text-xs dark:text-gray-400 whitespace-nowrap">Aksi</TableCell>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
+                    {paginatedData.map((item) => {
+                      const subject = tabParam === "gtk" ? item.ptk : item.peserta_didik;
+                      return (
+                        <TableRow key={item.permohonan_layanan_id} className="hover:bg-gray-50/50 dark:hover:bg-white/[0.01]">
+                          <TableCell className="px-5 py-3.5">
+                            <div className="flex flex-col">
+                              <span className="font-bold text-gray-800 dark:text-white/90">{item.nomor_permohonan}</span>
+                              <span className="text-xs text-gray-500">{new Date(item.tanggal_permohonan).toLocaleDateString("id-ID")}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="px-5 py-3.5">
+                            <div className="flex items-center gap-3">
+                              <Avatar src={subject?.foto} size="small" />
+                              <div>
+                                <span className="font-semibold text-gray-800 dark:text-white/90">{subject?.nama || "Umum"}</span>
+                                <p className="text-xxs text-gray-400 font-medium">
+                                  {tabParam === "gtk" ? subject?.nuptk || "Pegawai" : subject?.nisn || "Peserta Didik"}
+                                </p>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/85">
+                            {item.layanan?.nama_layanan}
+                          </TableCell>
+                          <TableCell className="px-5 py-3.5 text-center">{getStatusBadge(item.status)}</TableCell>
+                          <TableCell className="px-5 py-3.5 text-center">
+                            <button
+                              onClick={() => {
+                                setSelectedPermohonan(item);
+                                setIsDetailModalOpen(true);
+                              }}
+                              className="px-3 py-1 text-xs font-bold rounded-lg border border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800 transition"
+                            >
+                              Detail
+                            </button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={(page) => setCurrentPage(page)}
+              />
+            </div>
+          )}
+        </ComponentCard>
+      </div>
+
+      {/* Modal: Permohonan Baru */}
+      <Modal isOpen={isNewModalOpen} onClose={() => setIsNewModalOpen(false)} className="max-w-[600px] p-6 bg-white dark:bg-gray-900 rounded-3xl">
+        <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-6">Ajukan Permohonan Layanan</h3>
+        <form onSubmit={handleCreatePermohonan} className="space-y-4">
+          <div>
+            <label className="block text-sm font-semibold mb-2">Pilih Layanan</label>
+            <select
+              value={newForm.layanan_id}
+              onChange={(e) => setNewForm({ ...newForm, layanan_id: e.target.value })}
+              className="w-full appearance-none rounded-lg border border-gray-300 bg-transparent py-3 px-4 text-sm text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white/90"
+              required
+            >
+              <option value="">-- Pilih Layanan Mandala --</option>
+              {masterLayanan.map((l) => (
+                <option key={l.layanan_id} value={l.layanan_id}>{l.nama_layanan}</option>
+              ))}
+            </select>
+          </div>
+
+          {tabParam === "gtk" ? (
+            <div className="space-y-3 animate-fade-in">
+              <label className="block text-sm font-semibold mb-1">Cari & Pilih GTK (Pemohon)</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                  <SearchIcon className="size-4" />
+                </span>
+                <input
+                  type="text"
+                  placeholder="Cari nama, NIP, atau NUPTK..."
+                  value={gtkSearch}
+                  onChange={(e) => setGtkSearch(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 bg-transparent py-2 pl-9 pr-4 text-sm text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white/90"
+                />
+              </div>
+              <div className="max-h-[250px] overflow-y-auto border border-gray-200 dark:border-gray-800 rounded-xl divide-y divide-gray-100 dark:divide-gray-800">
+                {filteredGtk.length === 0 ? (
+                  <div className="p-4 text-center text-xs text-gray-400 italic">GTK tidak ditemukan</div>
+                ) : (
+                  filteredGtk.map((gtk) => (
+                    <div
+                      key={gtk.ptk_id}
+                      onClick={() => setNewForm({ ...newForm, ptk_id: gtk.ptk_id })}
+                      className={`flex items-center justify-between p-3 cursor-pointer transition-all hover:bg-gray-50 dark:hover:bg-white/[0.02] ${newForm.ptk_id === gtk.ptk_id ? 'bg-brand-50/50 dark:bg-brand-500/5' : ''}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Avatar src={gtk.foto} size="small" />
+                        <div>
+                          <p className="text-sm font-bold text-gray-800 dark:text-white">{gtk.nama}</p>
+                          <p className="text-xxs text-gray-400 font-medium">
+                            {gtk.nuptk ? `NUPTK: ${gtk.nuptk}` : gtk.nip ? `NIP: ${gtk.nip}` : 'NUPTK/NIP tidak tersedia'}
+                          </p>
+                        </div>
+                      </div>
+                      {newForm.ptk_id === gtk.ptk_id && (
+                        <span className="h-5 w-5 rounded-full bg-brand-500 flex items-center justify-center text-white text-[10px]">✓</span>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+              {/* Hidden required field for form validation */}
+              <input type="hidden" value={newForm.ptk_id} required />
+            </div>
+          ) : (
+            <>
+              <div>
+                <label className="block text-sm font-semibold mb-2">Pilih Rombongan Belajar (Kelas)</label>
+                <select
+                  value={newForm.rombongan_belajar_id}
+                  onChange={(e) => setNewForm({ ...newForm, rombongan_belajar_id: e.target.value, peserta_didik_id: "" })}
+                  className="w-full appearance-none rounded-lg border border-gray-300 bg-transparent py-3 px-4 text-sm text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white/90"
+                  required
+                >
+                  <option value="">-- Pilih Rombel --</option>
+                  {rombelList.map((r) => <option key={r.rombongan_belajar_id} value={r.rombongan_belajar_id}>{r.nama}</option>)}
+                </select>
+              </div>
+
+              {newForm.rombongan_belajar_id && (
+                <div className="space-y-3 animate-fade-in">
+                  <label className="block text-sm font-semibold mb-1">Cari & Pilih Peserta Didik</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                      <SearchIcon className="size-4" />
+                    </span>
+                    <input
+                      type="text"
+                      placeholder="Cari nama atau NISN..."
+                      value={pdSearch}
+                      onChange={(e) => setPdSearch(e.target.value)}
+                      className="w-full rounded-lg border border-gray-300 bg-transparent py-2 pl-9 pr-4 text-sm text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white/90"
+                    />
+                  </div>
+                  <div className="max-h-[200px] overflow-y-auto border border-gray-200 dark:border-gray-800 rounded-xl divide-y divide-gray-100 dark:divide-gray-800">
+                    {filteredPd.length === 0 ? (
+                      <div className="p-4 text-center text-xs text-gray-400 italic">Peserta didik tidak ditemukan</div>
+                    ) : (
+                      filteredPd.map((pd) => (
+                        <div
+                          key={pd.peserta_didik_id}
+                          onClick={() => setNewForm({ ...newForm, peserta_didik_id: pd.peserta_didik_id })}
+                          className={`flex items-center justify-between p-3 cursor-pointer transition-all hover:bg-gray-50 dark:hover:bg-white/[0.02] ${newForm.peserta_didik_id === pd.peserta_didik_id ? 'bg-brand-50/50 dark:bg-brand-500/5' : ''}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Avatar src={pd.foto} size="small" />
+                            <div>
+                              <p className="text-sm font-bold text-gray-800 dark:text-white">{pd.nama}</p>
+                              <p className="text-xxs text-gray-400 font-medium">NISN: {pd.nisn}</p>
+                            </div>
+                          </div>
+                          {newForm.peserta_didik_id === pd.peserta_didik_id && (
+                            <span className="h-5 w-5 rounded-full bg-brand-500 flex items-center justify-center text-white text-[10px]">✓</span>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  {/* Hidden required field for form validation */}
+                  <input type="hidden" value={newForm.peserta_didik_id} required />
+                </div>
+              )}
+            </>
+          )}
+
+          <div>
+            <label className="block text-sm font-semibold mb-2">Keterangan / Alasan Pengajuan</label>
+            <textarea
+              rows={3}
+              value={newForm.keterangan}
+              onChange={(e) => setNewForm({ ...newForm, keterangan: e.target.value })}
+              className="w-full rounded-lg border border-gray-300 bg-transparent py-2 px-4 text-sm text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white/90"
+              placeholder="Jelaskan kebutuhan layanan ini..."
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4">
+            <Button variant="outline" size="sm" type="button" onClick={() => setIsNewModalOpen(false)}>Batal</Button>
+            <Button variant="primary" size="sm" type="submit" disabled={(tabParam === "pesertadidik" && !newForm.peserta_didik_id) || (tabParam === "gtk" && !newForm.ptk_id)}>Kirim Permohonan</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal: Detail Permohonan */}
+      <Modal isOpen={isDetailModalOpen} onClose={() => setIsDetailModalOpen(false)} className="max-w-[700px] p-6 bg-white dark:bg-gray-900 rounded-3xl">
+        <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-6">Detail Permohonan Layanan</h3>
+        {selectedPermohonan && (
+          <div className="space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar pr-2">
+            <div className="grid grid-cols-2 gap-4 bg-gray-50 dark:bg-gray-800/40 p-4 rounded-2xl border border-gray-100 dark:border-gray-800">
+              <div>
+                <span className="text-xs text-gray-400 font-semibold uppercase">Nomor Permohonan</span>
+                <p className="font-bold text-gray-800 dark:text-white">{selectedPermohonan.nomor_permohonan}</p>
+              </div>
+              <div className="text-right">
+                <span className="text-xs text-gray-400 font-semibold uppercase">Status</span>
+                <div className="mt-1">{getStatusBadge(selectedPermohonan.status)}</div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h4 className="text-sm font-bold border-b pb-2">Informasi Layanan</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <span className="text-xs text-gray-400 font-semibold uppercase">Jenis Layanan</span>
+                  <p className="text-sm font-medium">{selectedPermohonan.layanan?.nama_layanan}</p>
+                </div>
+                <div>
+                  <span className="text-xs text-gray-400 font-semibold uppercase">Tanggal Pengajuan</span>
+                  <p className="text-sm font-medium">{new Date(selectedPermohonan.tanggal_permohonan).toLocaleDateString("id-ID")}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <span className="text-xs text-gray-400 font-semibold uppercase">Pemohon</span>
+                  <p className="text-sm font-medium">{selectedPermohonan.ptk?.nama || selectedPermohonan.peserta_didik?.nama}</p>
+                </div>
+                <div>
+                  <span className="text-xs text-gray-400 font-semibold uppercase">ID / NISN</span>
+                  <p className="text-sm font-medium">{selectedPermohonan.ptk?.nuptk || selectedPermohonan.peserta_didik?.nisn || "-"}</p>
+                </div>
+              </div>
+              <div>
+                <span className="text-xs text-gray-400 font-semibold uppercase">Keterangan Pemohon</span>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{selectedPermohonan.keterangan || "-"}</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h4 className="text-sm font-bold border-b pb-2">Dokumen Syarat</h4>
+              <div className="space-y-2">
+                {selectedPermohonan.layanan?.syarat.map((s) => (
+                  <div key={s.layanan_syarat_id} className="flex items-center justify-between p-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50/30">
+                    <div className="flex items-center gap-3">
+                      <BoltIcon className="size-4 text-brand-500" />
+                      <span className="text-sm font-medium">{s.nama_syarat} {s.wajib && <span className="text-red-500">*</span>}</span>
+                    </div>
+                    <Button variant="outline" size="sm">Upload File</Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <Button variant="outline" size="sm" onClick={() => setIsDetailModalOpen(false)}>Tutup</Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+    </>
+  );
+}

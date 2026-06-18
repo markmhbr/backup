@@ -36,6 +36,28 @@ export const dapodikService = {
     }
   },
 
+  getCadisdiks: async () => {
+    try {
+      const response = await api.get('/dapodik/cadisdik');
+      return response.data;
+    } catch (error: any) {
+      console.error('Gagal mengambil data cadisdik:', error);
+      throw error;
+    }
+  },
+
+  getMasterLayanan: async (kategori?: number) => {
+    try {
+      const response = await api.get('/dapodik/master-layanan', {
+        params: { kategori }
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Gagal mengambil data master layanan:', error);
+      throw error;
+    }
+  },
+
   validateSyncKey: async (key: string, domain: string) => {
     try {
       const response = await api.post('/sync/validate', { key, domain });

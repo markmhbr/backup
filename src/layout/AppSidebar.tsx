@@ -287,6 +287,22 @@ const navItems: NavItem[] = [
     ],
   },
   {
+    icon: <PlugInIcon />,
+    name: "Layanan Mandala",
+    subItems: [
+      {
+        name: "GTK",
+        path: "/layanan?tab=gtk",
+        icon: <DotIcon />,
+      },
+      {
+        name: "Peserta Didik",
+        path: "/layanan?tab=pesertadidik",
+        icon: <DotIcon />,
+      },
+    ],
+  },
+  {
     name: "Pengaturan",
     icon: <PlugInIcon />,
     subItems: [

@@ -23,6 +23,7 @@ export default function SchoolProfile() {
     "profil" | "administrasi" | "alamat" | "kontak" | "map"
   >("profil");
   const [loading, setLoading] = useState(true);
+  const [cadisdikOptions, setCadisdikOptions] = useState<{ value: string; label: string }[]>([]);
 
   // Form State
   const [profileData, setProfileData] = useState({
@@ -33,13 +34,12 @@ export default function SchoolProfile() {
     lintang: "",
     bujur: "",
     statusSekolah: "",
-    cabangDinas: "",
+    cadisdik_id: "",
     namaKepalaSekolah: "",
     namaOperator: "",
     bentukPendidikan: "",
     logo: "",
   });
-
 
   const [alamatData, setAlamatData] = useState({
     jalan: "",
@@ -69,10 +69,24 @@ export default function SchoolProfile() {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
   useEffect(() => {
+    const fetchCadisdiks = async () => {
+      try {
+        const res = await dapodikService.getCadisdiks();
+        if (res.status === "success" && Array.isArray(res.data)) {
+          const options = res.data.map((c: any) => ({
+            value: c.cadisdik_id,
+            label: c.nama_instansi
+          }));
+          setCadisdikOptions(options);
+        }
+      } catch (err) {
+        console.error("Gagal mengambil data cadisdik:", err);
+      }
+    };
+
     const fetchSchoolData = async () => {
       try {
         const result = await dapodikService.getSekolah();
-        console.log("API School Data:", result);
         if (result.status === "success" && result.data) {
           const s = result.data;
           
@@ -88,7 +102,8 @@ export default function SchoolProfile() {
             bentukPendidikan: s.bentuk_pendidikan_id_str || prev.bentukPendidikan,
             namaKepalaSekolah: s.nama_kepala_sekolah || prev.namaKepalaSekolah,
             namaOperator: s.nama_operator || prev.namaOperator,
-            logo: s.logo || prev.logo
+            logo: s.logo || prev.logo,
+            cadisdik_id: s.cadisdik_id || ""
           }));
 
           if (s.logo) {
@@ -131,6 +146,7 @@ export default function SchoolProfile() {
       }
     };
 
+    fetchCadisdiks();
     fetchSchoolData();
   }, []);
 
@@ -211,22 +227,6 @@ export default function SchoolProfile() {
     nilai: "A",
     lembaga: "BAN-S/M",
   });
-
-  const cabangDinasOptions = [
-    { value: "I", label: "I" },
-    { value: "II", label: "II" },
-    { value: "III", label: "III" },
-    { value: "IV", label: "IV" },
-    { value: "V", label: "V" },
-    { value: "VI", label: "VI" },
-    { value: "VII", label: "VII" },
-    { value: "VIII", label: "VIII" },
-    { value: "IX", label: "IX" },
-    { value: "X", label: "X" },
-    { value: "XI", label: "XI" },
-    { value: "XII", label: "XII" },
-    { value: "XIII", label: "XIII" },
-  ];
 
   const tabs = [
     { id: "profil", label: "Profil" },
@@ -343,7 +343,7 @@ export default function SchoolProfile() {
         website: kontakData.website,
         nomor_fax: kontakData.nomorFax,
         social_media: kontakData.socialMedia,
-        cabang_dinas: profileData.cabangDinas,
+        cadisdik_id: profileData.cadisdik_id,
       };
 
       await dapodikService.updateSekolah(payload);
@@ -455,7 +455,9 @@ export default function SchoolProfile() {
                 </tr>
                 <tr>
                   <td className="border border-gray-300 p-2 font-semibold">Cabang Dinas</td>
-                  <td className="border border-gray-300 p-2">{profileData.cabangDinas}</td>
+                  <td className="border border-gray-300 p-2">
+                    {cadisdikOptions.find(o => o.value === profileData.cadisdik_id)?.label || profileData.cadisdik_id}
+                  </td>
                 </tr>
                 <tr>
                   <td className="border border-gray-300 p-2 font-semibold">Kepala Sekolah</td>
@@ -839,10 +841,11 @@ export default function SchoolProfile() {
                     <div>
                       <Label>Cabang Dinas</Label>
                       <Select
-                        options={cabangDinasOptions}
-                        defaultValue={profileData.cabangDinas}
+                        options={cadisdikOptions}
+                        value={profileData.cadisdik_id}
+                        placeholder="Pilih Cabang Dinas"
                         onChange={(value) =>
-                          handleSelectChange(value, "cabangDinas")
+                          handleSelectChange(value, "cadisdik_id")
                         }
                       />
                     </div>
