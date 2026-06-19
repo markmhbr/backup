@@ -1556,7 +1556,7 @@ const SuratData: React.FC = () => {
                               <option value="">-- Pilih Rombel --</option>
                               {rombels.map((r) => (
                                 <option key={r.rombongan_belajar_id} value={r.nama}>
-                                  {r.nama} ({r.tingkat_pendidikan_id_str})
+                                  {r.nama}
                                 </option>
                               ))}
                             </select>
