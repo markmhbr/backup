@@ -72,6 +72,7 @@ export default function KeuanganData() {
   // Selected entities for modals
   const [selectedConfig, setSelectedConfig] = useState<any | null>(null);
   const [selectedTagihan, setSelectedTagihan] = useState<any | null>(null);
+  const [selectedSubSpp, setSelectedSubSpp] = useState<any | null>(null);
 
   // Forms
   const [configForm, setConfigForm] = useState({
@@ -305,11 +306,11 @@ export default function KeuanganData() {
 
   const handleCreateTransaksi = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedTagihan || !transaksiForm.nominal) return;
+    if (!selectedSubSpp || !transaksiForm.nominal) return;
 
     try {
       await sppService.createTransaksiSpp({
-        spp_id: selectedTagihan.spp_id,
+        spp_id: selectedSubSpp.spp_id,
         sekolah_id: sekolah!.sekolah_id,
         peserta_didik_id: selectedTagihan.peserta_didik_id,
         jenis_transaksi: Number(transaksiForm.jenis_transaksi),
@@ -384,6 +385,59 @@ export default function KeuanganData() {
     return <Badge color="error">Belum Bayar</Badge>;
   };
 
+  // Helper to group bills by student
+  const getGroupedTagihan = (list: any[]) => {
+    const groupedMap: Record<string, any> = {};
+
+    list.forEach((item) => {
+      const studentId = item.peserta_didik_id;
+      if (!groupedMap[studentId]) {
+        groupedMap[studentId] = {
+          peserta_didik_id: studentId,
+          peserta_didik: item.peserta_didik,
+          nominal_tagihan: BigInt(0),
+          nominal_terbayar: BigInt(0),
+          spps: [],
+        };
+      }
+
+      groupedMap[studentId].nominal_tagihan += BigInt(item.nominal_tagihan);
+      groupedMap[studentId].nominal_terbayar += BigInt(item.nominal_terbayar);
+      groupedMap[studentId].spps.push(item);
+    });
+
+    return Object.values(groupedMap).map((student) => {
+      const totalTagihan = student.nominal_tagihan;
+      const totalTerbayar = student.nominal_terbayar;
+      const sisa = totalTagihan - totalTerbayar;
+
+      let status = 1; // Belum Bayar
+      const allLunas = student.spps.every((s: any) => s.status === 3);
+      const allBelum = student.spps.every((s: any) => s.status === 1);
+      if (allLunas) {
+        status = 3;
+      } else if (allBelum) {
+        status = 1;
+      } else {
+        status = 2; // Sebagian
+      }
+
+      const billNames = student.spps
+        .map((s: any) => s.pengaturan_tagihan?.nama_tagihan)
+        .filter(Boolean)
+        .join(", ");
+
+      return {
+        ...student,
+        nominal_tagihan: totalTagihan.toString(),
+        nominal_terbayar: totalTerbayar.toString(),
+        sisa: sisa.toString(),
+        status,
+        nama_tagihan: billNames,
+      };
+    });
+  };
+
   // Filter student bills
   const filteredTagihan = tagihanList.filter((item) => {
     const matchSearch =
@@ -396,8 +450,10 @@ export default function KeuanganData() {
     return matchSearch && matchStatus;
   });
 
-  const totalPages = Math.ceil(filteredTagihan.length / itemsPerPage) || 1;
-  const paginatedTagihan = filteredTagihan.slice(
+  const groupedTagihan = getGroupedTagihan(filteredTagihan);
+
+  const totalPages = Math.ceil(groupedTagihan.length / itemsPerPage) || 1;
+  const paginatedTagihan = groupedTagihan.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
@@ -413,6 +469,7 @@ export default function KeuanganData() {
 
   const handleOpenTransaksiModal = (tagihan: any) => {
     setSelectedTagihan(tagihan);
+    setSelectedSubSpp(tagihan.spps?.[0] || null);
     setIsTransaksiModalOpen(true);
   };
 
@@ -627,13 +684,13 @@ export default function KeuanganData() {
                             {paginatedTagihan.map((item) => {
                               const sisa = BigInt(item.nominal_tagihan) - BigInt(item.nominal_terbayar);
                               return (
-                                <TableRow key={item.spp_id} className="hover:bg-gray-50 dark:hover:bg-gray-850">
+                                <TableRow key={item.peserta_didik_id} className="hover:bg-gray-50 dark:hover:bg-gray-850">
                                   <TableCell className="py-4 px-4 font-semibold text-gray-900 dark:text-white text-sm">
                                     {item.peserta_didik?.nama}
                                   </TableCell>
                                   <TableCell className="py-4 px-4 text-sm">{item.peserta_didik?.nisn || "-"}</TableCell>
                                   <TableCell className="py-4 px-4 text-sm">{item.peserta_didik?.nama_rombel || "-"}</TableCell>
-                                  <TableCell className="py-4 px-4 text-sm">{item.pengaturan_tagihan?.nama_tagihan}</TableCell>
+                                  <TableCell className="py-4 px-4 text-sm">{item.nama_tagihan}</TableCell>
                                   <TableCell className="py-4 px-4 font-medium text-gray-900 dark:text-gray-150 text-sm">
                                     {formatCurrency(item.nominal_tagihan)}
                                   </TableCell>
@@ -1116,8 +1173,28 @@ export default function KeuanganData() {
             Kelas: <span className="font-semibold">{selectedTagihan?.peserta_didik?.nama_rombel}</span>
           </div>
           <div>
-            Tagihan: <span className="font-semibold">{selectedTagihan?.pengaturan_tagihan?.nama_tagihan}</span>
+            Tagihan: <span className="font-semibold">{selectedSubSpp?.pengaturan_tagihan?.nama_tagihan || "-"}</span>
           </div>
+          {selectedTagihan?.spps && selectedTagihan.spps.length > 1 && (
+            <div className="col-span-2 mt-2">
+              <label className="block text-[11px] font-semibold mb-1 text-gray-500 dark:text-gray-400">Pilih Tagihan</label>
+              <select
+                value={selectedSubSpp?.spp_id || ""}
+                onChange={(e) => {
+                  const sppId = e.target.value;
+                  const found = selectedTagihan.spps.find((s: any) => s.spp_id === sppId);
+                  setSelectedSubSpp(found || null);
+                }}
+                className="w-full rounded-lg border border-gray-300 bg-transparent py-2 px-3 text-xs text-gray-850 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white/90"
+              >
+                {selectedTagihan.spps.map((s: any) => (
+                  <option key={s.spp_id} value={s.spp_id}>
+                    {s.pengaturan_tagihan?.nama_tagihan} ({formatCurrency(s.nominal_tagihan)})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* Tagihan Summary Card */}
@@ -1125,19 +1202,19 @@ export default function KeuanganData() {
           <div>
             <p className="text-gray-400">Total Tagihan</p>
             <p className="font-bold text-gray-800 dark:text-white mt-1">
-              {selectedTagihan && formatCurrency(selectedTagihan.nominal_tagihan)}
+              {selectedSubSpp && formatCurrency(selectedSubSpp.nominal_tagihan)}
             </p>
           </div>
           <div>
             <p className="text-gray-400">Total Terbayar</p>
             <p className="font-bold text-green-600 dark:text-green-450 mt-1">
-              {selectedTagihan && formatCurrency(selectedTagihan.nominal_terbayar)}
+              {selectedSubSpp && formatCurrency(selectedSubSpp.nominal_terbayar)}
             </p>
           </div>
           <div>
             <p className="text-gray-400">Sisa Tagihan</p>
             <p className="font-bold text-red-500 mt-1">
-              {selectedTagihan && formatCurrency(Number(selectedTagihan.nominal_tagihan) - Number(selectedTagihan.nominal_terbayar))}
+              {selectedSubSpp && formatCurrency(Number(selectedSubSpp.nominal_tagihan) - Number(selectedSubSpp.nominal_terbayar))}
             </p>
           </div>
         </div>
@@ -1224,11 +1301,11 @@ export default function KeuanganData() {
           {/* History list */}
           <div className="border-l border-gray-100 dark:border-gray-800 pl-0 md:pl-6">
             <h4 className="text-sm font-bold text-gray-800 dark:text-white mb-4">Riwayat Transaksi</h4>
-            {selectedTagihan?.riwayat_transaksi?.length === 0 ? (
+            {selectedSubSpp?.riwayat_transaksi?.length === 0 ? (
               <p className="text-xs italic text-gray-400 py-6 text-center">Belum ada riwayat transaksi SPP.</p>
             ) : (
               <div className="max-h-[300px] overflow-y-auto space-y-3 pr-1">
-                {selectedTagihan?.riwayat_transaksi?.map((t: any) => (
+                {selectedSubSpp?.riwayat_transaksi?.map((t: any) => (
                   <div key={t.riwayat_transaksi_spp_id} className="p-3 border border-gray-100 dark:border-gray-800 rounded-xl text-xs relative">
                     <div className="flex justify-between items-center mb-1">
                       <span className="font-semibold text-gray-700 dark:text-gray-300">
