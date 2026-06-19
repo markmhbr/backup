@@ -7,6 +7,8 @@ import Label from "../../components/form/Label";
 import Select from "../../components/form/Select";
 import Swal from "sweetalert2";
 import { dapodikService } from "../../services/dapodikService";
+import { getFotoUrl } from "../../utils/image";
+
 
 const format3Digits = (value: string | number | null | undefined): string => {
   if (value === null || value === undefined || value === "") return "";
@@ -538,7 +540,7 @@ const EditStudentPage: React.FC = () => {
                 <div className="relative group">
                   <div className="w-48 h-48 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-800 flex items-center justify-center overflow-hidden bg-gray-50 dark:bg-white/[0.02]">
                     {formData.avatar ? (
-                      <img src={formData.avatar} alt="Profile" className="w-full h-full object-cover" />
+                      <img src={getFotoUrl(formData.avatar)} alt="Profile" className="w-full h-full object-cover" />
                     ) : (
                       <img src="/images/user/owner.jpg" alt="Profile Fallback" className="w-full h-full object-cover opacity-60" />
                     )}

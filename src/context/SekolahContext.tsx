@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { dapodikService } from '../services/dapodikService';
 import { useAuth } from './AuthContext';
+import { getFotoUrl } from '../utils/image';
 
 interface Sekolah {
   sekolah_id: string;
@@ -33,7 +34,11 @@ export const SekolahProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       const result = await dapodikService.getSekolah();
       if (result.status === 'success') {
-        setSekolah(result.data);
+        const raw = result.data;
+        setSekolah({
+          ...raw,
+          logo: raw.logo ? getFotoUrl(raw.logo, '') : null,
+        });
       }
     } catch (err) {
       console.error('Gagal mengambil data sekolah:', err);

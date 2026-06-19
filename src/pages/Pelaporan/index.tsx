@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router";
-import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import PageMeta from "../../components/common/PageMeta";
-import ComponentCard from "../../components/common/ComponentCard";
 import Badge from "../../components/ui/badge/Badge";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "../../components/ui/table";
 import Pagination from "../../components/common/Pagination";
@@ -61,10 +59,22 @@ export default function PelaporanSekolahPage() {
         title="Pelaporan Dokumen | SIMAK"
         description="Daftar permintaan pelaporan dokumen dari Cadisdik"
       />
-      <PageBreadcrumb pageTitle="Pelaporan Dokumen" />
 
       <div className="space-y-6">
-        <ComponentCard title="Daftar Permintaan Pelaporan">
+        {/* Header Section */}
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 no-print">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
+              Pelaporan Dokumen
+            </h3>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              Daftar permintaan pelaporan dokumen dari Cadisdik ke sekolah.
+            </p>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 no-print">
           <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between no-print">
             <div className="w-20">
               <Select
@@ -89,74 +99,75 @@ export default function PelaporanSekolahPage() {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableCell isHeader>Judul Pelaporan</TableCell>
-                  <TableCell isHeader>Periode</TableCell>
-                  <TableCell isHeader className="text-center">Dokumen Dikirim</TableCell>
-                  <TableCell isHeader className="text-center">Status</TableCell>
-                  <TableCell isHeader className="text-center">Aksi</TableCell>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
+          <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03] relative">
+            <div className="max-w-full overflow-x-auto custom-scrollbar">
+              <Table className="min-w-[1000px]">
+                <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-10 text-gray-500">
-                      Memuat data...
-                    </TableCell>
+                    <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 whitespace-nowrap">Judul Pelaporan</TableCell>
+                    <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 whitespace-nowrap">Periode</TableCell>
+                    <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-center text-theme-xs dark:text-gray-400 whitespace-nowrap">Dokumen Dikirim</TableCell>
+                    <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-center text-theme-xs dark:text-gray-400 whitespace-nowrap">Status</TableCell>
+                    <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-center text-theme-xs dark:text-gray-400 whitespace-nowrap">Aksi</TableCell>
                   </TableRow>
-                ) : filteredData.length > 0 ? (
-                  filteredData.map((item) => (
-                    <TableRow key={item.pelaporan_id}>
-                      <TableCell className="font-medium text-gray-800 dark:text-white/90">
-                        {item.judul}
-                      </TableCell>
-                      <TableCell className="text-xs text-gray-500">
-                        {item.tanggal_mulai ? new Date(item.tanggal_mulai).toLocaleDateString("id-ID") : "-"} s/d{" "}
-                        {item.tanggal_selesai ? new Date(item.tanggal_selesai).toLocaleDateString("id-ID") : "-"}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge color={item.jumlah_dokumen > 0 ? "success" : "light"} size="sm">
-                          {item.jumlah_dokumen} Dokumen
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {item.aktif ? (
-                          <Badge color="success" size="sm">Terbuka</Badge>
-                        ) : (
-                          <Badge color="error" size="sm">Ditutup</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Link to={`/${roleSlug}/pelaporan/detail?id=${item.pelaporan_id}`}>
-                          <button className="text-brand-500 hover:text-brand-600 font-medium text-sm">
-                            Detail & Upload
-                          </button>
-                        </Link>
+                </TableHeader>
+                <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="px-5 py-10 text-center text-gray-500">
+                        Memuat data...
                       </TableCell>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-10 text-gray-500">
-                      Tidak ada permintaan pelaporan.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                  ) : filteredData.length > 0 ? (
+                    filteredData.map((item) => (
+                      <TableRow key={item.pelaporan_id}>
+                        <TableCell className="px-5 py-4 font-medium text-gray-800 dark:text-white/90">
+                          {item.judul}
+                        </TableCell>
+                        <TableCell className="px-5 py-4 text-theme-sm text-gray-500">
+                          {item.tanggal_mulai ? new Date(item.tanggal_mulai).toLocaleDateString("id-ID") : "-"} s/d{" "}
+                          {item.tanggal_selesai ? new Date(item.tanggal_selesai).toLocaleDateString("id-ID") : "-"}
+                        </TableCell>
+                        <TableCell className="px-5 py-4 text-center">
+                          <Badge color={item.jumlah_dokumen > 0 ? "success" : "light"} size="sm">
+                            {item.jumlah_dokumen} Dokumen
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="px-5 py-4 text-center">
+                          {item.aktif ? (
+                            <Badge color="success" size="sm">Terbuka</Badge>
+                          ) : (
+                            <Badge color="error" size="sm">Ditutup</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="px-5 py-4 text-center">
+                          <Link to={`/${roleSlug}/pelaporan/detail?id=${item.pelaporan_id}`}>
+                            <button className="text-brand-500 hover:text-brand-600 font-medium text-sm">
+                              Detail & Upload
+                            </button>
+                          </Link>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={5} className="px-5 py-10 text-center text-gray-500">
+                        Tidak ada permintaan pelaporan.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="p-5 border-t border-gray-100 dark:border-white/[0.05]">
+              <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={(page) => setCurrentPage(page)}
+              />
+            </div>
           </div>
-
-          <div className="mt-6 flex justify-between items-center">
-             <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={(page) => setCurrentPage(page)}
-             />
-          </div>
-        </ComponentCard>
+        </div>
       </div>
     </>
   );

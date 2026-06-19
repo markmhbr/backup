@@ -23,6 +23,7 @@ import Badge from "../../components/ui/badge/Badge";
 import Avatar from "../../components/ui/avatar/Avatar";
 import { SearchIcon, PlusIcon } from "../../icons";
 import Swal from "sweetalert2";
+import { getFotoUrl } from "../../utils/image";
 
 interface SchoolSummary {
   stats: {
@@ -348,11 +349,6 @@ export default function IndisiplinerData() {
     }) + " WIB";
   };
 
-  const getBackendBaseURL = () => {
-    return import.meta.env.VITE_API_URL 
-      ? import.meta.env.VITE_API_URL.replace('/api', '') 
-      : 'https://centralsimak.smakniscjr.sch.id';
-  };
 
   // Filters logic
   const filteredPelanggaran = pelanggaranList.filter((item) => {
@@ -593,9 +589,7 @@ export default function IndisiplinerData() {
                       const offender = item.peserta_didik || item.gtk;
                       const isPD = !!item.peserta_didik_id;
                       
-                      const fotoUrl = offender?.foto 
-                        ? `${getBackendBaseURL()}/storage/${offender.foto}` 
-                        : '';
+                      const fotoUrl = getFotoUrl(offender?.foto, '');
 
                       let statusBadge = <Badge color="light">Draft</Badge>;
                       if (item.status === 2) statusBadge = <Badge color="primary">Diproses</Badge>;
@@ -797,9 +791,7 @@ export default function IndisiplinerData() {
                   <p className="text-gray-400 italic text-sm text-center py-10">Belum ada GTK terdeteksi melanggar</p>
                 ) : (
                   summary.top_gtk.map((gtk, idx) => {
-                    const fotoUrl = gtk.foto 
-                      ? `${getBackendBaseURL()}/storage/${gtk.foto}` 
-                      : '';
+                    const fotoUrl = getFotoUrl(gtk.foto, '');
                     
                     return (
                       <div 
@@ -833,9 +825,7 @@ export default function IndisiplinerData() {
                   <p className="text-gray-400 italic text-sm text-center py-10">Belum ada peserta didik terdeteksi melanggar</p>
                 ) : (
                   summary.top_siswa.map((siswa, idx) => {
-                    const fotoUrl = siswa.foto 
-                      ? `${getBackendBaseURL()}/storage/${siswa.foto}` 
-                      : '';
+                    const fotoUrl = getFotoUrl(siswa.foto, '');
                     
                     return (
                       <div 
@@ -1051,11 +1041,7 @@ export default function IndisiplinerData() {
             <div className="flex items-center justify-between p-3.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl">
               <div className="flex items-center gap-3">
                 <Avatar 
-                  src={
-                    selectedOffender.foto 
-                      ? `${getBackendBaseURL()}/storage/${selectedOffender.foto}`
-                      : ""
-                  } 
+                  src={getFotoUrl(selectedOffender.foto, "")} 
                   size="small" 
                 />
                 <div>
@@ -1272,13 +1258,7 @@ export default function IndisiplinerData() {
             {/* Subject Profile Info */}
             <div className="flex items-center gap-4 bg-gray-50 dark:bg-gray-800/40 p-4 rounded-2xl border border-gray-100 dark:border-gray-800">
               <Avatar 
-                src={
-                  selectedPelanggaran.peserta_didik?.foto 
-                    ? `${getBackendBaseURL()}/storage/${selectedPelanggaran.peserta_didik.foto}`
-                    : selectedPelanggaran.gtk?.foto
-                    ? `${getBackendBaseURL()}/storage/${selectedPelanggaran.gtk.foto}`
-                    : ""
-                } 
+                src={getFotoUrl(selectedPelanggaran.peserta_didik?.foto || selectedPelanggaran.gtk?.foto, "")} 
                 size="large" 
               />
               <div>

@@ -44,8 +44,10 @@ export default function LayananMandala() {
 
   // Modals
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedPermohonan, setSelectedPermohonan] = useState<PermohonanLayanan | null>(null);
+  const [uploadingSyaratId, setUploadingSyaratId] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadingCoverLetter, setUploadingCoverLetter] = useState(false);
 
   // Form New Request
   const [newForm, setNewForm] = useState({
@@ -128,12 +130,140 @@ export default function LayananMandala() {
     }
   }, [newForm.rombongan_belajar_id, fetchPdByRombel]);
 
+  const getFileUrl = (url: string) => {
+    if (!url) return "#";
+    const baseUrl = import.meta.env.VITE_API_URL 
+      ? import.meta.env.VITE_API_URL.replace(/\/api$/, '') 
+      : 'http://localhost:3000';
+    return `${baseUrl}${url}`;
+  };
+
+  const handleUploadFile = async (e: React.ChangeEvent<HTMLInputElement>, syaratId: string) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedPermohonan) return;
+
+    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.pdf'];
+    const fileExt = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+    if (!allowedExtensions.includes(fileExt)) {
+      Swal.fire("Format Tidak Valid", "Gunakan PDF atau Gambar (JPG, PNG, WebP).", "error");
+      return;
+    }
+
+    if (fileExt === '.pdf' && file.size > 5 * 1024 * 1024) {
+      Swal.fire("Ukuran Berlebih", "Maksimum ukuran file PDF adalah 5 MB.", "error");
+      return;
+    } else if (file.size > 2 * 1024 * 1024 && fileExt !== '.pdf') {
+      Swal.fire("Ukuran Berlebih", "Maksimum ukuran file gambar adalah 2 MB.", "error");
+      return;
+    }
+
+    setUploadingSyaratId(syaratId);
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("layanan_syarat_id", syaratId);
+    formData.append("jenis_file", "1"); // 1 = Dokumen Persyaratan
+
+    try {
+      await layananMandalaService.uploadFile(
+        selectedPermohonan.permohonan_layanan_id,
+        formData
+      );
+      Swal.fire("Berhasil", "Dokumen berhasil diunggah.", "success");
+      
+      // Refresh list
+      const kategori = tabParam === "gtk" ? 0 : 1;
+      const permohonanRes = await layananMandalaService.getPermohonan({ 
+        sekolah_id: sekolah?.sekolah_id,
+        kategori: kategori 
+      });
+      setPermohonanList(permohonanRes.data || []);
+      
+      // Update selectedPermohonan details
+      const updatedPermohonan = (permohonanRes.data || []).find(
+        (p: any) => p.permohonan_layanan_id === selectedPermohonan.permohonan_layanan_id
+      );
+      if (updatedPermohonan) {
+        setSelectedPermohonan(updatedPermohonan);
+      }
+    } catch (error: any) {
+      Swal.fire("Gagal", error.response?.data?.message || "Gagal mengunggah berkas.", "error");
+    } finally {
+      setUploadingSyaratId(null);
+    }
+  };
+
+  const handleUploadCoverLetter = async (file: File) => {
+    if (!selectedPermohonan) return;
+
+    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.pdf'];
+    const fileExt = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+    if (!allowedExtensions.includes(fileExt)) {
+      Swal.fire("Format Tidak Valid", "Gunakan PDF atau Gambar (JPG, PNG, WebP).", "error");
+      return;
+    }
+
+    if (fileExt === '.pdf' && file.size > 5 * 1024 * 1024) {
+      Swal.fire("Ukuran Berlebih", "Maksimum ukuran file PDF adalah 5 MB.", "error");
+      return;
+    } else if (file.size > 2 * 1024 * 1024 && fileExt !== '.pdf') {
+      Swal.fire("Ukuran Berlebih", "Maksimum ukuran file gambar adalah 2 MB.", "error");
+      return;
+    }
+
+    setUploadingCoverLetter(true);
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("jenis_file", "0"); // 0 = Surat Permohonan Awal
+    formData.append("nama_file", "Surat Permohonan Awal");
+
+    try {
+      await layananMandalaService.uploadFile(
+        selectedPermohonan.permohonan_layanan_id,
+        formData
+      );
+      Swal.fire("Berhasil", "Surat permohonan berhasil diunggah.", "success");
+      
+      // Refresh list
+      const kategori = tabParam === "gtk" ? 0 : 1;
+      const permohonanRes = await layananMandalaService.getPermohonan({ 
+        sekolah_id: sekolah?.sekolah_id,
+        kategori: kategori 
+      });
+      setPermohonanList(permohonanRes.data || []);
+      
+      // Update selectedPermohonan details
+      const updatedPermohonan = (permohonanRes.data || []).find(
+        (p: any) => p.permohonan_layanan_id === selectedPermohonan.permohonan_layanan_id
+      );
+      if (updatedPermohonan) {
+        setSelectedPermohonan(updatedPermohonan);
+      }
+    } catch (error: any) {
+      Swal.fire("Gagal", error.response?.data?.message || "Gagal mengunggah berkas.", "error");
+    } finally {
+      setUploadingCoverLetter(false);
+    }
+  };
+
   const handleCreatePermohonan = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!sekolah?.sekolah_id || !newForm.layanan_id) return;
+    if (!selectedFile) {
+      Swal.fire("Berkas Wajib", "Silakan unggah Surat Permohonan Awal terlebih dahulu.", "warning");
+      return;
+    }
 
     try {
-      await layananMandalaService.createPermohonan({
+      Swal.fire({
+        title: "Memproses...",
+        text: "Mengajukan permohonan layanan...",
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+
+      const res = await layananMandalaService.createPermohonan({
         layanan_id: newForm.layanan_id,
         sekolah_id: sekolah.sekolah_id,
         kategori: tabParam === "gtk" ? 0 : 1,
@@ -142,25 +272,39 @@ export default function LayananMandala() {
         keterangan: newForm.keterangan,
       });
 
-      Swal.fire("Berhasil", "Permohonan layanan berhasil diajukan.", "success");
+      const newPermohonanId = res.data?.permohonan_layanan_id;
+      if (!newPermohonanId) {
+        throw new Error("Gagal mendapatkan ID permohonan.");
+      }
+
+      // Now upload the cover letter
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+      formData.append("jenis_file", "0"); // 0 = Surat Permohonan Awal
+      formData.append("nama_file", "Surat Permohonan Awal");
+
+      await layananMandalaService.uploadFile(newPermohonanId, formData);
+
+      Swal.fire("Berhasil", "Permohonan layanan berhasil diajukan beserta berkas.", "success");
       setIsNewModalOpen(false);
       setNewForm({ layanan_id: "", ptk_id: "", rombongan_belajar_id: "", peserta_didik_id: "", keterangan: "" });
+      setSelectedFile(null);
       setPdSearch("");
       setGtkSearch("");
       fetchData();
     } catch (error: any) {
-      Swal.fire("Gagal", error.response?.data?.message || "Terjadi kesalahan.", "error");
+      Swal.fire("Gagal", error.response?.data?.message || error.message || "Terjadi kesalahan.", "error");
     }
   };
 
   const getStatusBadge = (status: number) => {
     switch (status) {
       case 1: return <Badge color="light">Diajukan</Badge>;
-      case 2: return <Badge color="info">Diverifikasi</Badge>;
-      case 3: return <Badge color="primary">Diproses</Badge>;
-      case 4: return <Badge color="success">Selesai</Badge>;
-      case 5: return <Badge color="error">Ditolak</Badge>;
-      case 9: return <Badge color="warning">Dibatalkan</Badge>;
+      case 2: return <Badge color="info">Diverifikasi Staff</Badge>;
+      case 3: return <Badge color="warning">Menunggu Perbaikan</Badge>;
+      case 4: return <Badge color="info">Menunggu Kasubag</Badge>;
+      case 5: return <Badge color="success">Disetujui / Selesai</Badge>;
+      case 6: return <Badge color="error">Ditolak</Badge>;
       default: return <Badge color="light">Draft</Badge>;
     }
   };
@@ -194,6 +338,202 @@ export default function LayananMandala() {
     gtk.nuptk?.includes(gtkSearch) ||
     gtk.nip?.includes(gtkSearch)
   );
+
+  if (selectedPermohonan) {
+    const coverLetterFile = selectedPermohonan.permohonan_layanan_file?.find(
+      (f: any) => f.jenis_file === 0
+    );
+
+    return (
+      <>
+        <PageMeta
+          title={`Detail Permohonan Layanan | SIMAK`}
+          description="Portal Layanan Terpadu Mandala"
+        />
+
+        <div className="space-y-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 mb-6">
+            <div>
+              <button 
+                onClick={() => setSelectedPermohonan(null)}
+                className="inline-flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-gray-800 dark:hover:text-white mb-2 transition"
+              >
+                ← Kembali ke Daftar
+              </button>
+              <h3 className="text-lg font-bold text-gray-800 dark:text-white/90">
+                Detail Permohonan: {selectedPermohonan.nomor_permohonan}
+              </h3>
+            </div>
+            <div>{getStatusBadge(selectedPermohonan.status)}</div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1 space-y-6">
+              <ComponentCard title="Informasi Permohonan">
+                <div className="space-y-4">
+                  <div>
+                    <span className="text-xs text-gray-400 font-semibold uppercase">Jenis Layanan</span>
+                    <p className="text-sm font-bold text-gray-800 dark:text-white/90">{selectedPermohonan.layanan?.nama_layanan}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-400 font-semibold uppercase">Tanggal Pengajuan</span>
+                    <p className="text-sm font-medium">{new Date(selectedPermohonan.tanggal_pengajuan || selectedPermohonan.created_at || '').toLocaleDateString("id-ID")}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-400 font-semibold uppercase">Pemohon</span>
+                    <p className="text-sm font-medium">{selectedPermohonan.ptk?.nama || selectedPermohonan.peserta_didik?.nama || "Umum"}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-400 font-semibold uppercase">ID / NISN</span>
+                    <p className="text-sm font-medium">{selectedPermohonan.ptk?.nuptk || selectedPermohonan.peserta_didik?.nisn || "-"}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-400 font-semibold uppercase">Keterangan Pemohon</span>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{selectedPermohonan.keterangan || "-"}</p>
+                  </div>
+                </div>
+              </ComponentCard>
+            </div>
+
+            <div className="lg:col-span-2 space-y-6">
+              <ComponentCard title="Surat Permohonan Awal">
+                <div className="p-3.5 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50/30">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-sm font-semibold text-gray-800 dark:text-white/90">
+                      Surat Permohonan Awal <span className="text-red-500">*</span>
+                    </span>
+                    <div>
+                      {coverLetterFile ? (
+                        <Badge color={coverLetterFile.status === 1 ? "success" : coverLetterFile.status === 2 ? "error" : "light"}>
+                          {coverLetterFile.status === 1 ? "Valid" : coverLetterFile.status === 2 ? "Revisi" : "Menunggu Verifikasi"}
+                        </Badge>
+                      ) : (
+                        <Badge color="warning">Belum Upload</Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  {coverLetterFile && (
+                    <div className="flex flex-col gap-1.5 mb-4 bg-white dark:bg-white/[0.02] p-3 rounded-lg border border-gray-100 dark:border-gray-800">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-gray-500 truncate max-w-[300px]">{coverLetterFile.nama_file}</span>
+                        <a 
+                          href={getFileUrl(coverLetterFile.file_url)} 
+                          target="_blank" 
+                          rel="noreferrer" 
+                          className="text-brand-500 hover:underline font-bold"
+                        >
+                          Lihat Dokumen
+                        </a>
+                      </div>
+                      {coverLetterFile.status === 2 && coverLetterFile.catatan && (
+                        <div className="text-xxs text-red-500 mt-2 bg-red-50/50 dark:bg-red-500/5 p-2 rounded border border-red-100 dark:border-red-900/30">
+                          <strong>Catatan Revisi:</strong> {coverLetterFile.catatan}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {(!coverLetterFile || coverLetterFile.status === 2 || coverLetterFile.status === 0) && (
+                    <div className="flex justify-end">
+                      <label className="relative cursor-pointer">
+                        <input
+                          type="file"
+                          className="sr-only"
+                          accept=".pdf,.jpg,.jpeg,.png,.webp"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleUploadCoverLetter(file);
+                          }}
+                          disabled={uploadingCoverLetter}
+                        />
+                        <span className={`inline-flex items-center justify-center px-4 py-2 text-xs font-bold rounded-lg border border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800 transition ${uploadingCoverLetter ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                          {uploadingCoverLetter ? 'Mengunggah...' : coverLetterFile ? 'Ganti File' : 'Upload File'}
+                        </span>
+                      </label>
+                    </div>
+                  )}
+                </div>
+              </ComponentCard>
+
+              <ComponentCard title="Dokumen Syarat">
+                <div className="space-y-4">
+                  {selectedPermohonan.layanan?.syarat?.map((s) => {
+                    const fileObj = selectedPermohonan.permohonan_layanan_file?.find(
+                      (f: any) => f.layanan_syarat_id === s.layanan_syarat_id
+                    );
+
+                    return (
+                      <div key={s.layanan_syarat_id} className="flex flex-col gap-3 p-4 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50/30">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <BoltIcon className="size-4 text-brand-500" />
+                            <span className="text-sm font-semibold text-gray-800 dark:text-white/90">
+                              {s.nama_syarat} {s.wajib && <span className="text-red-500">*</span>}
+                            </span>
+                          </div>
+                          <div>
+                            {fileObj ? (
+                              <Badge color={fileObj.status === 1 ? "success" : fileObj.status === 2 ? "error" : "light"}>
+                                {fileObj.status === 1 ? "Valid" : fileObj.status === 2 ? "Revisi" : "Menunggu Verifikasi"}
+                              </Badge>
+                            ) : (
+                              <Badge color="warning">Belum Upload</Badge>
+                            )}
+                          </div>
+                        </div>
+
+                        {fileObj && (
+                          <div className="flex flex-col gap-1.5 bg-white dark:bg-white/[0.02] p-3 rounded-lg border border-gray-100 dark:border-gray-800">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-gray-500 truncate max-w-[300px]">{fileObj.nama_file}</span>
+                              <a 
+                                href={getFileUrl(fileObj.file_url)} 
+                                target="_blank" 
+                                rel="noreferrer" 
+                                className="text-brand-500 hover:underline font-bold"
+                              >
+                                Lihat Dokumen
+                              </a>
+                            </div>
+                            {fileObj.status === 2 && fileObj.catatan && (
+                              <div className="text-xxs text-red-500 mt-2 bg-red-50/50 dark:bg-red-500/5 p-2.5 rounded border border-red-100 dark:border-red-900/30">
+                                <strong>Catatan Revisi:</strong> {fileObj.catatan}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {(!fileObj || fileObj.status === 2 || fileObj.status === 0) && (
+                          <div className="flex justify-end">
+                            <label className="relative cursor-pointer">
+                              <input
+                                type="file"
+                                className="sr-only"
+                                accept=".pdf,.jpg,.jpeg,.png,.webp"
+                                onChange={(e) => handleUploadFile(e, s.layanan_syarat_id)}
+                                disabled={uploadingSyaratId === s.layanan_syarat_id}
+                              />
+                              <span className={`inline-flex items-center justify-center px-3 py-1.5 text-xs font-bold rounded-lg border border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800 transition ${uploadingSyaratId === s.layanan_syarat_id ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                {uploadingSyaratId === s.layanan_syarat_id ? 'Mengunggah...' : fileObj ? 'Ganti File' : 'Upload File'}
+                              </span>
+                            </label>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {(!selectedPermohonan.layanan?.syarat || selectedPermohonan.layanan.syarat.length === 0) && (
+                    <p className="text-center text-xs text-gray-400 italic py-4">Tidak ada persyaratan tambahan untuk layanan ini.</p>
+                  )}
+                </div>
+              </ComponentCard>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -276,7 +616,7 @@ export default function LayananMandala() {
                           <TableCell className="px-5 py-3.5">
                             <div className="flex flex-col">
                               <span className="font-bold text-gray-800 dark:text-white/90">{item.nomor_permohonan}</span>
-                              <span className="text-xs text-gray-500">{new Date(item.tanggal_permohonan).toLocaleDateString("id-ID")}</span>
+                              <span className="text-xs text-gray-500">{new Date(item.tanggal_pengajuan || item.created_at || '').toLocaleDateString("id-ID")}</span>
                             </div>
                           </TableCell>
                           <TableCell className="px-5 py-3.5">
@@ -298,7 +638,6 @@ export default function LayananMandala() {
                             <button
                               onClick={() => {
                                 setSelectedPermohonan(item);
-                                setIsDetailModalOpen(true);
                               }}
                               className="px-3 py-1 text-xs font-bold rounded-lg border border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800 transition"
                             >
@@ -322,7 +661,7 @@ export default function LayananMandala() {
       </div>
 
       {/* Modal: Permohonan Baru */}
-      <Modal isOpen={isNewModalOpen} onClose={() => setIsNewModalOpen(false)} className="max-w-[600px] p-6 bg-white dark:bg-gray-900 rounded-3xl">
+      <Modal isOpen={isNewModalOpen} onClose={() => { setIsNewModalOpen(false); setSelectedFile(null); }} className="max-w-[600px] p-6 bg-white dark:bg-gray-900 rounded-3xl">
         <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-6">Ajukan Permohonan Layanan</h3>
         <form onSubmit={handleCreatePermohonan} className="space-y-4">
           <div>
@@ -456,78 +795,29 @@ export default function LayananMandala() {
             />
           </div>
 
+          <div>
+            <label className="block text-sm font-semibold mb-2">Upload Berkas / Surat Permohonan Awal <span className="text-red-500">*</span></label>
+            <input
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png,.webp"
+              onChange={(e) => {
+                const file = e.target.files?.[0] || null;
+                setSelectedFile(file);
+              }}
+              className="w-full rounded-lg border border-gray-300 bg-transparent py-2 px-4 text-sm text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white/90"
+              required
+            />
+            <p className="text-xxs text-gray-400 mt-1">Format: PDF atau Gambar (JPG, PNG, WebP) maks. 5MB untuk PDF, 2MB untuk gambar.</p>
+          </div>
+
           <div className="flex justify-end gap-3 pt-4">
-            <Button variant="outline" size="sm" type="button" onClick={() => setIsNewModalOpen(false)}>Batal</Button>
+            <Button variant="outline" size="sm" type="button" onClick={() => { setIsNewModalOpen(false); setSelectedFile(null); }}>Batal</Button>
             <Button variant="primary" size="sm" type="submit" disabled={(tabParam === "pesertadidik" && !newForm.peserta_didik_id) || (tabParam === "gtk" && !newForm.ptk_id)}>Kirim Permohonan</Button>
           </div>
         </form>
       </Modal>
 
-      {/* Modal: Detail Permohonan */}
-      <Modal isOpen={isDetailModalOpen} onClose={() => setIsDetailModalOpen(false)} className="max-w-[700px] p-6 bg-white dark:bg-gray-900 rounded-3xl">
-        <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-6">Detail Permohonan Layanan</h3>
-        {selectedPermohonan && (
-          <div className="space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar pr-2">
-            <div className="grid grid-cols-2 gap-4 bg-gray-50 dark:bg-gray-800/40 p-4 rounded-2xl border border-gray-100 dark:border-gray-800">
-              <div>
-                <span className="text-xs text-gray-400 font-semibold uppercase">Nomor Permohonan</span>
-                <p className="font-bold text-gray-800 dark:text-white">{selectedPermohonan.nomor_permohonan}</p>
-              </div>
-              <div className="text-right">
-                <span className="text-xs text-gray-400 font-semibold uppercase">Status</span>
-                <div className="mt-1">{getStatusBadge(selectedPermohonan.status)}</div>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <h4 className="text-sm font-bold border-b pb-2">Informasi Layanan</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <span className="text-xs text-gray-400 font-semibold uppercase">Jenis Layanan</span>
-                  <p className="text-sm font-medium">{selectedPermohonan.layanan?.nama_layanan}</p>
-                </div>
-                <div>
-                  <span className="text-xs text-gray-400 font-semibold uppercase">Tanggal Pengajuan</span>
-                  <p className="text-sm font-medium">{new Date(selectedPermohonan.tanggal_permohonan).toLocaleDateString("id-ID")}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <span className="text-xs text-gray-400 font-semibold uppercase">Pemohon</span>
-                  <p className="text-sm font-medium">{selectedPermohonan.ptk?.nama || selectedPermohonan.peserta_didik?.nama}</p>
-                </div>
-                <div>
-                  <span className="text-xs text-gray-400 font-semibold uppercase">ID / NISN</span>
-                  <p className="text-sm font-medium">{selectedPermohonan.ptk?.nuptk || selectedPermohonan.peserta_didik?.nisn || "-"}</p>
-                </div>
-              </div>
-              <div>
-                <span className="text-xs text-gray-400 font-semibold uppercase">Keterangan Pemohon</span>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{selectedPermohonan.keterangan || "-"}</p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <h4 className="text-sm font-bold border-b pb-2">Dokumen Syarat</h4>
-              <div className="space-y-2">
-                {selectedPermohonan.layanan?.syarat.map((s) => (
-                  <div key={s.layanan_syarat_id} className="flex items-center justify-between p-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50/30">
-                    <div className="flex items-center gap-3">
-                      <BoltIcon className="size-4 text-brand-500" />
-                      <span className="text-sm font-medium">{s.nama_syarat} {s.wajib && <span className="text-red-500">*</span>}</span>
-                    </div>
-                    <Button variant="outline" size="sm">Upload File</Button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-4 border-t">
-              <Button variant="outline" size="sm" onClick={() => setIsDetailModalOpen(false)}>Tutup</Button>
-            </div>
-          </div>
-        )}
-      </Modal>
+      {/* Detail Modal removed (now rendered inline) */}
     </>
   );
 }

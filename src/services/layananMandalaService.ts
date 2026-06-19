@@ -24,6 +24,8 @@ export interface PermohonanLayanan {
   ptk_id?: string;
   nomor_permohonan: string;
   tanggal_permohonan: string;
+  tanggal_pengajuan?: string;
+  created_at?: string;
   status: number;
   keterangan?: string;
   layanan?: LayananMaster;
@@ -31,6 +33,8 @@ export interface PermohonanLayanan {
   ptk?: any;
   logs?: any[];
   files?: any[];
+  permohonan_layanan_file?: any[];
+  permohonan_layanan_log?: any[];
 }
 
 export const layananMandalaService = {

@@ -11,6 +11,7 @@ import {
   TableCell,
 } from "../../../components/ui/table";
 import Avatar from "../../../components/ui/avatar/Avatar";
+import { getFotoUrl } from "../../../utils/image";
 import Select from "../../../components/form/Select";
 import Input from "../../../components/form/input/InputField";
 import Pagination from "../../../components/common/Pagination";
@@ -81,12 +82,6 @@ const PresensiGTK: React.FC = () => {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
-
-  const getBackendBaseURL = () => {
-    return import.meta.env.VITE_API_URL 
-      ? import.meta.env.VITE_API_URL.replace('/api', '') 
-      : 'https://centralsimak.smakniscjr.sch.id';
-  };
 
   const formatTime = (isoString: string | null) => {
     if (!isoString) return "-";
@@ -228,9 +223,7 @@ const PresensiGTK: React.FC = () => {
                       }
                     }
 
-                    const fotoUrl = item.foto 
-                      ? `${getBackendBaseURL()}/storage/${item.foto}` 
-                      : '';
+                    const fotoUrl = getFotoUrl(item.foto, "");
 
                     return (
                       <TableRow key={item.ptk_id} className="hover:bg-gray-50/50 dark:hover:bg-white/[0.01]">
