@@ -9,7 +9,6 @@ import {
   HorizontaLDots,
   PlugInIcon,
   TableIcon,
-  BoltIcon,
   GroupIcon,
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
@@ -126,11 +125,7 @@ const navItems: NavItem[] = [
             path: "/class-data?tab=pilihan",
             icon: <DotIcon />,
           },
-          {
-            name: "Wali",
-            path: "/class-data?tab=wali",
-            icon: <DotIcon />,
-          },
+
           {
             name: "Rekap Rombel",
             path: "/class-data?tab=rekap",
@@ -307,17 +302,6 @@ const navItems: NavItem[] = [
       },
     ],
   },
-  {
-    name: "Pengaturan",
-    icon: <PlugInIcon />,
-    subItems: [
-      {
-        name: "Sync API",
-        path: "/sync-api",
-        icon: <BoltIcon />,
-      },
-    ],
-  },
 ];
 
 const AppSidebar: React.FC = () => {
@@ -337,10 +321,7 @@ const AppSidebar: React.FC = () => {
     return `${rolePrefix}${path}`;
   };
 
-  // Jika belum sinkron, hanya tampilkan menu Dashboard dan Sync API
-  const filteredNavItems = sekolah 
-    ? navItems 
-    : navItems.filter(item => item.name === "Dashboard" || item.name === "Pengaturan");
+  const filteredNavItems = navItems;
 
   const [openSubmenus, setOpenSubmenus] = useState<string[]>([]);
   const subMenuRefs = useRef<Record<string, HTMLDivElement | null>>({});

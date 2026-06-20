@@ -8,6 +8,7 @@ interface Sekolah {
   nama: string;
   npsn: string;
   logo: string | null;
+  radius?: number | null;
 }
 
 interface SekolahContextType {

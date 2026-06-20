@@ -39,6 +39,7 @@ export default function SchoolProfile() {
     namaOperator: "",
     bentukPendidikan: "",
     logo: "",
+    radius: "",
   });
 
   const [alamatData, setAlamatData] = useState({
@@ -103,7 +104,8 @@ export default function SchoolProfile() {
             namaKepalaSekolah: s.nama_kepala_sekolah || prev.namaKepalaSekolah,
             namaOperator: s.nama_operator || prev.namaOperator,
             logo: s.logo || prev.logo,
-            cadisdik_id: s.cadisdik_id || ""
+            cadisdik_id: s.cadisdik_id || "",
+            radius: s.radius !== undefined && s.radius !== null ? String(s.radius) : "",
           }));
 
           if (s.logo) {
@@ -344,6 +346,7 @@ export default function SchoolProfile() {
         nomor_fax: kontakData.nomorFax,
         social_media: kontakData.socialMedia,
         cadisdik_id: profileData.cadisdik_id,
+        radius: profileData.radius !== "" ? parseInt(profileData.radius) : null,
       };
 
       await dapodikService.updateSekolah(payload);
@@ -867,25 +870,6 @@ export default function SchoolProfile() {
                         disabled
                       />
                     </div>
-
-                    <div>
-                      <Label>Lintang</Label>
-                      <Input
-                        name="lintang"
-                        value={profileData.lintang}
-                        onChange={handleProfileChange}
-                        disabled
-                      />
-                    </div>
-                    <div>
-                      <Label>Bujur</Label>
-                      <Input
-                        name="bujur"
-                        value={profileData.bujur}
-                        onChange={handleProfileChange}
-                        disabled
-                      />
-                    </div>
                   </div>
                 </div>
               </div>
@@ -1113,7 +1097,7 @@ export default function SchoolProfile() {
               <h4 className="text-md font-semibold text-gray-800 dark:text-white/90 no-print">
                 Lokasi Geografis
               </h4>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 no-print">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3 no-print">
                 <div>
                   <Label>Lintang</Label>
                   <Input
@@ -1130,6 +1114,16 @@ export default function SchoolProfile() {
                     value={profileData.bujur}
                     onChange={handleProfileChange}
                     disabled
+                  />
+                </div>
+                <div>
+                  <Label>Radius Area Scan (Meter)</Label>
+                  <Input
+                    type="number"
+                    name="radius"
+                    placeholder="Contoh: 100"
+                    value={profileData.radius}
+                    onChange={handleProfileChange}
                   />
                 </div>
               </div>

@@ -7,16 +7,15 @@ import Select from "../../components/form/Select";
 import { DownloadIcon, PrinterIcon, UserCircleIcon, CheckCircleIcon, SearchIcon, PencilIcon } from "../../icons";
 import Swal from "sweetalert2";
 import RombelTable from "../../components/school/RombelTable";
-import WaliTable from "../../components/school/WaliTable";
 import EkskulTable from "../../components/school/EkskulTable";
 import RekapRombelKategoriTable from "../../components/school/RekapRombelKategoriTable";
 import RekapRombelKompetensiTable from "../../components/school/RekapRombelKompetensiTable";
 
 export default function ClassData() {
   const [searchParams] = useSearchParams();
-  const tabParam = searchParams.get("tab") as "reguler" | "praktik" | "ekskul" | "pilihan" | "wali" | "rekap";
+  const tabParam = searchParams.get("tab") as "reguler" | "praktik" | "ekskul" | "pilihan" | "rekap";
   
-  const [activeTab, setActiveTab] = useState<"reguler" | "praktik" | "ekskul" | "pilihan" | "wali" | "rekap">(
+  const [activeTab, setActiveTab] = useState<"reguler" | "praktik" | "ekskul" | "pilihan" | "rekap">(
     tabParam || "reguler"
   );
 
@@ -62,7 +61,7 @@ export default function ClassData() {
 
   const handleRegister = () => {
     Swal.fire({
-      title: `Registrasi ${activeTab === 'wali' ? 'Wali Kelas' : 'Rombel'}?`,
+      title: "Registrasi Rombel?",
       text: `Anda akan meregistrasi ${selectedIds.length} data yang dipilih.`,
       icon: "info",
       showCancelButton: true,
@@ -121,7 +120,7 @@ export default function ClassData() {
               Rombongan Belajar (Rombel)
             </h3>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              Kelola informasi rombongan belajar, praktik, dan wali kelas di sini.
+              Kelola informasi rombongan belajar dan praktik di sini.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -195,7 +194,7 @@ export default function ClassData() {
                   </span>
                   <Input
                     type="text"
-                    placeholder="Cari Rombel atau Wali..."
+                    placeholder="Cari Rombel..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10"
@@ -232,13 +231,7 @@ export default function ClassData() {
             />
           )}
 
-          {activeTab === "wali" && (
-            <WaliTable 
-              onSelectionChange={handleSelectionChange} 
-              searchTerm={searchQuery}
-              itemsPerPage={itemsPerPage}
-            />
-          )}
+
 
           {activeTab === "rekap" && (
             <div className="space-y-8">

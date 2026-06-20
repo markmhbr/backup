@@ -30,8 +30,6 @@ import KompetensiPage from "./pages/Academic/KompetensiPage";
 import GTKCardPage from "./pages/Academic/GTKCardPage";
 import PDCardPage from "./pages/DataMaster/PDCardPage";
 import ProtectedRoute from "./components/common/ProtectedRoute";
-import ApiSyncPage from "./pages/OtherPage/ApiSyncPage";
-import SyncGuard from "./components/common/SyncGuard";
 import { useAuth } from "./context/AuthContext";
 import { getRoleSlug } from "./services/roleUtils";
 import PengaturanJam from "./pages/Kurikulum/PengaturanJam";
@@ -65,9 +63,7 @@ export default function App() {
         <Route
           element={
             <ProtectedRoute>
-              <SyncGuard>
-                <AppLayout />
-              </SyncGuard>
+              <AppLayout />
             </ProtectedRoute>
           }
         >
@@ -118,7 +114,6 @@ export default function App() {
             <Route path="pelaporan/detail" element={<DetailPelaporanSekolahPage />} />
 
             {/* Other */}
-            <Route path="sync-api" element={<ApiSyncPage />} />
             
             {/* Profile */}
             <Route path="profile" element={<Blank />} />

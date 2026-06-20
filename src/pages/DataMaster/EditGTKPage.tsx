@@ -2,8 +2,13 @@ import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import Button from "../../components/ui/button/Button";
-import Input from "../../components/form/input/InputField";
+import OriginalInput from "../../components/form/input/InputField";
+import type { InputProps } from "../../components/form/input/InputField";
 import Label from "../../components/form/Label";
+
+const Input: React.FC<InputProps> = (props) => {
+  return <OriginalInput {...props} showStatusIcon={true} />;
+};
 import Select from "../../components/form/Select";
 import Switch from "../../components/form/switch/Switch";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "../../components/ui/table";
@@ -35,6 +40,30 @@ const sanitizeRtRw = (value: string | number | null | undefined): string => {
 const EditGTKPage: React.FC = () => {
   const { role, id } = useParams<{ role: string; id: string }>();
   const navigate = useNavigate();
+
+  const [activeTab, setActiveTab] = useState("profil");
+
+  const tabs = [
+    { id: "profil", label: "Profil & Identitas" },
+    { id: "alamat", label: "Alamat Rumah" },
+    { id: "kepegawaian", label: "Kepegawaian" },
+    { id: "pendidikan", label: "Pendidikan" },
+    { id: "sertifikasi", label: "Sertifikasi & Rekening" },
+    { id: "kontak", label: "Kontak" },
+    { id: "dokumen", label: "Berkas Dokumen" },
+  ];
+
+  const apiBaseUrl = import.meta.env.VITE_API_URL 
+    ? import.meta.env.VITE_API_URL.replace("/api", "") 
+    : "http://localhost:3000";
+
+  const hasTabError = (tabId: string) => {
+    if (tabId === "profil") return !!(errors.namaWajibPajak || errors.npwp);
+    if (tabId === "alamat") return !!(errors.lintang || errors.bujur);
+    if (tabId === "kontak") return !!(errors.noTelpRumah || errors.noHp || errors.noWa || errors.idTelegram);
+    if (tabId === "sertifikasi") return formData.memilikiSertifikasi === "Ya" && !!(errors.namaBank || errors.cabangBank || errors.noRekening || errors.atasNamaRekening);
+    return false;
+  };
 
   const [formData, setFormData] = useState<any>({});
   const [loading, setLoading] = useState(false);
@@ -716,11 +745,38 @@ const EditGTKPage: React.FC = () => {
           </div>
         </div>
 
+        {/* Tab Navigation */}
+        <div className="flex border-b border-gray-200 dark:border-gray-800 overflow-x-auto custom-scrollbar whitespace-nowrap no-print mb-6">
+          {tabs.map((tab) => {
+            const hasError = hasTabError(tab.id);
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`relative px-4 py-2.5 text-sm font-medium transition-colors duration-200 border-b-2 flex items-center gap-1.5 ${
+                  activeTab === tab.id
+                    ? "border-brand-500 text-brand-500"
+                    : hasError
+                    ? "border-transparent text-red-500 hover:text-red-600 font-medium"
+                    : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                }`}
+              >
+                {tab.label}
+                {hasError && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
         {/* Stacked Cards Layout */}
         <div className="space-y-6">
 
           {/* Card 1: Profil */}
-          <div className={`rounded-2xl border ${errors.namaWajibPajak || errors.npwp ? "border-red-500" : "border-gray-200"} bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6`}>
+          {activeTab === "profil" && (
+            <div className={`rounded-2xl border ${errors.namaWajibPajak || errors.npwp ? "border-red-500" : "border-gray-200"} bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6`}>
             <div className="border-b border-gray-100 dark:border-white/[0.05] pb-3">
               <h4 className="text-lg font-bold text-gray-800 dark:text-white/90">
                 Profil & Identitas
@@ -778,7 +834,7 @@ const EditGTKPage: React.FC = () => {
                   <div className="space-y-2"><Label>NIK</Label><Input value={formData.nik || ""} maxLength={16} disabled /></div>
                   <div className="space-y-2"><Label>Nomor KK</Label><Input value={formData.kk || ""} maxLength={16} onChange={(e) => handleInputChange("kk", e.target.value.replace(/\D/g, ''))} /></div>
                   <div className="space-y-2"><Label>NUPTK</Label><Input value={formData.nuptk || ""} disabled /></div>
-                  <div className="space-y-2"><Label>NIP/NIY/NIGB</Label><Input value={formData.nipNiyNigb || ""} onChange={(e) => handleInputChange("nipNiyNigb", e.target.value)} /></div>
+                  <div className="space-y-2"><Label>NIP/NIY/NIGB</Label><Input value={formData.nipNiyNigb || ""} disabled /></div>
                   <div className="space-y-2"><Label>Jenis Kelamin</Label><Input value={formData.jk === "L" ? "Laki-laki" : formData.jk === "P" ? "Perempuan" : formData.jk || ""} disabled /></div>
                   <div className="space-y-2"><Label>Tempat Lahir</Label><Input value={formData.tempatLahir || ""} disabled /></div>
                   <div className="space-y-2"><Label>Tanggal Lahir</Label><Input type="date" value={formData.tanggalLahir || ""} disabled /></div>
@@ -807,9 +863,11 @@ const EditGTKPage: React.FC = () => {
               </div>
             </div>
           </div>
+          )}
 
           {/* Card 2: Alamat */}
-          <div className={`rounded-2xl border ${errors.lintang || errors.bujur ? "border-red-500" : "border-gray-200"} bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6`}>
+          {activeTab === "alamat" && (
+            <div className={`rounded-2xl border ${errors.lintang || errors.bujur ? "border-red-500" : "border-gray-200"} bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6`}>
             <div className="border-b border-gray-100 dark:border-white/[0.05] pb-3">
               <h4 className="text-lg font-bold text-gray-800 dark:text-white/90">
                 Alamat Rumah
@@ -873,9 +931,11 @@ const EditGTKPage: React.FC = () => {
               </div>
             </div>
           </div>
+          )}
 
           {/* Card 3: Kepegawaian */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6">
+          {activeTab === "kepegawaian" && (
+            <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6">
             <div className="border-b border-gray-100 dark:border-white/[0.05] pb-3">
               <h4 className="text-lg font-bold text-gray-800 dark:text-white/90">
                 Kepegawaian
@@ -932,9 +992,12 @@ const EditGTKPage: React.FC = () => {
               </div>
             </div>
           </div>
+          )}
 
           {/* Card 4: Pendidikan */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6">
+          {activeTab === "pendidikan" && (
+            <>
+              <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6">
             <div className="border-b border-gray-100 dark:border-white/[0.05] pb-3">
               <h4 className="text-lg font-bold text-gray-800 dark:text-white/90">
                 Pendidikan Formal
@@ -994,32 +1057,35 @@ const EditGTKPage: React.FC = () => {
                     </div>
                   </div>
               </div>
-            </div>
-          </div>
-
-          {/* Card 5: Kompetensi */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6">
-            <div className="border-b border-gray-100 dark:border-white/[0.05] pb-3">
-              <h4 className="text-lg font-bold text-gray-800 dark:text-white/90">
-                Kompetensi
-              </h4>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Lisensi Kepsek</Label><Input value={formData.lisensiKepsek || ""} disabled /></div>
-              <div className="space-y-2"><Label>No. Registrasi (NUK)</Label><Input value={formData.nuk || ""} disabled /></div>
-              <div className="space-y-2"><Label>Keahlian Lab</Label><Input value={formData.keahlianLab || ""} disabled /></div>
-              <div className="space-y-2"><Label>Menangani Keb. Khusus</Label><Input value={formData.kebutuhanKhusus || ""} disabled /></div>
-              <div className="space-y-2"><Label>Keahlian Braille</Label><Input value={formData.keahlianBraille || ""} disabled /></div>
-              <div className="space-y-2"><Label>Bahasa Isyarat</Label><Input value={formData.bahasaIsyarat || ""} disabled /></div>
+            {/* Card 5: Kompetensi */}
+            <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6">
+              <div className="border-b border-gray-100 dark:border-white/[0.05] pb-3">
+                <h4 className="text-lg font-bold text-gray-800 dark:text-white/90">
+                  Kompetensi
+                </h4>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2"><Label>Lisensi Kepsek</Label><Input value={formData.lisensiKepsek || ""} disabled /></div>
+                <div className="space-y-2"><Label>No. Registrasi (NUK)</Label><Input value={formData.nuk || ""} disabled /></div>
+                <div className="space-y-2"><Label>Keahlian Lab</Label><Input value={formData.keahlianLab || ""} disabled /></div>
+                <div className="space-y-2"><Label>Menangani Keb. Khusus</Label><Input value={formData.kebutuhanKhusus || ""} disabled /></div>
+                <div className="space-y-2"><Label>Keahlian Braille</Label><Input value={formData.keahlianBraille || ""} disabled /></div>
+                <div className="space-y-2"><Label>Bahasa Isyarat</Label><Input value={formData.bahasaIsyarat || ""} disabled /></div>
+              </div>
             </div>
-          </div>
+          </>
+          )}
 
           {/* Card 6: Kontak */}
-          <div className={`rounded-2xl border ${errors.noTelpRumah || errors.noHp || errors.noWa || errors.idTelegram ? "border-red-500" : "border-gray-200"} bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6`}>
+          {activeTab === "kontak" && (
+            <div className={`rounded-2xl border ${errors.noTelpRumah || errors.noHp || errors.noWa || errors.idTelegram ? "border-red-500" : "border-gray-200"} bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6`}>
             <div className="border-b border-gray-100 dark:border-white/[0.05] pb-3">
               <h4 className="text-lg font-bold text-gray-800 dark:text-white/90">
-                Kontak & Komunikasi
+                Kontak
               </h4>
             </div>
 
@@ -1071,9 +1137,11 @@ const EditGTKPage: React.FC = () => {
               </div>
             </div>
           </div>
+          )}
 
           {/* Card 7: Sertifikasi (Serdik) & Data Bank */}
-          <div className={`rounded-2xl border ${formData.memilikiSertifikasi === "Ya" && (errors.namaBank || errors.cabangBank || errors.noRekening || errors.atasNamaRekening) ? "border-red-500" : "border-gray-200"} bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6`}>
+          {activeTab === "sertifikasi" && (
+            <div className={`rounded-2xl border ${formData.memilikiSertifikasi === "Ya" && (errors.namaBank || errors.cabangBank || errors.noRekening || errors.atasNamaRekening) ? "border-red-500" : "border-gray-200"} bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6`}>
             <div className="border-b border-gray-100 dark:border-white/[0.05] pb-3">
               <h4 className="text-lg font-bold text-gray-800 dark:text-white/90">
                 Sertifikasi (Serdik) & Rekening Bank
@@ -1183,9 +1251,11 @@ const EditGTKPage: React.FC = () => {
               </div>
             </div>
           </div>
+          )}
 
           {/* Card 8: Dokumen */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6">
+          {activeTab === "dokumen" && (
+            <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6">
             <div className="border-b border-gray-100 dark:border-white/[0.05] pb-3">
               <h4 className="text-lg font-bold text-gray-800 dark:text-white/90">
                 Berkas Dokumen
@@ -1226,7 +1296,7 @@ const EditGTKPage: React.FC = () => {
                                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                                   </button>
                                   <a 
-                                    href={doc.fileUrl.startsWith('/') ? `${import.meta.env.VITE_API_BASE_URL || "http://localhost:3000"}${doc.fileUrl}` : doc.fileUrl}
+                                    href={doc.fileUrl.startsWith('/') ? `${apiBaseUrl}${doc.fileUrl}` : doc.fileUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-sm font-medium text-brand-500 hover:underline text-center truncate w-full"
@@ -1245,6 +1315,7 @@ const EditGTKPage: React.FC = () => {
               </div>
             </div>
           </div>
+          )}
 
         </div>
 

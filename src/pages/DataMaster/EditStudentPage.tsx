@@ -2,8 +2,13 @@ import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import Button from "../../components/ui/button/Button";
-import Input from "../../components/form/input/InputField";
+import OriginalInput from "../../components/form/input/InputField";
+import type { InputProps } from "../../components/form/input/InputField";
 import Label from "../../components/form/Label";
+
+const Input: React.FC<InputProps> = (props) => {
+  return <OriginalInput {...props} showStatusIcon={true} />;
+};
 import Select from "../../components/form/Select";
 import Swal from "sweetalert2";
 import { dapodikService } from "../../services/dapodikService";
@@ -32,6 +37,19 @@ const sanitizeRtRw = (value: string | number | null | undefined): string => {
 const EditStudentPage: React.FC = () => {
   const { role, id } = useParams<{ role: string; id: string }>();
   const navigate = useNavigate();
+
+  const [activeTab, setActiveTab] = useState("profil");
+
+  const tabs = [
+    { id: "profil", label: "Profil & Identitas" },
+    { id: "periodik", label: "Data Periodik" },
+    { id: "orangtua", label: "Orang Tua & Wali" },
+    { id: "dokumen", label: "Berkas Dokumen" },
+  ];
+
+  const apiBaseUrl = import.meta.env.VITE_API_URL 
+    ? import.meta.env.VITE_API_URL.replace("/api", "") 
+    : "http://localhost:3000";
 
   const [formData, setFormData] = useState<any>({});
   const [loading, setLoading] = useState(false);
@@ -523,11 +541,30 @@ const EditStudentPage: React.FC = () => {
           </div>
         </div>
 
+        {/* Tab Navigation */}
+        <div className="flex border-b border-gray-200 dark:border-gray-800 overflow-x-auto custom-scrollbar whitespace-nowrap no-print mb-6">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-2.5 text-sm font-medium transition-colors duration-200 border-b-2 ${
+                activeTab === tab.id
+                  ? "border-brand-500 text-brand-500"
+                  : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
         {/* Stacked Cards Layout */}
         <div className="space-y-6">
           
           {/* Card 1: Profil */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6">
+          {activeTab === "profil" && (
+            <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6">
             <div className="border-b border-gray-100 dark:border-white/[0.05] pb-3">
               <h4 className="text-lg font-bold text-gray-800 dark:text-white/90">
                 Profil & Identitas
@@ -576,7 +613,7 @@ const EditStudentPage: React.FC = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2"><Label>Nama Lengkap</Label><Input value={formData.nama || ""} placeholder="Masukkan Nama Lengkap" disabled /></div>
                     <div className="space-y-2"><Label>Tempat Lahir</Label><Input value={formData.tempatLahir || ""} placeholder="Masukkan Tempat Lahir" disabled /></div>
-                    <div className="space-y-2"><Label>Tgl Lahir</Label><Input type="date" value={formData.tanggalLahir || ""} disabled /></div>
+                    <div className="space-y-2"><Label>Tanggal Lahir</Label><Input type="date" value={formData.tanggalLahir || ""} disabled /></div>
                     <div className="space-y-2"><Label>Jenis Kelamin</Label><Input value={formData.jk === "L" ? "Laki-laki" : formData.jk === "P" ? "Perempuan" : formData.jk || ""} disabled /></div>
                     <div className="space-y-2"><Label>NISN</Label><Input value={formData.nisn || ""} placeholder="NISN harus 10 digit" maxLength={10} disabled /></div>
                     <div className="space-y-2"><Label>NIPD</Label><Input value={formData.nipd || ""} placeholder="Masukkan NIPD" disabled /></div>
@@ -676,9 +713,11 @@ const EditStudentPage: React.FC = () => {
               </div>
             </div>
           </div>
+          )}
 
           {/* Card 2: Data Periodik */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6">
+          {activeTab === "periodik" && (
+            <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6">
             <div className="border-b border-gray-100 dark:border-white/[0.05] pb-3">
               <h4 className="text-lg font-bold text-gray-800 dark:text-white/90">
                 Data Periodik
@@ -701,9 +740,11 @@ const EditStudentPage: React.FC = () => {
               </div>
             </div>
           </div>
+          )}
 
           {/* Card 3: Orang Tua & Wali */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-8">
+          {activeTab === "orangtua" && (
+            <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-8">
             <div className="border-b border-gray-100 dark:border-white/[0.05] pb-3">
               <h4 className="text-lg font-bold text-gray-800 dark:text-white/90">
                 Orang Tua & Wali
@@ -764,9 +805,11 @@ const EditStudentPage: React.FC = () => {
               </div>
             </div>
           </div>
+          )}
 
           {/* Card 4: Dokumen */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6">
+          {activeTab === "dokumen" && (
+            <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6">
             <div className="border-b border-gray-100 dark:border-white/[0.05] pb-3">
               <h4 className="text-lg font-bold text-gray-800 dark:text-white/90">
                 Berkas Dokumen
@@ -777,7 +820,7 @@ const EditStudentPage: React.FC = () => {
               {studentDocTypes.map((docType) => {
                 const existingFile = uploadedDocs.find(f => f.startsWith(docType.key));
                 const fileUrl = existingFile 
-                  ? `${import.meta.env.VITE_API_BASE_URL || "http://localhost:3000"}/storage/${formData.sekolahId}/siswa/${id}/dokumen/${existingFile}` 
+                  ? `${apiBaseUrl}/storage/${formData.sekolahId}/siswa/${id}/dokumen/${existingFile}` 
                   : "";
 
                 return (
@@ -814,6 +857,7 @@ const EditStudentPage: React.FC = () => {
               })}
             </div>
           </div>
+          )}
 
         </div>
 
