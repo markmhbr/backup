@@ -735,7 +735,7 @@ const EditGTKPage: React.FC = () => {
                     {formData.avatar ? (
                       <img src={getFotoUrl(formData.avatar)} alt="Profile" className="w-full h-full object-cover" />
                     ) : (
-                      <img src="/images/user/owner.jpg" alt="Profile Fallback" className="w-full h-full object-cover opacity-60" />
+                      <img src="/images/default/profile.jpg" alt="Profile Fallback" className="w-full h-full object-cover opacity-60" />
                     )}
                   </div>
                   <button onClick={handleTriggerUpload} className="absolute bottom-2 right-2 p-2 bg-brand-500 text-white rounded-full shadow-lg hover:bg-brand-600 transition-colors">

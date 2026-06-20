@@ -542,7 +542,7 @@ const EditStudentPage: React.FC = () => {
                     {formData.avatar ? (
                       <img src={getFotoUrl(formData.avatar)} alt="Profile" className="w-full h-full object-cover" />
                     ) : (
-                      <img src="/images/user/owner.jpg" alt="Profile Fallback" className="w-full h-full object-cover opacity-60" />
+                      <img src="/images/default/profile.jpg" alt="Profile Fallback" className="w-full h-full object-cover opacity-60" />
                     )}
                   </div>
                   <button

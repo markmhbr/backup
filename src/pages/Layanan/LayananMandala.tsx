@@ -19,6 +19,7 @@ import Button from "../../components/ui/button/Button";
 import Input from "../../components/form/input/InputField";
 import Badge from "../../components/ui/badge/Badge";
 import Avatar from "../../components/ui/avatar/Avatar";
+import { getFotoUrl } from "../../utils/image";
 import { SearchIcon, PlusIcon, BoltIcon } from "../../icons";
 import Swal from "sweetalert2";
 
@@ -621,7 +622,7 @@ export default function LayananMandala() {
                           </TableCell>
                           <TableCell className="px-5 py-3.5">
                             <div className="flex items-center gap-3">
-                              <Avatar src={subject?.foto} size="small" />
+                              <Avatar src={getFotoUrl(subject?.foto)} size="small" />
                               <div>
                                 <span className="font-semibold text-gray-800 dark:text-white/90">{subject?.nama || "Umum"}</span>
                                 <p className="text-xxs text-gray-400 font-medium">
@@ -705,7 +706,7 @@ export default function LayananMandala() {
                       className={`flex items-center justify-between p-3 cursor-pointer transition-all hover:bg-gray-50 dark:hover:bg-white/[0.02] ${newForm.ptk_id === gtk.ptk_id ? 'bg-brand-50/50 dark:bg-brand-500/5' : ''}`}
                     >
                       <div className="flex items-center gap-3">
-                        <Avatar src={gtk.foto} size="small" />
+                        <Avatar src={getFotoUrl(gtk.foto)} size="small" />
                         <div>
                           <p className="text-sm font-bold text-gray-800 dark:text-white">{gtk.nama}</p>
                           <p className="text-xxs text-gray-400 font-medium">
@@ -764,7 +765,7 @@ export default function LayananMandala() {
                           className={`flex items-center justify-between p-3 cursor-pointer transition-all hover:bg-gray-50 dark:hover:bg-white/[0.02] ${newForm.peserta_didik_id === pd.peserta_didik_id ? 'bg-brand-50/50 dark:bg-brand-500/5' : ''}`}
                         >
                           <div className="flex items-center gap-3">
-                            <Avatar src={pd.foto} size="small" />
+                            <Avatar src={getFotoUrl(pd.foto)} size="small" />
                             <div>
                               <p className="text-sm font-bold text-gray-800 dark:text-white">{pd.nama}</p>
                               <p className="text-xxs text-gray-400 font-medium">NISN: {pd.nisn}</p>

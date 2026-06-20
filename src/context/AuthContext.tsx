@@ -30,6 +30,17 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const isTokenExpired = (token: string): boolean => {
+  try {
+    const payloadBase64 = token.split('.')[1];
+    const decodedJson = atob(payloadBase64);
+    const decoded = JSON.parse(decodedJson);
+    return decoded.exp * 1000 < Date.now();
+  } catch (e) {
+    return true;
+  }
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,7 +52,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (savedUser && token) {
         try {
-          setUser(JSON.parse(savedUser));
+          if (isTokenExpired(token)) {
+            // Access token expired, attempt silent refresh
+            try {
+              const response = await api.post('/auth/refresh');
+              const { accessToken, user: userData } = response.data;
+              localStorage.setItem('auth_token', accessToken);
+              if (userData) {
+                localStorage.setItem('user_data', JSON.stringify(userData));
+                setUser(userData);
+              } else {
+                setUser(JSON.parse(savedUser));
+              }
+            } catch (refreshErr) {
+              // Refresh failed, clear session and log out
+              localStorage.removeItem('auth_token');
+              localStorage.removeItem('user_data');
+              setUser(null);
+            }
+          } else {
+            setUser(JSON.parse(savedUser));
+          }
         } catch (err) {
           localStorage.removeItem('auth_token');
           localStorage.removeItem('user_data');
