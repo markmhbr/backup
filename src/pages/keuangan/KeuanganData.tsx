@@ -482,7 +482,7 @@ export default function KeuanganData() {
 
   return (
     <>
-      <PageMeta title="Manajemen Keuangan & SPP" description="Dashboard pengelolaan tagihan SPP dan riwayat pembayaran siswa." />
+      <PageMeta title="Manajemen Keuangan & SPP" description="Dashboard pengelolaan tagihan SPP dan riwayat pembayaran peserta didik." />
       <div className="space-y-6">
         {/* Header Section matching standard GTK/Student template */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 no-print">
@@ -537,34 +537,34 @@ export default function KeuanganData() {
                 ) : (
                   <div className="overflow-x-auto">
                     <Table className="w-full">
-                      <TableHeader className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                      <TableHeader className="border-b border-gray-100 dark:border-white/[0.05] bg-gray-50/50 dark:bg-transparent">
                         <TableRow>
-                          <TableCell isHeader className="py-3 px-4 text-xs uppercase text-gray-700 dark:text-gray-400 font-semibold">Nama Tagihan</TableCell>
-                          <TableCell isHeader className="py-3 px-4 text-xs uppercase text-gray-700 dark:text-gray-400 font-semibold">Nominal</TableCell>
-                          <TableCell isHeader className="py-3 px-4 text-xs uppercase text-gray-700 dark:text-gray-400 font-semibold">Tipe</TableCell>
-                          <TableCell isHeader className="py-3 px-4 text-xs uppercase text-gray-700 dark:text-gray-400 font-semibold">Status</TableCell>
-                          <TableCell isHeader className="py-3 px-4 text-xs uppercase text-gray-700 dark:text-gray-400 font-semibold">Rombel Terhubung</TableCell>
-                          <TableCell isHeader className="py-3 px-4 text-xs uppercase text-gray-700 dark:text-gray-400 font-semibold text-right">Aksi</TableCell>
+                          <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Nama Tagihan</TableCell>
+                          <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Nominal</TableCell>
+                          <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Tipe</TableCell>
+                          <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Status</TableCell>
+                          <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Rombel Terhubung</TableCell>
+                          <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-right text-xs dark:text-gray-400 whitespace-nowrap">Aksi</TableCell>
                         </TableRow>
                       </TableHeader>
                       <TableBody className="divide-y divide-gray-200 dark:divide-gray-800">
                         {pengaturanList.map((item) => (
                           <TableRow key={item.pengaturan_tagihan_id} className="hover:bg-gray-50 dark:hover:bg-gray-850">
-                            <TableCell className="py-4 px-4 font-semibold text-gray-950 dark:text-white text-sm">
+                            <TableCell className="px-5 py-3.5 font-medium text-gray-800 dark:text-white/80 text-sm">
                               {item.nama_tagihan}
                             </TableCell>
-                            <TableCell className="py-4 px-4 text-gray-900 dark:text-gray-100 font-medium text-sm">
+                            <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/80">
                               {formatCurrency(item.nominal)}
                             </TableCell>
-                            <TableCell className="py-4 px-4 text-sm">{getTipeLabel(item.tipe)}</TableCell>
-                            <TableCell className="py-4 px-4">
+                            <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/80">{getTipeLabel(item.tipe)}</TableCell>
+                            <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/80">
                               {item.aktif ? (
                                 <Badge color="success">Aktif</Badge>
                               ) : (
                                 <Badge color="error">Tidak Aktif</Badge>
                               )}
                             </TableCell>
-                            <TableCell className="py-4 px-4">
+                            <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/80">
                               <div className="flex flex-wrap gap-1">
                                 {item.pengaturan_rombel.length === 0 ? (
                                   <span className="text-xs italic text-gray-400">Belum ada kelas</span>
@@ -577,7 +577,7 @@ export default function KeuanganData() {
                                 )}
                               </div>
                             </TableCell>
-                            <TableCell className="py-4 px-4 text-right space-x-2">
+                            <TableCell className="px-5 py-3.5 text-right space-x-2">
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -639,7 +639,7 @@ export default function KeuanganData() {
                       </span>
                       <Input
                         type="text"
-                        placeholder="Cari siswa, NISN, atau nama tagihan..."
+                        placeholder="Cari peserta didik, NISN, atau nama tagihan..."
                         value={searchTagihan}
                         onChange={(e) => setSearchTagihan(e.target.value)}
                         className="pl-10"
@@ -660,24 +660,24 @@ export default function KeuanganData() {
                   </div>
                 </div>
 
-                <ComponentCard title="Daftar Tagihan SPP Siswa">
+                <ComponentCard title="Daftar Tagihan SPP Peserta Didik">
                   {filteredTagihan.length === 0 ? (
                     <p className="text-center py-6 text-gray-500">Tidak ada data tagihan SPP ditemukan.</p>
                   ) : (
                     <div className="space-y-4">
                       <div className="overflow-x-auto">
                         <Table className="w-full">
-                          <TableHeader className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                          <TableHeader className="border-b border-gray-100 dark:border-white/[0.05] bg-gray-50/50 dark:bg-transparent">
                             <TableRow>
-                              <TableCell isHeader className="py-3 px-4 text-xs uppercase text-gray-700 dark:text-gray-400 font-semibold">Nama Siswa</TableCell>
-                              <TableCell isHeader className="py-3 px-4 text-xs uppercase text-gray-700 dark:text-gray-400 font-semibold">NISN</TableCell>
-                              <TableCell isHeader className="py-3 px-4 text-xs uppercase text-gray-700 dark:text-gray-400 font-semibold">Kelas</TableCell>
-                              <TableCell isHeader className="py-3 px-4 text-xs uppercase text-gray-700 dark:text-gray-400 font-semibold">Nama Tagihan</TableCell>
-                              <TableCell isHeader className="py-3 px-4 text-xs uppercase text-gray-700 dark:text-gray-400 font-semibold">Total Tagihan</TableCell>
-                              <TableCell isHeader className="py-3 px-4 text-xs uppercase text-gray-700 dark:text-gray-400 font-semibold">Terbayar</TableCell>
-                              <TableCell isHeader className="py-3 px-4 text-xs uppercase text-gray-700 dark:text-gray-400 font-semibold">Sisa</TableCell>
-                              <TableCell isHeader className="py-3 px-4 text-xs uppercase text-gray-700 dark:text-gray-400 font-semibold">Status</TableCell>
-                              <TableCell isHeader className="py-3 px-4 text-xs uppercase text-gray-700 dark:text-gray-400 font-semibold text-right">Aksi</TableCell>
+                              <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Nama Peserta Didik</TableCell>
+                              <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">NISN</TableCell>
+                              <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Kelas</TableCell>
+                              <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Nama Tagihan</TableCell>
+                              <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Total Tagihan</TableCell>
+                              <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Terbayar</TableCell>
+                              <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Sisa</TableCell>
+                              <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-center text-xs dark:text-gray-400 whitespace-nowrap">Status</TableCell>
+                              <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-right text-xs dark:text-gray-400 whitespace-nowrap">Aksi</TableCell>
                             </TableRow>
                           </TableHeader>
                           <TableBody className="divide-y divide-gray-200 dark:divide-gray-800">
@@ -685,23 +685,23 @@ export default function KeuanganData() {
                               const sisa = BigInt(item.nominal_tagihan) - BigInt(item.nominal_terbayar);
                               return (
                                 <TableRow key={item.peserta_didik_id} className="hover:bg-gray-50 dark:hover:bg-gray-850">
-                                  <TableCell className="py-4 px-4 font-semibold text-gray-900 dark:text-white text-sm">
+                                  <TableCell className="px-5 py-3.5 font-medium text-gray-800 dark:text-white/85 text-sm">
                                     {item.peserta_didik?.nama}
                                   </TableCell>
-                                  <TableCell className="py-4 px-4 text-sm">{item.peserta_didik?.nisn || "-"}</TableCell>
-                                  <TableCell className="py-4 px-4 text-sm">{item.peserta_didik?.nama_rombel || "-"}</TableCell>
-                                  <TableCell className="py-4 px-4 text-sm">{item.nama_tagihan}</TableCell>
-                                  <TableCell className="py-4 px-4 font-medium text-gray-900 dark:text-gray-150 text-sm">
+                                  <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/80">{item.peserta_didik?.nisn || "-"}</TableCell>
+                                  <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/80">{item.peserta_didik?.nama_rombel || "-"}</TableCell>
+                                  <TableCell className="px-5 py-3.5 text-sm text-gray-850 dark:text-white/80">{item.nama_tagihan}</TableCell>
+                                  <TableCell className="px-5 py-3.5 font-medium text-gray-800 dark:text-white/80 text-sm">
                                     {formatCurrency(item.nominal_tagihan)}
                                   </TableCell>
-                                  <TableCell className="py-4 px-4 font-medium text-green-600 dark:text-green-400 text-sm">
+                                  <TableCell className="px-5 py-3.5 font-medium text-green-600 dark:text-green-400 text-sm">
                                     {formatCurrency(item.nominal_terbayar)}
                                   </TableCell>
-                                  <TableCell className="py-4 px-4 font-medium text-red-500 dark:text-red-400 text-sm">
+                                  <TableCell className="px-5 py-3.5 font-medium text-red-500 dark:text-red-400 text-sm">
                                     {formatCurrency(sisa.toString())}
                                   </TableCell>
-                                  <TableCell className="py-4 px-4">{getStatusBadge(item.status)}</TableCell>
-                                  <TableCell className="py-4 px-4 text-right">
+                                  <TableCell className="px-5 py-3.5 text-center">{getStatusBadge(item.status)}</TableCell>
+                                  <TableCell className="px-5 py-3.5 text-right">
                                     <Button
                                       variant="primary"
                                       size="sm"
@@ -761,27 +761,27 @@ export default function KeuanganData() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {/* Tunggakan Per Siswa */}
-                  <ComponentCard title="Daftar Siswa Menunggak (Tunggakan)">
+                  <ComponentCard title="Daftar Peserta Didik Menunggak (Tunggakan)">
                     {tunggakanSiswa.length === 0 ? (
-                      <p className="text-center py-6 text-gray-500">Tidak ada tunggakan siswa.</p>
+                      <p className="text-center py-6 text-gray-500">Tidak ada tunggakan peserta didik.</p>
                     ) : (
                       <div className="overflow-y-auto max-h-[350px]">
                         <Table className="w-full">
-                          <TableHeader className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                          <TableHeader className="border-b border-gray-100 dark:border-white/[0.05] bg-gray-50/50 dark:bg-transparent">
                             <TableRow>
-                              <TableCell isHeader className="py-2 px-3 text-xs text-gray-700 dark:text-gray-300 font-semibold">Nama</TableCell>
-                              <TableCell isHeader className="py-2 px-3 text-xs text-gray-700 dark:text-gray-300 font-semibold">Kelas</TableCell>
-                              <TableCell isHeader className="py-2 px-3 text-xs text-gray-700 dark:text-gray-300 font-semibold">Tagihan</TableCell>
-                              <TableCell isHeader className="py-2 px-3 text-xs text-gray-700 dark:text-gray-300 font-semibold text-right">Tunggakan</TableCell>
+                              <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Nama</TableCell>
+                              <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Kelas</TableCell>
+                              <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Tagihan</TableCell>
+                              <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-right text-xs dark:text-gray-400 whitespace-nowrap">Tunggakan</TableCell>
                             </TableRow>
                           </TableHeader>
                           <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
                             {tunggakanSiswa.slice(0, 100).map((t, idx) => (
                               <TableRow key={idx} className="hover:bg-gray-50/50">
-                                <TableCell className="py-2 px-3 font-medium text-gray-900 dark:text-white text-xs">{t.nama}</TableCell>
-                                <TableCell className="py-2 px-3 text-xs">{t.kelas}</TableCell>
-                                <TableCell className="py-2 px-3 text-xs">{t.nama_tagihan}</TableCell>
-                                <TableCell className="py-2 px-3 text-right text-red-500 dark:text-red-400 font-semibold text-xs">
+                                <TableCell className="px-5 py-2.5 font-medium text-gray-800 dark:text-white/80 text-xs">{t.nama}</TableCell>
+                                <TableCell className="px-5 py-2.5 text-xs text-gray-800 dark:text-white/80">{t.kelas}</TableCell>
+                                <TableCell className="px-5 py-2.5 text-xs text-gray-800 dark:text-white/80">{t.nama_tagihan}</TableCell>
+                                <TableCell className="px-5 py-2.5 text-right text-red-500 dark:text-red-400 font-semibold text-xs">
                                   {formatCurrency(t.sisa_tunggakan)}
                                 </TableCell>
                               </TableRow>
@@ -799,17 +799,17 @@ export default function KeuanganData() {
                     ) : (
                       <div className="overflow-y-auto max-h-[350px]">
                         <Table className="w-full">
-                          <TableHeader className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                          <TableHeader className="border-b border-gray-100 dark:border-white/[0.05] bg-gray-50/50 dark:bg-transparent">
                             <TableRow>
-                              <TableCell isHeader className="py-2 px-3 text-xs text-gray-700 dark:text-gray-300 font-semibold">Nama Kelas</TableCell>
-                              <TableCell isHeader className="py-2 px-3 text-xs text-gray-700 dark:text-gray-300 font-semibold text-right">Total Tunggakan</TableCell>
+                              <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Nama Kelas</TableCell>
+                              <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-right text-xs dark:text-gray-400 whitespace-nowrap">Total Tunggakan</TableCell>
                             </TableRow>
                           </TableHeader>
                           <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
                             {tunggakanKelas.map((t, idx) => (
                               <TableRow key={idx} className="hover:bg-gray-50/50">
-                                <TableCell className="py-2.5 px-3 font-semibold text-gray-900 dark:text-white text-xs">{t.kelas}</TableCell>
-                                <TableCell className="py-2.5 px-3 text-right text-red-500 dark:text-red-400 font-bold text-xs">
+                                <TableCell className="px-5 py-2.5 font-semibold text-gray-800 dark:text-white text-xs">{t.kelas}</TableCell>
+                                <TableCell className="px-5 py-2.5 text-right text-red-500 dark:text-red-400 font-bold text-xs">
                                   {formatCurrency(t.total_tunggakan)}
                                 </TableCell>
                               </TableRow>
@@ -827,19 +827,19 @@ export default function KeuanganData() {
                     ) : (
                       <div className="overflow-y-auto max-h-[350px]">
                         <Table className="w-full">
-                          <TableHeader className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                          <TableHeader className="border-b border-gray-100 dark:border-white/[0.05] bg-gray-50/50 dark:bg-transparent">
                             <TableRow>
-                              <TableCell isHeader className="py-2 px-3 text-xs text-gray-700 dark:text-gray-300 font-semibold">Bulan & Tahun</TableCell>
-                              <TableCell isHeader className="py-2 px-3 text-xs text-gray-700 dark:text-gray-300 font-semibold text-right">Total Penerimaan</TableCell>
+                              <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Bulan & Tahun</TableCell>
+                              <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-right text-xs dark:text-gray-400 whitespace-nowrap">Total Penerimaan</TableCell>
                             </TableRow>
                           </TableHeader>
                           <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
                             {rekapBulanan.map((r, idx) => (
                               <TableRow key={idx} className="hover:bg-gray-50/50">
-                                <TableCell className="py-2.5 px-3 font-medium text-gray-900 dark:text-white text-xs">
+                                <TableCell className="px-5 py-2.5 font-medium text-gray-800 dark:text-white text-xs">
                                   {r.bulan_tahun}
                                 </TableCell>
-                                <TableCell className="py-2.5 px-3 text-right text-green-600 dark:text-green-400 font-bold text-xs">
+                                <TableCell className="px-5 py-2.5 text-right text-green-600 dark:text-green-400 font-bold text-xs">
                                   {formatCurrency(r.nominal)}
                                 </TableCell>
                               </TableRow>
@@ -857,19 +857,19 @@ export default function KeuanganData() {
                     ) : (
                       <div className="overflow-y-auto max-h-[350px]">
                         <Table className="w-full">
-                          <TableHeader className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                          <TableHeader className="border-b border-gray-100 dark:border-white/[0.05] bg-gray-50/50 dark:bg-transparent">
                             <TableRow>
-                              <TableCell isHeader className="py-2 px-3 text-xs text-gray-700 dark:text-gray-300 font-semibold">Tahun Pelajaran / Semester</TableCell>
-                              <TableCell isHeader className="py-2 px-3 text-xs text-gray-700 dark:text-gray-300 font-semibold text-right">Total Penerimaan</TableCell>
+                              <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Tahun Pelajaran / Semester</TableCell>
+                              <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-right text-xs dark:text-gray-400 whitespace-nowrap">Total Penerimaan</TableCell>
                             </TableRow>
                           </TableHeader>
                           <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
                             {rekapTahunPelajaran.map((r, idx) => (
                               <TableRow key={idx} className="hover:bg-gray-50/50">
-                                <TableCell className="py-2.5 px-3 font-medium text-gray-900 dark:text-white text-xs">
+                                <TableCell className="px-5 py-2.5 font-medium text-gray-800 dark:text-white text-xs">
                                   {r.label}
                                 </TableCell>
-                                <TableCell className="py-2.5 px-3 text-right text-green-600 dark:text-green-400 font-bold text-xs">
+                                <TableCell className="px-5 py-2.5 text-right text-green-600 dark:text-green-400 font-bold text-xs">
                                   {formatCurrency(r.total_pembayaran)}
                                 </TableCell>
                               </TableRow>
@@ -1164,7 +1164,7 @@ export default function KeuanganData() {
         <h3 className="text-lg font-bold text-gray-850 dark:text-white mb-2">Riwayat & Pembayaran SPP</h3>
         <div className="text-xs text-gray-500 dark:text-gray-400 mb-6 pb-4 border-b border-gray-100 dark:border-gray-800 grid grid-cols-2 gap-2">
           <div>
-            Siswa: <span className="font-bold text-gray-800 dark:text-gray-250">{selectedTagihan?.peserta_didik?.nama}</span>
+            Peserta Didik: <span className="font-bold text-gray-800 dark:text-gray-250">{selectedTagihan?.peserta_didik?.nama}</span>
           </div>
           <div>
             NISN: <span className="font-semibold">{selectedTagihan?.peserta_didik?.nisn}</span>

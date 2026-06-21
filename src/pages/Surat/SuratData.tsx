@@ -664,6 +664,15 @@ const SuratData: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    (window as any).handleInsertTemplateVariable = (placeholder: string) => {
+      insertQuickVariable(placeholder);
+    };
+    return () => {
+      delete (window as any).handleInsertTemplateVariable;
+    };
+  }, []);
+
   const handlePreview = async (id: string) => {
     setLoading(true);
     try {
@@ -715,7 +724,7 @@ const SuratData: React.FC = () => {
                currentTab === 'pengaturan' ? 'Pengaturan Nomor' : 'Arsip Surat'}
             </h3>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              {currentTab === 'template' ? 'Kelola template format surat dinas untuk siswa dan GTK.' :
+              {currentTab === 'template' ? 'Kelola template format surat dinas untuk peserta didik dan GTK.' :
                currentTab === 'masuk' ? 'Pencatatan dan manajemen dokumen surat masuk sekolah.' :
                currentTab === 'pengaturan' ? 'Kelola master penomoran surat otomatis.' :
                'Manajemen pembuatan, penomoran, dan pengarsipan surat keluar.'}
@@ -909,8 +918,8 @@ const SuratData: React.FC = () => {
                             { label: 'Tahun Ajaran Aktif', value: '{{tahun}}' },
                             { label: 'Nama Lengkap', value: '{{nama_lengkap}}' },
                             { label: 'NISN', value: '{{nisn}}' },
-                            { label: 'NIPD / Stambuk', value: '{{nik}}' },
-                            { label: 'NIK Siswa', value: '{{nik}}' },
+                            { label: 'NIPD / Stambuk', value: '{{nipd}}' },
+                            { label: 'NIK Peserta Didik', value: '{{nik}}' },
                             { label: 'Kelas (Rombel)', value: '{{kelas}}' },
                             { label: 'Tempat, Tgl Lahir', value: '{{tempat_lahir}}, {{tanggal_lahir}}' }
                           ].map((v) => (
@@ -950,12 +959,40 @@ const SuratData: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => {
-                          const list = templateSubTab === 'peserta_didik' 
-                            ? '{{nama_sekolah}}, {{alamat_sekolah}}, {{telepon_sekolah}}, {{nomor_surat}}, {{tanggal_surat}}, {{nama_lengkap}}, {{nisn}}, {{nik}}, {{tempat_lahir}}, {{tanggal_lahir}}, {{jenis_kelamin}}, {{kelas}}, {{alamat}}, {{nama_ayah}}, {{nama_ibu}}'
-                            : '{{nama_sekolah}}, {{alamat_sekolah}}, {{telepon_sekolah}}, {{nomor_surat}}, {{tanggal_surat}}, {{nama_lengkap}}, {{nip}}, {{nuptk}}, {{jabatan}}, {{unit_kerja}}';
+                          const vars = templateSubTab === 'peserta_didik' 
+                            ? [
+                                '{{nama_sekolah}}', '{{alamat_sekolah}}', '{{telepon_sekolah}}',
+                                '{{nomor_surat}}', '{{tanggal_surat}}', '{{tahun}}',
+                                '{{nama_lengkap}}', '{{nisn}}', '{{nipd}}', '{{nik}}',
+                                '{{tempat_lahir}}', '{{tanggal_lahir}}', '{{jenis_kelamin}}',
+                                '{{kelas}}', '{{alamat}}', '{{nama_ayah}}', '{{nama_ibu}}'
+                              ]
+                            : [
+                                '{{nama_sekolah}}', '{{alamat_sekolah}}', '{{telepon_sekolah}}',
+                                '{{nomor_surat}}', '{{tanggal_surat}}', '{{tahun}}',
+                                '{{nama_lengkap}}', '{{nip}}', '{{nuptk}}',
+                                '{{jabatan}}', '{{unit_kerja}}'
+                              ];
+                          
+                          const buttonsHtml = vars.map(v => `
+                            <button onclick="window.handleInsertTemplateVariable('${v}')" 
+                                    class="w-full text-left px-3.5 py-2.5 bg-white dark:bg-gray-800 border border-gray-250 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl font-mono text-xs transition cursor-pointer shadow-sm flex items-center justify-between">
+                              <span>${v}</span>
+                              <span class="text-[9px] bg-brand-50 text-brand-600 dark:bg-brand-950/40 dark:text-brand-400 px-2.5 py-1 rounded-md font-sans font-bold uppercase tracking-wider">Pilih</span>
+                            </button>
+                          `).join('');
+
                           Swal.fire({
                             title: 'Daftar Semua Variabel',
-                            html: `<div class="text-left text-sm font-mono whitespace-pre-line p-3 bg-gray-50 rounded border max-h-60 overflow-y-auto">${list.split(', ').join('\n')}</div>`,
+                            html: `
+                              <div class="text-left text-sm p-1 max-h-[350px] overflow-y-auto pr-1">
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Klik pada variabel di bawah untuk menyisipkannya langsung ke dalam template editor.</p>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                  ${buttonsHtml}
+                                </div>
+                              </div>
+                            `,
+                            showConfirmButton: true,
                             confirmButtonText: 'Tutup',
                             confirmButtonColor: '#465fff',
                           });
@@ -1086,34 +1123,34 @@ const SuratData: React.FC = () => {
               {currentTab === 'pengaturan' && (
                 <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-white/[0.05] bg-white dark:bg-white/[0.03]">
                   <Table>
-                    <TableHeader className="bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wider">
+                    <TableHeader className="border-b border-gray-100 dark:border-white/[0.05] bg-gray-50/50 dark:bg-transparent">
                       <TableRow>
-                        <TableCell isHeader className="px-6 py-4">Kategori</TableCell>
-                        <TableCell isHeader className="px-6 py-4">Label</TableCell>
-                        <TableCell isHeader className="px-6 py-4">Format Nomor</TableCell>
-                        <TableCell isHeader className="px-6 py-4">Counter Sekarang</TableCell>
-                        <TableCell isHeader className="px-6 py-4">Status</TableCell>
-                        <TableCell isHeader className="px-6 py-4 text-right">Aksi</TableCell>
+                        <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Kategori</TableCell>
+                        <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Label</TableCell>
+                        <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Format Nomor</TableCell>
+                        <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Counter Sekarang</TableCell>
+                        <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Status</TableCell>
+                        <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-right text-xs dark:text-gray-400 whitespace-nowrap">Aksi</TableCell>
                       </TableRow>
                     </TableHeader>
-                    <TableBody className="divide-y divide-gray-200 dark:divide-gray-800 text-sm text-gray-700 dark:text-gray-300">
+                    <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
                       {pengaturans.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={6} className="text-center py-10 text-gray-400">Belum ada pengaturan penomoran surat.</TableCell>
                         </TableRow>
                       ) : (
                         pengaturans.map((p) => (
-                          <TableRow key={p.pengaturan_nomor_surat_id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/20">
-                            <TableCell className="px-6 py-4 font-semibold">{getKategoriName(p.kategori)}</TableCell>
-                            <TableCell className="px-6 py-4"><span className="px-2.5 py-1 rounded bg-brand-50 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400 text-xs font-bold">{p.nama_label}</span></TableCell>
-                            <TableCell className="px-6 py-4 font-mono text-xs text-gray-600 dark:text-gray-400">{p.format_nomor}</TableCell>
-                            <TableCell className="px-6 py-4 font-bold">{String(p.counter).padStart(3, '0')}</TableCell>
-                            <TableCell className="px-6 py-4">
+                          <TableRow key={p.pengaturan_nomor_surat_id} className="hover:bg-gray-50/50 dark:hover:bg-white/[0.01]">
+                            <TableCell className="px-5 py-3.5 font-semibold text-gray-800 dark:text-white/80 text-sm">{getKategoriName(p.kategori)}</TableCell>
+                            <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/80"><span className="px-2.5 py-1 rounded bg-brand-50 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400 text-xs font-bold">{p.nama_label}</span></TableCell>
+                            <TableCell className="px-5 py-3.5 font-mono text-xs text-gray-600 dark:text-gray-400">{p.format_nomor}</TableCell>
+                            <TableCell className="px-5 py-3.5 font-bold text-gray-800 dark:text-white/80 text-sm">{String(p.counter).padStart(3, '0')}</TableCell>
+                            <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/80">
                               <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${p.aktif ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
                                 {p.aktif ? 'Aktif' : 'Non-Aktif'}
                               </span>
                             </TableCell>
-                            <TableCell className="px-6 py-4 text-right space-x-2">
+                            <TableCell className="px-5 py-3.5 text-right space-x-2">
                               <button onClick={() => handleOpenEdit(p)} className="text-blue-500 hover:text-blue-700 font-medium cursor-pointer">Edit</button>
                               <button onClick={() => handleDelete(p.pengaturan_nomor_surat_id)} className="text-red-500 hover:text-red-700 font-medium cursor-pointer">Hapus</button>
                             </TableCell>
@@ -1130,45 +1167,45 @@ const SuratData: React.FC = () => {
           {currentTab === 'masuk' && (
             <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-white/[0.05] bg-white dark:bg-white/[0.03]">
               <Table>
-                <TableHeader className="bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wider">
+                <TableHeader className="border-b border-gray-100 dark:border-white/[0.05] bg-gray-50/50 dark:bg-transparent">
                   <TableRow>
-                    <TableCell isHeader className="px-6 py-4">No. Agenda</TableCell>
-                    <TableCell isHeader className="px-6 py-4">Tanggal Terima</TableCell>
-                    <TableCell isHeader className="px-6 py-4">No & Tanggal Surat</TableCell>
-                    <TableCell isHeader className="px-6 py-4">Asal & Perihal</TableCell>
-                    <TableCell isHeader className="px-6 py-4">Penerima Disposisi</TableCell>
-                    <TableCell isHeader className="px-6 py-4 text-center">Berkas</TableCell>
-                    <TableCell isHeader className="px-6 py-4 text-right">Aksi</TableCell>
+                    <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">No. Agenda</TableCell>
+                    <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Tanggal Terima</TableCell>
+                    <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">No & Tanggal Surat</TableCell>
+                    <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Asal & Perihal</TableCell>
+                    <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Penerima Disposisi</TableCell>
+                    <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-center text-xs dark:text-gray-400 whitespace-nowrap">Berkas</TableCell>
+                    <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-right text-xs dark:text-gray-400 whitespace-nowrap">Aksi</TableCell>
                   </TableRow>
                 </TableHeader>
-                <TableBody className="divide-y divide-gray-200 dark:divide-gray-800 text-sm text-gray-700 dark:text-gray-300">
+                <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
                   {inbounds.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="text-center py-10 text-gray-400">Belum ada surat masuk tercatat.</TableCell>
                     </TableRow>
                   ) : (
                     inbounds.map((item) => (
-                      <TableRow key={item.surat_masuk_id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/20">
-                        <TableCell className="px-6 py-4 font-semibold text-brand-600 dark:text-brand-400">{item.nomor_agenda}</TableCell>
-                        <TableCell className="px-6 py-4">{new Date(item.tanggal_diterima).toLocaleDateString('id-ID')}</TableCell>
-                        <TableCell className="px-6 py-4">
-                          <div className="font-semibold">{item.nomor_surat}</div>
+                      <TableRow key={item.surat_masuk_id} className="hover:bg-gray-50/50 dark:hover:bg-white/[0.01]">
+                        <TableCell className="px-5 py-3.5 font-semibold text-brand-600 dark:text-brand-400">{item.nomor_agenda}</TableCell>
+                        <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/80">{new Date(item.tanggal_diterima).toLocaleDateString('id-ID')}</TableCell>
+                        <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/80">
+                          <div className="font-semibold text-gray-900 dark:text-white">{item.nomor_surat}</div>
                           <div className="text-xs text-gray-500">{new Date(item.tanggal_surat).toLocaleDateString('id-ID')}</div>
                         </TableCell>
-                        <TableCell className="px-6 py-4">
-                          <div className="font-semibold">{item.perihal}</div>
+                        <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/80">
+                          <div className="font-semibold text-gray-900 dark:text-white">{item.perihal}</div>
                           <div className="text-xs text-gray-500 font-medium">Asal: {item.asal_surat}</div>
                         </TableCell>
-                        <TableCell className="px-6 py-4 font-medium">{item.tujuan_disposisi}</TableCell>
-                        <TableCell className="px-6 py-4 text-center">
+                        <TableCell className="px-5 py-3.5 font-medium text-gray-800 dark:text-white/80 text-sm">{item.tujuan_disposisi}</TableCell>
+                        <TableCell className="px-5 py-3.5 text-center">
                           {item.file_url ? (
-                            <a href={item.file_url} target="_blank" rel="noreferrer" className="text-brand-500 hover:text-brand-700 transition font-bold text-xs flex items-center justify-center gap-1">
+                            <a href={item.file_url} target="_blank" rel="noreferrer" className="text-brand-500 hover:text-brand-700 transition font-bold text-xs inline-flex items-center justify-center gap-1">
                               <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
                               LIHAT
                             </a>
                           ) : <span className="text-gray-400 italic">Tidak ada</span>}
                         </TableCell>
-                        <TableCell className="px-6 py-4 text-right">
+                        <TableCell className="px-5 py-3.5 text-right">
                            <div className="flex justify-end gap-2">
                             <button onClick={() => handleOpenEdit(item)} className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 transition cursor-pointer" title="Edit"><PencilIcon className="size-4" /></button>
                             <button onClick={() => handleDelete(item.surat_masuk_id)} className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 transition cursor-pointer" title="Hapus"><TrashBinIcon className="size-4" /></button>
@@ -1186,33 +1223,33 @@ const SuratData: React.FC = () => {
           {(currentTab === 'keluar' || currentTab === 'arsip') && (
             <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-white/[0.05] bg-white dark:bg-white/[0.03]">
               <Table>
-                <TableHeader className="bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wider">
+                <TableHeader className="border-b border-gray-100 dark:border-white/[0.05] bg-gray-50/50 dark:bg-transparent">
                   <TableRow>
-                    <TableCell isHeader className="px-6 py-4">No. Surat</TableCell>
-                    <TableCell isHeader className="px-6 py-4">Tanggal</TableCell>
-                    <TableCell isHeader className="px-6 py-4">Template & Perihal</TableCell>
-                    <TableCell isHeader className="px-6 py-4">Target Penerima</TableCell>
-                    <TableCell isHeader className="px-6 py-4">Status</TableCell>
-                    <TableCell isHeader className="px-6 py-4 text-right">Aksi</TableCell>
+                    <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">No. Surat</TableCell>
+                    <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Tanggal</TableCell>
+                    <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Template & Perihal</TableCell>
+                    <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Target Penerima</TableCell>
+                    <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Status</TableCell>
+                    <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-right text-xs dark:text-gray-400 whitespace-nowrap">Aksi</TableCell>
                   </TableRow>
                 </TableHeader>
-                <TableBody className="divide-y divide-gray-200 dark:divide-gray-800 text-sm text-gray-700 dark:text-gray-300">
+                <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
                   {outbounds.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center py-10 text-gray-400">Belum ada arsip surat.</TableCell>
                     </TableRow>
                   ) : (
                     outbounds.map((item) => (
-                      <TableRow key={item.surat_keluar_id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/20">
-                        <TableCell className="px-6 py-4 font-mono text-xs font-semibold">
+                      <TableRow key={item.surat_keluar_id} className="hover:bg-gray-50/50 dark:hover:bg-white/[0.01]">
+                        <TableCell className="px-5 py-3.5 font-mono text-xs font-semibold text-gray-800 dark:text-white/85">
                           {item.nomor_surat || <span className="text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded font-sans text-[10px] font-bold">[ DRAFT ]</span>}
                         </TableCell>
-                        <TableCell className="px-6 py-4">{new Date(item.tanggal_surat).toLocaleDateString('id-ID')}</TableCell>
-                        <TableCell className="px-6 py-4">
-                          <div className="font-semibold">{item.perihal}</div>
+                        <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/80">{new Date(item.tanggal_surat).toLocaleDateString('id-ID')}</TableCell>
+                        <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/80">
+                          <div className="font-semibold text-gray-900 dark:text-white">{item.perihal}</div>
                           <div className="text-xs text-gray-500">Template: {item.template_surat?.nama_template || '-'}</div>
                         </TableCell>
-                        <TableCell className="px-6 py-4">
+                        <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/80">
                           {item.kategori === 0 ? (
                             <div className="flex flex-col">
                               <span className="font-semibold text-gray-900 dark:text-white">{item.peserta_didik?.nama || '-'}</span>
@@ -1225,7 +1262,7 @@ const SuratData: React.FC = () => {
                             </div>
                           )}
                         </TableCell>
-                        <TableCell className="px-6 py-4">
+                        <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/80">
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                             item.status === 1 ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400' :
                             (item.status === 2 ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400')
@@ -1233,7 +1270,7 @@ const SuratData: React.FC = () => {
                             {item.status === 1 ? 'DRAFT' : (item.status === 2 ? 'TERBIT' : 'DIBATALKAN')}
                           </span>
                         </TableCell>
-                        <TableCell className="px-6 py-4 text-right">
+                        <TableCell className="px-5 py-3.5 text-right">
                           <div className="flex justify-end gap-2">
                             <button onClick={() => handlePreview(item.surat_keluar_id)} className="p-1.5 bg-brand-50 text-brand-600 rounded-lg hover:bg-brand-100 dark:bg-brand-900/20 dark:text-brand-400 transition cursor-pointer" title="Preview & Cetak"><PrinterIcon className="size-4" /></button>
                             {item.status === 1 && (
@@ -1563,14 +1600,14 @@ const SuratData: React.FC = () => {
                           </div>
 
                           <div>
-                            <label className="block text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2">Pilih Peserta Didik (Siswa)</label>
+                            <label className="block text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2">Pilih Peserta Didik</label>
                             <select
                               value={formData.peserta_didik_id}
                               onChange={(e) => setFormData({ ...formData, peserta_didik_id: e.target.value })}
                               required
                               className="w-full border border-blue-300 dark:border-blue-700 rounded-lg p-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
                             >
-                              <option value="">-- Pilih Siswa --</option>
+                              <option value="">-- Pilih Peserta Didik --</option>
                               {students.map((s) => (
                                 <option key={s.peserta_didik_id} value={s.peserta_didik_id}>
                                   {s.nama} (NISN: {s.nisn})

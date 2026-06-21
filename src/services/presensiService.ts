@@ -56,6 +56,28 @@ export const presensiService = {
     return response.data;
   },
 
+  getIzinKeluarHariIni: async (sekolahId: string, tanggal?: string) => {
+    const response = await api.get(`/kurikulum/presensi/izin-keluar/${sekolahId}`, {
+      params: tanggal ? { tanggal } : {},
+    });
+    return response.data;
+  },
+
+  catatKembaliIzin: async (sekolahId: string, izinId: string) => {
+    const response = await api.post(`/kurikulum/presensi/izin-keluar/kembali/${sekolahId}/${izinId}`);
+    return response.data;
+  },
+
+  setujuiIzinKeluar: async (sekolahId: string, izinId: string) => {
+    const response = await api.post(`/kurikulum/presensi/izin-keluar/setujui/${sekolahId}/${izinId}`);
+    return response.data;
+  },
+
+  deleteIzinKeluar: async (sekolahId: string, izinId: string) => {
+    const response = await api.delete(`/kurikulum/presensi/izin-keluar/${sekolahId}/${izinId}`);
+    return response.data;
+  },
+
   getRekapPesertaDidik: async (sekolahId: string, tanggal?: string) => {
     const response = await api.get(`/kurikulum/presensi/rekap-pd/${sekolahId}`, {
       params: tanggal ? { tanggal } : {},

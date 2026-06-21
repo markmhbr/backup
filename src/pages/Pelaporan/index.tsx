@@ -102,13 +102,13 @@ export default function PelaporanSekolahPage() {
           <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03] relative">
             <div className="max-w-full overflow-x-auto custom-scrollbar">
               <Table className="min-w-[1000px]">
-                <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
+                <TableHeader className="border-b border-gray-100 dark:border-white/[0.05] bg-gray-50/50 dark:bg-transparent">
                   <TableRow>
-                    <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 whitespace-nowrap">Judul Pelaporan</TableCell>
-                    <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 whitespace-nowrap">Periode</TableCell>
-                    <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-center text-theme-xs dark:text-gray-400 whitespace-nowrap">Dokumen Dikirim</TableCell>
-                    <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-center text-theme-xs dark:text-gray-400 whitespace-nowrap">Status</TableCell>
-                    <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-center text-theme-xs dark:text-gray-400 whitespace-nowrap">Aksi</TableCell>
+                    <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Judul Pelaporan</TableCell>
+                    <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Periode</TableCell>
+                    <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-center text-xs dark:text-gray-400 whitespace-nowrap">Dokumen Dikirim</TableCell>
+                    <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-center text-xs dark:text-gray-400 whitespace-nowrap">Status</TableCell>
+                    <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-center text-xs dark:text-gray-400 whitespace-nowrap">Aksi</TableCell>
                   </TableRow>
                 </TableHeader>
                 <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
@@ -120,27 +120,27 @@ export default function PelaporanSekolahPage() {
                     </TableRow>
                   ) : filteredData.length > 0 ? (
                     filteredData.map((item) => (
-                      <TableRow key={item.pelaporan_id}>
-                        <TableCell className="px-5 py-4 font-medium text-gray-800 dark:text-white/90">
+                      <TableRow key={item.pelaporan_id} className="hover:bg-gray-50/50 dark:hover:bg-white/[0.01]">
+                        <TableCell className="px-5 py-3.5 font-medium text-gray-800 dark:text-white/90">
                           {item.judul}
                         </TableCell>
-                        <TableCell className="px-5 py-4 text-theme-sm text-gray-500">
+                        <TableCell className="px-5 py-3.5 text-sm text-gray-500">
                           {item.tanggal_mulai ? new Date(item.tanggal_mulai).toLocaleDateString("id-ID") : "-"} s/d{" "}
                           {item.tanggal_selesai ? new Date(item.tanggal_selesai).toLocaleDateString("id-ID") : "-"}
                         </TableCell>
-                        <TableCell className="px-5 py-4 text-center">
+                        <TableCell className="px-5 py-3.5 text-center">
                           <Badge color={item.jumlah_dokumen > 0 ? "success" : "light"} size="sm">
                             {item.jumlah_dokumen} Dokumen
                           </Badge>
                         </TableCell>
-                        <TableCell className="px-5 py-4 text-center">
+                        <TableCell className="px-5 py-3.5 text-center">
                           {item.aktif ? (
                             <Badge color="success" size="sm">Terbuka</Badge>
                           ) : (
                             <Badge color="error" size="sm">Ditutup</Badge>
                           )}
                         </TableCell>
-                        <TableCell className="px-5 py-4 text-center">
+                        <TableCell className="px-5 py-3.5 text-center">
                           <Link to={`/${roleSlug}/pelaporan/detail?id=${item.pelaporan_id}`}>
                             <button className="text-brand-500 hover:text-brand-600 font-medium text-sm">
                               Detail & Upload

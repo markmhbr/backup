@@ -611,21 +611,21 @@ const EditStudentPage: React.FC = () => {
                     Identitas Pribadi
                   </h5>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2"><Label>Nama Lengkap</Label><Input value={formData.nama || ""} placeholder="Masukkan Nama Lengkap" disabled /></div>
-                    <div className="space-y-2"><Label>Tempat Lahir</Label><Input value={formData.tempatLahir || ""} placeholder="Masukkan Tempat Lahir" disabled /></div>
-                    <div className="space-y-2"><Label>Tanggal Lahir</Label><Input type="date" value={formData.tanggalLahir || ""} disabled /></div>
-                    <div className="space-y-2"><Label>Jenis Kelamin</Label><Input value={formData.jk === "L" ? "Laki-laki" : formData.jk === "P" ? "Perempuan" : formData.jk || ""} disabled /></div>
-                    <div className="space-y-2"><Label>NISN</Label><Input value={formData.nisn || ""} placeholder="NISN harus 10 digit" maxLength={10} disabled /></div>
-                    <div className="space-y-2"><Label>NIPD</Label><Input value={formData.nipd || ""} placeholder="Masukkan NIPD" disabled /></div>
-                    <div className="space-y-2"><Label>NIK</Label><Input value={formData.nik || ""} placeholder="NIK harus 16 digit" maxLength={16} disabled /></div>
+                    <div className="space-y-2"><Label>Nama Lengkap</Label><Input value={formData.nama || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                    <div className="space-y-2"><Label>Tempat Lahir</Label><Input value={formData.tempatLahir || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                    <div className="space-y-2"><Label>Tanggal Lahir</Label><Input type="date" value={formData.tanggalLahir || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                    <div className="space-y-2"><Label>Jenis Kelamin</Label><Input value={formData.jk === "L" ? "Laki-laki" : formData.jk === "P" ? "Perempuan" : formData.jk || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                    <div className="space-y-2"><Label>NISN</Label><Input value={formData.nisn || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                    <div className="space-y-2"><Label>NIPD</Label><Input value={formData.nipd || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                    <div className="space-y-2"><Label>NIK</Label><Input value={formData.nik || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                     <div className="space-y-2"><Label>No. Kartu Keluarga</Label><Input value={formData.noKK || ""} placeholder="Nomor KK harus 16 digit" maxLength={16} onChange={(e) => handleInputChange("noKK", e.target.value.replace(/\D/g, ''))} /></div>
-                    <div className="space-y-2"><Label>No. Register Akte Lahir</Label><Input value={formData.noAkte || ""} placeholder="Masukkan Nomor Register Akta Lahir" onChange={(e) => handleInputChange("noAkte", e.target.value)} /></div>
-                    <div className="space-y-2"><Label>Berkebutuhan Khusus</Label><Input value={formData.kebutuhanKhusus || ""} placeholder="Masukkan Kebutuhan Khusus" disabled /></div>
-                    <div className="space-y-2"><Label>Agama</Label><Input value={formData.agama || ""} placeholder="Masukkan Agama" disabled /></div>
-                    <div className="space-y-2"><Label>Anak ke-</Label><Input type="number" value={formData.anakKe || ""} placeholder="Contoh: 1" disabled /></div>
+                    <div className="space-y-2"><Label>No. Register Akte Lahir</Label><Input value={formData.noAkte || ""} placeholder="Masukkan nomor register akta lahir" onChange={(e) => handleInputChange("noAkte", e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Berkebutuhan Khusus</Label><Input value={formData.kebutuhanKhusus || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                    <div className="space-y-2"><Label>Agama</Label><Input value={formData.agama || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                    <div className="space-y-2"><Label>Anak ke-</Label><Input type="number" value={formData.anakKe || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                   </div>
                 </div>
-
+ 
                 {/* Alamat dan Tempat Tinggal */}
                 <div>
                   <h5 className="flex items-center gap-2 font-semibold text-gray-800 dark:text-white/90 mb-4 border-b pb-2 border-gray-100 dark:border-white/[0.05]">
@@ -636,11 +636,12 @@ const EditStudentPage: React.FC = () => {
                     Alamat dan Tempat Tinggal
                   </h5>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2"><Label>Jalan atau Kampung</Label><Input value={formData.jalan || ""} disabled /></div>
+                    <div className="space-y-2"><Label>Jalan atau Kampung</Label><Input value={formData.jalan || ""} placeholder="Masukkan jalan atau kampung" disabled /></div>
                     <div className="space-y-2">
                       <Label>RT</Label>
                       <Input 
                         value={formData.rt || ""} 
+                        placeholder="000"
                         onChange={(e) => handleInputChange("rt", e.target.value.replace(/\D/g, ''))} 
                         onBlur={() => handleInputChange("rt", format3Digits(formData.rt))}
                       />
@@ -649,6 +650,7 @@ const EditStudentPage: React.FC = () => {
                       <Label>RW</Label>
                       <Input 
                         value={formData.rw || ""} 
+                        placeholder="000"
                         onChange={(e) => handleInputChange("rw", e.target.value.replace(/\D/g, ''))} 
                         onBlur={() => handleInputChange("rw", format3Digits(formData.rw))}
                       />
@@ -657,12 +659,12 @@ const EditStudentPage: React.FC = () => {
                     <div className="space-y-2"><Label>Kab./Kota</Label><Select placeholder="Pilih Kab/Kota" options={regencies} value={selectedRegencyId} disabled={!selectedProvinceId} onChange={(val) => {setSelectedRegencyId(val); handleInputChange("kabupaten", regencies.find(r=>r.value===val)?.label || ""); }} /></div>
                     <div className="space-y-2"><Label>Kecamatan</Label><Select placeholder="Pilih Kecamatan" options={districts} value={selectedDistrictId} disabled={!selectedRegencyId} onChange={(val) => {setSelectedDistrictId(val); handleInputChange("kecamatan", districts.find(d=>d.value===val)?.label || ""); }} /></div>
                     <div className="space-y-2"><Label>Desa/Kelurahan</Label><Select placeholder="Pilih Desa/Kelurahan" options={villages} value={selectedVillageId} disabled={!selectedDistrictId} onChange={(val) => { setSelectedVillageId(val); handleInputChange("desaKelurahan", villages.find(v=>v.value===val)?.label || ""); }} /></div>
-                    <div className="space-y-2"><Label>Kode Pos</Label><Input value={formData.kodePos || ""} onChange={(e) => handleInputChange("kodePos", e.target.value)} /></div>
-                    <div className="space-y-2"><Label>Tempat Tinggal</Label><Input value={formData.tempatTinggal || ""} onChange={(e) => handleInputChange("tempatTinggal", e.target.value)} /></div>
-                    <div className="space-y-2"><Label>Transportasi</Label><Input value={formData.transportasi || ""} onChange={(e) => handleInputChange("transportasi", e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Kode Pos</Label><Input value={formData.kodePos || ""} placeholder="Masukkan kode pos" onChange={(e) => handleInputChange("kodePos", e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Tempat Tinggal</Label><Input value={formData.tempatTinggal || ""} placeholder="Masukkan tempat tinggal" onChange={(e) => handleInputChange("tempatTinggal", e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Transportasi</Label><Input value={formData.transportasi || ""} placeholder="Masukkan alat transportasi" onChange={(e) => handleInputChange("transportasi", e.target.value)} /></div>
                     <div className="col-span-full grid grid-cols-2 gap-4">
-                      <div className="space-y-2"><Label>Lintang</Label><Input value={formData.lintang || ""} onChange={(e) => handleInputChange("lintang", e.target.value)} /></div>
-                      <div className="space-y-2"><Label>Bujur</Label><Input value={formData.bujur || ""} onChange={(e) => handleInputChange("bujur", e.target.value)} /></div>
+                      <div className="space-y-2"><Label>Lintang</Label><Input value={formData.lintang || ""} placeholder="Contoh: -6.200000" onChange={(e) => handleInputChange("lintang", e.target.value)} /></div>
+                      <div className="space-y-2"><Label>Bujur</Label><Input value={formData.bujur || ""} placeholder="Contoh: 106.816666" onChange={(e) => handleInputChange("bujur", e.target.value)} /></div>
                     </div>
                   </div>
                 </div>
@@ -676,14 +678,14 @@ const EditStudentPage: React.FC = () => {
                     Kontak
                   </h5>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2"><Label>No. Telp. Rumah</Label><Input value={formData.noTelpRumah || ""} onChange={(e) => handleInputChange("noTelpRumah", e.target.value)} /></div>
-                    <div className="space-y-2"><Label>No. Handphone</Label><Input value={formData.noHp || ""} disabled /></div>
-                    <div className="space-y-2"><Label>No. Whatsapp</Label><Input value={formData.noWa || ""} onChange={(e) => handleInputChange("noWa", e.target.value)} /></div>
-                    <div className="space-y-2"><Label>Email Aktif</Label><Input type="email" value={formData.emailAktif || ""} onChange={(e) => handleInputChange("emailAktif", e.target.value)} /></div>
-                    <div className="space-y-2"><Label>Email Akun</Label><Input type="email" value={formData.emailAkun || ""} disabled /></div>
+                    <div className="space-y-2"><Label>No. Telp. Rumah</Label><Input value={formData.noTelpRumah || ""} placeholder="Contoh: 022-123456" onChange={(e) => handleInputChange("noTelpRumah", e.target.value)} /></div>
+                    <div className="space-y-2"><Label>No. Handphone</Label><Input value={formData.noHp || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                    <div className="space-y-2"><Label>No. Whatsapp</Label><Input value={formData.noWa || ""} placeholder="0812XXXXXXXX" onChange={(e) => handleInputChange("noWa", e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Email Aktif</Label><Input type="email" value={formData.emailAktif || ""} placeholder="nama@email.com" onChange={(e) => handleInputChange("emailAktif", e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Email Akun</Label><Input type="email" value={formData.emailAkun || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                   </div>
                 </div>
-
+ 
                 {/* Kesejahteraan & Bank */}
                 <div>
                   <h5 className="flex items-center gap-2 font-semibold text-gray-800 dark:text-white/90 mb-4 border-b pb-2 border-gray-100 dark:border-white/[0.05]">
@@ -693,9 +695,9 @@ const EditStudentPage: React.FC = () => {
                     Kesejahteraan & Bank
                   </h5>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2"><Label>Penerima KIP</Label><Input value={formData.penerimaKIP || ""} onChange={(e) => handleInputChange("penerimaKIP", e.target.value)} /></div>
-                    <div className="space-y-2"><Label>Layak PIP</Label><Input value={formData.layakKIP || ""} onChange={(e) => handleInputChange("layakKIP", e.target.value)} /></div>
-                    <div className="space-y-2"><Label>Penerima KPS/PKH</Label><Input value={formData.penerimaKPS || ""} onChange={(e) => handleInputChange("penerimaKPS", e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Penerima KIP</Label><Input value={formData.penerimaKIP || ""} placeholder="Masukkan status penerima KIP" onChange={(e) => handleInputChange("penerimaKIP", e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Layak PIP</Label><Input value={formData.layakKIP || ""} placeholder="Masukkan status kelayakan PIP" onChange={(e) => handleInputChange("layakKIP", e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Penerima KPS/PKH</Label><Input value={formData.penerimaKPS || ""} placeholder="Masukkan status penerima KPS/PKH" onChange={(e) => handleInputChange("penerimaKPS", e.target.value)} /></div>
                     <div className="space-y-2">
                       <Label>Nama Bank</Label>
                       <Select 
@@ -705,9 +707,9 @@ const EditStudentPage: React.FC = () => {
                         onChange={(val) => handleInputChange("idBank", val)}
                       />
                     </div>
-                    <div className="space-y-2"><Label>No. Rekening Bank</Label><Input value={formData.rekeningBank || ""} onChange={(e) => handleInputChange("rekeningBank", e.target.value)} /></div>
-                    <div className="space-y-2"><Label>Cabang Bank (KCP)</Label><Input value={formData.namaKCP || ""} onChange={(e) => handleInputChange("namaKCP", e.target.value)} /></div>
-                    <div className="space-y-2"><Label>Rekening Atas Nama</Label><Input value={formData.rekeningAtasNama || ""} onChange={(e) => handleInputChange("rekeningAtasNama", e.target.value)} /></div>
+                    <div className="space-y-2"><Label>No. Rekening Bank</Label><Input value={formData.rekeningBank || ""} placeholder="Nomor rekening bank" onChange={(e) => handleInputChange("rekeningBank", e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Cabang Bank (KCP)</Label><Input value={formData.namaKCP || ""} placeholder="Nama cabang bank" onChange={(e) => handleInputChange("namaKCP", e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Rekening Atas Nama</Label><Input value={formData.rekeningAtasNama || ""} placeholder="Nama pemilik rekening" onChange={(e) => handleInputChange("rekeningAtasNama", e.target.value)} /></div>
                   </div>
                 </div>
               </div>
@@ -733,9 +735,9 @@ const EditStudentPage: React.FC = () => {
                   Data Fisik
                 </h5>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2"><Label>Tinggi Badan (cm)</Label><Input type="number" value={formData.tinggiBadan || ""} onChange={(e) => handleInputChange("tinggiBadan", e.target.value)} /></div>
-                  <div className="space-y-2"><Label>Berat Badan (kg)</Label><Input type="number" value={formData.beratBadan || ""} onChange={(e) => handleInputChange("beratBadan", e.target.value)} /></div>
-                  <div className="space-y-2"><Label>Lingkar Kepala (cm)</Label><Input type="number" value={formData.lingkarKepala || ""} onChange={(e) => handleInputChange("lingkarKepala", e.target.value)} /></div>
+                  <div className="space-y-2"><Label>Tinggi Badan (cm)</Label><Input type="number" value={formData.tinggiBadan || ""} placeholder="Contoh: 160" onChange={(e) => handleInputChange("tinggiBadan", e.target.value)} /></div>
+                  <div className="space-y-2"><Label>Berat Badan (kg)</Label><Input type="number" value={formData.beratBadan || ""} placeholder="Contoh: 50" onChange={(e) => handleInputChange("beratBadan", e.target.value)} /></div>
+                  <div className="space-y-2"><Label>Lingkar Kepala (cm)</Label><Input type="number" value={formData.lingkarKepala || ""} placeholder="Contoh: 55" onChange={(e) => handleInputChange("lingkarKepala", e.target.value)} /></div>
                 </div>
               </div>
             </div>
@@ -760,15 +762,15 @@ const EditStudentPage: React.FC = () => {
                 Data Ayah
               </h5>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>Nama Lengkap</Label><Input value={formData.namaAyah || ""} disabled /></div>
-                <div className="space-y-2"><Label>NIK</Label><Input value={formData.nikAyah || ""} onChange={(e) => handleInputChange("nikAyah", e.target.value)} /></div>
-                <div className="space-y-2"><Label>Pekerjaan</Label><Input value={formData.pekerjaanAyah || ""} onChange={(e) => handleInputChange("pekerjaanAyah", e.target.value)} /></div>
-                <div className="space-y-2"><Label>Tahun Lahir</Label><Input type="number" value={formData.tahunLahirAyah || ""} onChange={(e) => handleInputChange("tahunLahirAyah", e.target.value)} /></div>
-                <div className="space-y-2"><Label>Pendidikan</Label><Input value={formData.pendidikanAyah || ""} onChange={(e) => handleInputChange("pendidikanAyah", e.target.value)} /></div>
-                <div className="space-y-2"><Label>Penghasilan</Label><Input value={formData.penghasilanAyah || ""} onChange={(e) => handleInputChange("penghasilanAyah", e.target.value)} /></div>
+                <div className="space-y-2"><Label>Nama Lengkap</Label><Input value={formData.namaAyah || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                <div className="space-y-2"><Label>NIK</Label><Input value={formData.nikAyah || ""} placeholder="Masukkan NIK ayah" onChange={(e) => handleInputChange("nikAyah", e.target.value)} /></div>
+                <div className="space-y-2"><Label>Pekerjaan</Label><Input value={formData.pekerjaanAyah || ""} placeholder="Masukkan pekerjaan ayah" onChange={(e) => handleInputChange("pekerjaanAyah", e.target.value)} /></div>
+                <div className="space-y-2"><Label>Tahun Lahir</Label><Input type="number" value={formData.tahunLahirAyah || ""} placeholder="Contoh: 1975" onChange={(e) => handleInputChange("tahunLahirAyah", e.target.value)} /></div>
+                <div className="space-y-2"><Label>Pendidikan</Label><Input value={formData.pendidikanAyah || ""} placeholder="Masukkan pendidikan ayah" onChange={(e) => handleInputChange("pendidikanAyah", e.target.value)} /></div>
+                <div className="space-y-2"><Label>Penghasilan</Label><Input value={formData.penghasilanAyah || ""} placeholder="Masukkan penghasilan ayah" onChange={(e) => handleInputChange("penghasilanAyah", e.target.value)} /></div>
               </div>
             </div>
-
+ 
             {/* Data Ibu */}
             <div className="space-y-4 border-t border-gray-100 dark:border-white/[0.05] pt-6">
               <h5 className="flex items-center gap-2 font-semibold text-gray-800 dark:text-white/90 border-b pb-2 border-gray-100 dark:border-white/[0.05]">
@@ -778,15 +780,15 @@ const EditStudentPage: React.FC = () => {
                 Data Ibu
               </h5>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>Nama Lengkap</Label><Input value={formData.namaIbu || ""} disabled /></div>
-                <div className="space-y-2"><Label>NIK</Label><Input value={formData.nikIbu || ""} onChange={(e) => handleInputChange("nikIbu", e.target.value)} /></div>
-                <div className="space-y-2"><Label>Pekerjaan</Label><Input value={formData.pekerjaanIbu || ""} onChange={(e) => handleInputChange("pekerjaanIbu", e.target.value)} /></div>
-                <div className="space-y-2"><Label>Tahun Lahir</Label><Input type="number" value={formData.tahunLahirIbu || ""} onChange={(e) => handleInputChange("tahunLahirIbu", e.target.value)} /></div>
-                <div className="space-y-2"><Label>Pendidikan</Label><Input value={formData.pendidikanIbu || ""} onChange={(e) => handleInputChange("pendidikanIbu", e.target.value)} /></div>
-                <div className="space-y-2"><Label>Penghasilan</Label><Input value={formData.penghasilanIbu || ""} onChange={(e) => handleInputChange("penghasilanIbu", e.target.value)} /></div>
+                <div className="space-y-2"><Label>Nama Lengkap</Label><Input value={formData.namaIbu || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                <div className="space-y-2"><Label>NIK</Label><Input value={formData.nikIbu || ""} placeholder="Masukkan NIK ibu" onChange={(e) => handleInputChange("nikIbu", e.target.value)} /></div>
+                <div className="space-y-2"><Label>Pekerjaan</Label><Input value={formData.pekerjaanIbu || ""} placeholder="Masukkan pekerjaan ibu" onChange={(e) => handleInputChange("pekerjaanIbu", e.target.value)} /></div>
+                <div className="space-y-2"><Label>Tahun Lahir</Label><Input type="number" value={formData.tahunLahirIbu || ""} placeholder="Contoh: 1980" onChange={(e) => handleInputChange("tahunLahirIbu", e.target.value)} /></div>
+                <div className="space-y-2"><Label>Pendidikan</Label><Input value={formData.pendidikanIbu || ""} placeholder="Masukkan pendidikan ibu" onChange={(e) => handleInputChange("pendidikanIbu", e.target.value)} /></div>
+                <div className="space-y-2"><Label>Penghasilan</Label><Input value={formData.penghasilanIbu || ""} placeholder="Masukkan penghasilan ibu" onChange={(e) => handleInputChange("penghasilanIbu", e.target.value)} /></div>
               </div>
             </div>
-
+ 
             {/* Data Wali */}
             <div className="space-y-4 border-t border-gray-100 dark:border-white/[0.05] pt-6">
               <h5 className="flex items-center gap-2 font-semibold text-gray-800 dark:text-white/90 border-b pb-2 border-gray-100 dark:border-white/[0.05]">
@@ -796,12 +798,12 @@ const EditStudentPage: React.FC = () => {
                 Data Wali
               </h5>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>Nama Lengkap</Label><Input value={formData.namaWali || ""} onChange={(e) => handleInputChange("namaWali", e.target.value)} /></div>
-                <div className="space-y-2"><Label>NIK</Label><Input value={formData.nikWali || ""} onChange={(e) => handleInputChange("nikWali", e.target.value)} /></div>
-                <div className="space-y-2"><Label>Pekerjaan</Label><Input value={formData.pekerjaanWali || ""} onChange={(e) => handleInputChange("pekerjaanWali", e.target.value)} /></div>
-                <div className="space-y-2"><Label>Tahun Lahir</Label><Input type="number" value={formData.tahunLahirWali || ""} onChange={(e) => handleInputChange("tahunLahirWali", e.target.value)} /></div>
-                <div className="space-y-2"><Label>Pendidikan</Label><Input value={formData.pendidikanWali || ""} onChange={(e) => handleInputChange("pendidikanWali", e.target.value)} /></div>
-                <div className="space-y-2"><Label>Penghasilan</Label><Input value={formData.penghasilanWali || ""} onChange={(e) => handleInputChange("penghasilanWali", e.target.value)} /></div>
+                <div className="space-y-2"><Label>Nama Lengkap</Label><Input value={formData.namaWali || ""} placeholder="Masukkan nama lengkap wali" onChange={(e) => handleInputChange("namaWali", e.target.value)} /></div>
+                <div className="space-y-2"><Label>NIK</Label><Input value={formData.nikWali || ""} placeholder="Masukkan NIK wali" onChange={(e) => handleInputChange("nikWali", e.target.value)} /></div>
+                <div className="space-y-2"><Label>Pekerjaan</Label><Input value={formData.pekerjaanWali || ""} placeholder="Masukkan pekerjaan wali" onChange={(e) => handleInputChange("pekerjaanWali", e.target.value)} /></div>
+                <div className="space-y-2"><Label>Tahun Lahir</Label><Input type="number" value={formData.tahunLahirWali || ""} placeholder="Contoh: 1985" onChange={(e) => handleInputChange("tahunLahirWali", e.target.value)} /></div>
+                <div className="space-y-2"><Label>Pendidikan</Label><Input value={formData.pendidikanWali || ""} placeholder="Masukkan pendidikan wali" onChange={(e) => handleInputChange("pendidikanWali", e.target.value)} /></div>
+                <div className="space-y-2"><Label>Penghasilan</Label><Input value={formData.penghasilanWali || ""} placeholder="Masukkan penghasilan wali" onChange={(e) => handleInputChange("penghasilanWali", e.target.value)} /></div>
               </div>
             </div>
           </div>

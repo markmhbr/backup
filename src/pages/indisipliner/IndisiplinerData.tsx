@@ -76,7 +76,7 @@ export default function IndisiplinerData() {
 
   // Search & Filters
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterTarget, setFilterTarget] = useState(defaultTarget); // "pd" = Siswa, "gtk" = GTK
+  const [filterTarget, setFilterTarget] = useState(defaultTarget); // "pd" = Peserta Didik, "gtk" = GTK
   const [filterStatus, setFilterStatus] = useState(""); // empty = all, 1 = Draft, etc.
 
   // Pagination states
@@ -105,8 +105,6 @@ export default function IndisiplinerData() {
   
   // Create infraction form states
   const [barcode, setBarcode] = useState("");
-  const [selectedOffender, setSelectedOffender] = useState<any | null>(null);
-  const [selectedOffenderType, setSelectedOffenderType] = useState<"pd" | "gtk" | null>(null);
   const [showScanner, setShowScanner] = useState(false);
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
@@ -130,6 +128,15 @@ export default function IndisiplinerData() {
 
   // Dynamic GTK list for Pelapor/Petugas
   const [gtkList, setGtkList] = useState<any[]>([]);
+
+  // Subject Search/Select states for Indisipliner Modal
+  const [rombels, setRombels] = useState<any[]>([]);
+  const [selectedRombel, setSelectedRombel] = useState("");
+  const [students, setStudents] = useState<any[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [scannedSubjects, setScannedSubjects] = useState<Record<string, any>>({});
+  const [studentSearchText, setStudentSearchText] = useState("");
+  const [gtkSearchText, setGtkSearchText] = useState("");
 
   const fetchData = useCallback(async () => {
     if (!sekolah?.sekolah_id) return;
@@ -165,13 +172,45 @@ export default function IndisiplinerData() {
     setFilterTarget(defaultTarget);
   }, [defaultTarget]);
 
+  // Fetch rombel list when modal opens and target is student (pd)
+  useEffect(() => {
+    const loadInitialModalData = async () => {
+      if (!isPelanggaranModalOpen || !sekolah?.sekolah_id) return;
+      if (defaultTarget === "pd" && rombels.length === 0) {
+        try {
+          const rombelRes = await dapodikService.getRombonganBelajar('reguler', 100);
+          setRombels(rombelRes.data || []);
+        } catch (err) {
+          console.error("Failed to load rombel data:", err);
+        }
+      }
+    };
+    loadInitialModalData();
+  }, [isPelanggaranModalOpen, sekolah?.sekolah_id, defaultTarget]);
+
+  // Fetch students checklist when selected rombel changes
+  useEffect(() => {
+    const loadStudents = async () => {
+      if (!selectedRombel || !isPelanggaranModalOpen) {
+        setStudents([]);
+        return;
+      }
+      try {
+        const studentRes = await dapodikService.getPesertaDidik(100, '', 1, selectedRombel);
+        setStudents(studentRes.data || []);
+      } catch (err) {
+        console.error("Failed to load students:", err);
+      }
+    };
+    loadStudents();
+    setSelectedIds([]); // Clear checked selection when class changes
+  }, [selectedRombel, isPelanggaranModalOpen]);
+
   // Barcode / Qr Token lookup for offenders in violation modal
   const handleBarcodeLookup = async (tokenToLookup: string) => {
     if (!tokenToLookup.trim()) return;
     setLookupLoading(true);
     setLookupError(null);
-    setSelectedOffender(null);
-    setSelectedOffenderType(null);
 
     try {
       const response = await presensiService.lookupUser(tokenToLookup);
@@ -184,8 +223,28 @@ export default function IndisiplinerData() {
           );
           return;
         }
-        setSelectedOffender(response.data);
-        setSelectedOffenderType(response.type);
+
+        const id = response.type === 'pd' ? response.data.peserta_didik_id : response.data.ptk_id;
+        const name = response.data.nama;
+
+        // Add to scanned subjects lookup map to render name later
+        setScannedSubjects(prev => ({ ...prev, [id]: response.data }));
+        
+        // Add to selected IDs
+        setSelectedIds(prev => prev.includes(id) ? prev : [...prev, id]);
+
+        Swal.fire({
+          title: 'Terdeteksi!',
+          text: `${response.type === 'pd' ? 'Peserta Didik' : 'GTK'}: ${name} berhasil ditambahkan ke daftar pelaku.`,
+          icon: 'success',
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 2000,
+          timerProgressBar: true,
+        });
+
+        setBarcode("");
         setShowScanner(false);
       } else {
         setLookupError("Data pelaku dengan QR Token tersebut tidak ditemukan.");
@@ -238,26 +297,35 @@ export default function IndisiplinerData() {
 
   const handleCreatePelanggaran = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!sekolah?.sekolah_id || !selectedOffender || !pelanggaranForm.jenis_pelanggaran_id || !selectedOffenderType) {
+    const effectiveTarget = defaultTarget || "pd";
+    if (!sekolah?.sekolah_id || selectedIds.length === 0 || !pelanggaranForm.jenis_pelanggaran_id) {
       Swal.fire("Peringatan", "Harap tentukan pelaku dan jenis pelanggaran.", "warning");
       return;
     }
 
     try {
-      const payload = {
-        sekolah_id: sekolah.sekolah_id,
-        peserta_didik_id: selectedOffenderType === "pd" ? selectedOffender.peserta_didik_id : undefined,
-        ptk_id: selectedOffenderType === "gtk" ? selectedOffender.ptk_id : undefined,
-        jenis_pelanggaran_id: pelanggaranForm.jenis_pelanggaran_id,
-        tanggal: pelanggaranForm.tanggal,
-        waktu: new Date(pelanggaranForm.waktu).toISOString(),
-        keterangan: pelanggaranForm.keterangan,
-        status: Number(pelanggaranForm.status),
-        pelapor_ptk_id: pelanggaranForm.pelapor_ptk_id || undefined,
-      };
+      const promises = selectedIds.map((id) => {
+        const payload: any = {
+          sekolah_id: sekolah.sekolah_id,
+          jenis_pelanggaran_id: pelanggaranForm.jenis_pelanggaran_id,
+          tanggal: pelanggaranForm.tanggal,
+          waktu: new Date(pelanggaranForm.waktu).toISOString(),
+          keterangan: pelanggaranForm.keterangan,
+          status: Number(pelanggaranForm.status),
+          pelapor_ptk_id: pelanggaranForm.pelapor_ptk_id || undefined,
+        };
 
-      await indisiplinerService.createPelanggaran(payload);
-      Swal.fire("Berhasil", "Pelanggaran disiplin berhasil dicatat.", "success");
+        if (effectiveTarget === "pd") {
+          payload.peserta_didik_id = id;
+        } else if (effectiveTarget === "gtk") {
+          payload.ptk_id = id;
+        }
+
+        return indisiplinerService.createPelanggaran(payload);
+      });
+
+      await Promise.all(promises);
+      Swal.fire("Berhasil", `Pelanggaran disiplin berhasil dicatat untuk ${selectedIds.length} pelaku.`, "success");
       
       // Reset form
       setPelanggaranForm({
@@ -268,11 +336,14 @@ export default function IndisiplinerData() {
         status: 1,
         pelapor_ptk_id: "",
       });
-      setSelectedOffender(null);
-      setSelectedOffenderType(null);
+      setSelectedIds([]);
+      setScannedSubjects({});
       setBarcode("");
       setShowScanner(false);
       setLookupError(null);
+      setSelectedRombel("");
+      setStudentSearchText("");
+      setGtkSearchText("");
       setIsPelanggaranModalOpen(false);
       fetchData();
     } catch (error: any) {
@@ -395,7 +466,7 @@ export default function IndisiplinerData() {
           ? "Pengelolaan poin pelanggaran peserta didik"
           : defaultTarget === "gtk"
           ? "Pengelolaan poin pelanggaran dan pembinaan GTK"
-          : "Pengelolaan poin pelanggaran siswa dan pembinaan GTK"}
+          : "Pengelolaan poin pelanggaran peserta didik dan pembinaan GTK"}
       />
 
       <div className="space-y-6">
@@ -824,12 +895,12 @@ export default function IndisiplinerData() {
                 {summary.top_siswa.length === 0 ? (
                   <p className="text-gray-400 italic text-sm text-center py-10">Belum ada peserta didik terdeteksi melanggar</p>
                 ) : (
-                  summary.top_siswa.map((siswa, idx) => {
-                    const fotoUrl = getFotoUrl(siswa.foto, '');
+                  summary.top_siswa.map((pd, idx) => {
+                    const fotoUrl = getFotoUrl(pd.foto, '');
                     
                     return (
                       <div 
-                        key={siswa.peserta_didik_id} 
+                        key={pd.peserta_didik_id} 
                         className="flex items-center justify-between p-3.5 rounded-xl border border-gray-100 dark:border-gray-800/40 bg-gray-50/30 dark:bg-white/[0.01] hover:shadow-sm transition-all"
                       >
                         <div className="flex items-center gap-3">
@@ -838,13 +909,13 @@ export default function IndisiplinerData() {
                           </div>
                           <Avatar src={fotoUrl} size="medium" />
                           <div>
-                            <h4 className="font-bold text-gray-800 dark:text-white/90 text-sm">{siswa.nama}</h4>
-                            <p className="text-xxs text-gray-500 font-medium">NISN: {siswa.nisn} • Kelas: {siswa.rombongan_belajar || "Tanpa Kelas"}</p>
+                            <h4 className="font-bold text-gray-800 dark:text-white/90 text-sm">{pd.nama}</h4>
+                            <p className="text-xxs text-gray-500 font-medium">NISN: {pd.nisn} • Kelas: {pd.rombongan_belajar || "Tanpa Kelas"}</p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <span className="text-lg font-black text-red-500 leading-none">{siswa.total_poin}</span>
-                          <p className="text-[10px] text-gray-400 font-semibold uppercase mt-0.5">Poin ({siswa.total_pelanggaran} Kasus)</p>
+                          <span className="text-lg font-black text-red-500 leading-none">{pd.total_poin}</span>
+                          <p className="text-[10px] text-gray-400 font-semibold uppercase mt-0.5">Poin ({pd.total_pelanggaran} Kasus)</p>
                         </div>
                       </div>
                     );
@@ -977,17 +1048,20 @@ export default function IndisiplinerData() {
       {/* ===================== */}
       <Modal isOpen={isPelanggaranModalOpen} onClose={() => {
         setIsPelanggaranModalOpen(false);
-        setSelectedOffender(null);
-        setSelectedOffenderType(null);
+        setSelectedIds([]);
+        setScannedSubjects({});
         setBarcode("");
         setShowScanner(false);
         setLookupError(null);
+        setSelectedRombel("");
+        setStudentSearchText("");
+        setGtkSearchText("");
       }} className="max-w-[700px] p-6 bg-white dark:bg-gray-900 rounded-3xl">
         <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Catat Pelanggaran Disiplin Baru</h3>
         
         {/* Step 1: Scan / Cari Pelaku */}
         <div className="border-b border-gray-100 dark:border-gray-800 pb-4 mb-4">
-          <label className="block text-xs font-bold text-gray-500 mb-2 uppercase">Cari Pelaku (Scan Barcode / Token Kartu)</label>
+          <label className="block text-xs font-bold text-gray-500 mb-2 uppercase">Scan Barcode / Token Kartu</label>
           
           {showScanner ? (
             <div className="max-w-[400px] mx-auto space-y-3">
@@ -1000,7 +1074,7 @@ export default function IndisiplinerData() {
                 Batalkan Scan
               </button>
             </div>
-          ) : !selectedOffender ? (
+          ) : (
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">
                 <input
@@ -1037,35 +1111,6 @@ export default function IndisiplinerData() {
                 📷 Buka Kamera
               </button>
             </div>
-          ) : (
-            <div className="flex items-center justify-between p-3.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl">
-              <div className="flex items-center gap-3">
-                <Avatar 
-                  src={getFotoUrl(selectedOffender.foto, "")} 
-                  size="small" 
-                />
-                <div>
-                  <h4 className="text-sm font-bold text-gray-800 dark:text-white">{selectedOffender.nama}</h4>
-                  <p className="text-xxs text-gray-400 font-semibold uppercase">
-                    {selectedOffenderType === 'pd' 
-                      ? `Peserta Didik • NISN: ${selectedOffender.nisn || "-"} • Kelas: ${selectedOffender.nama_rombel || 'Tanpa Kelas'}` 
-                      : `GTK • NUPTK: ${selectedOffender.nuptk || '-'} • Jabatan: ${selectedOffender.jenis_ptk_id_str || 'Staff'}`
-                    }
-                  </p>
-                </div>
-              </div>
-              <button 
-                type="button" 
-                onClick={() => {
-                  setSelectedOffender(null);
-                  setSelectedOffenderType(null);
-                  setBarcode("");
-                }}
-                className="text-xs text-red-500 font-bold hover:underline"
-              >
-                Ganti Pelaku
-              </button>
-            </div>
           )}
           
           {lookupError && (
@@ -1073,10 +1118,194 @@ export default function IndisiplinerData() {
           )}
         </div>
 
-        {/* Step 2: Form Detail Pelanggaran, only shown if offender is selected */}
-        {!selectedOffender ? (
+        {/* Checklists for offender selection */}
+        <div className="space-y-4 mb-4">
+          {(defaultTarget || "pd") === "pd" ? (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                  Pilih Rombongan Belajar
+                </label>
+                <div className="relative">
+                  <select
+                    value={selectedRombel}
+                    onChange={(e) => setSelectedRombel(e.target.value)}
+                    className="w-full appearance-none rounded-lg border border-gray-300 bg-transparent py-3 px-4 text-sm text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white/90"
+                  >
+                    <option value="">-- Pilih Kelas --</option>
+                    {rombels.map((r) => (
+                      <option key={r.rombongan_belajar_id} value={r.nama}>
+                        {r.nama}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                  </span>
+                </div>
+              </div>
+
+              {selectedRombel && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Pilih Peserta Didik ({selectedIds.length} Terpilih)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (selectedIds.length === students.length) {
+                          setSelectedIds([]);
+                        } else {
+                          setSelectedIds(students.map(s => s.peserta_didik_id));
+                        }
+                      }}
+                      className="text-xs text-brand-500 hover:text-brand-600 font-medium cursor-pointer"
+                    >
+                      {selectedIds.length === students.length ? "Hapus Semua" : "Pilih Semua"}
+                    </button>
+                  </div>
+
+                  <div className="relative mb-2">
+                    <input
+                      type="text"
+                      placeholder="Cari nama peserta didik..."
+                      value={studentSearchText}
+                      onChange={(e) => setStudentSearchText(e.target.value)}
+                      className="w-full rounded-lg border border-gray-300 bg-transparent py-2 px-3 text-sm text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white/90"
+                    />
+                  </div>
+
+                  <div className="max-h-48 overflow-y-auto border border-gray-200 dark:border-gray-850 rounded-lg p-2.5 space-y-1.5 custom-scrollbar">
+                    {students.filter(s => s.nama.toLowerCase().includes(studentSearchText.toLowerCase())).length === 0 ? (
+                      <p className="text-sm text-gray-400 text-center py-4">Peserta Didik tidak ditemukan</p>
+                    ) : (
+                      students
+                        .filter(s => s.nama.toLowerCase().includes(studentSearchText.toLowerCase()))
+                        .map((s) => {
+                          const isChecked = selectedIds.includes(s.peserta_didik_id);
+                          return (
+                            <label key={s.peserta_didik_id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-white/[0.02] cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  if (isChecked) {
+                                    setSelectedIds(selectedIds.filter(id => id !== s.peserta_didik_id));
+                                  } else {
+                                    setSelectedIds([...selectedIds, s.peserta_didik_id]);
+                                  }
+                                }}
+                                className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                              />
+                              <div className="text-sm">
+                                <p className="font-medium text-gray-800 dark:text-white/90">{s.nama}</p>
+                                <p className="text-xs text-gray-500">{s.nisn || "-"}</p>
+                              </div>
+                            </label>
+                          );
+                        })
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Pilih GTK ({selectedIds.length} Terpilih)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (selectedIds.length === gtkList.length) {
+                      setSelectedIds([]);
+                    } else {
+                      setSelectedIds(gtkList.map(g => g.ptk_id));
+                    }
+                  }}
+                  className="text-xs text-brand-500 hover:text-brand-600 font-medium cursor-pointer"
+                >
+                  {selectedIds.length === gtkList.length ? "Hapus Semua" : "Pilih Semua"}
+                </button>
+              </div>
+
+              <div className="relative mb-2">
+                <input
+                  type="text"
+                  placeholder="Cari nama GTK..."
+                  value={gtkSearchText}
+                  onChange={(e) => setGtkSearchText(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 bg-transparent py-2 px-3 text-sm text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white/90"
+                />
+              </div>
+
+              <div className="max-h-48 overflow-y-auto border border-gray-200 dark:border-gray-850 rounded-lg p-2.5 space-y-1.5 custom-scrollbar">
+                {gtkList.filter(g => g.nama.toLowerCase().includes(gtkSearchText.toLowerCase())).length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center py-4">GTK tidak ditemukan</p>
+                ) : (
+                  gtkList
+                    .filter(g => g.nama.toLowerCase().includes(gtkSearchText.toLowerCase()))
+                    .map((g) => {
+                      const isChecked = selectedIds.includes(g.ptk_id);
+                      return (
+                        <label key={g.ptk_id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-white/[0.02] cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              if (isChecked) {
+                                setSelectedIds(selectedIds.filter(id => id !== g.ptk_id));
+                              } else {
+                                setSelectedIds([...selectedIds, g.ptk_id]);
+                              }
+                            }}
+                            className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                          />
+                          <div className="text-sm">
+                            <p className="font-medium text-gray-800 dark:text-white/90">{g.nama}</p>
+                            <p className="text-xs text-gray-500">{g.nuptk || "-"}</p>
+                          </div>
+                        </label>
+                      );
+                    })
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Selected Badges / Tag lists */}
+          {selectedIds.length > 0 && (
+            <div className="p-4 rounded-xl bg-brand-50/50 dark:bg-brand-500/5 border border-brand-100 dark:border-brand-500/10">
+              <span className="text-sm font-semibold text-brand-600 dark:text-brand-400 block mb-2">Pelaku Terpilih ({selectedIds.length}):</span>
+              <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto custom-scrollbar">
+                {selectedIds.map(id => {
+                  const name = (defaultTarget || "pd") === 'pd' 
+                    ? students.find(s => s.peserta_didik_id === id)?.nama || scannedSubjects[id]?.nama || "Peserta Didik tidak dikenal"
+                    : gtkList.find(g => g.ptk_id === id)?.nama || scannedSubjects[id]?.nama || "GTK tidak dikenal";
+                  return (
+                    <span key={id} className="flex items-center gap-1.5 text-xs bg-brand-500/15 text-brand-600 dark:text-brand-400 font-medium px-2.5 py-1 rounded-full">
+                      {name}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedIds(selectedIds.filter(x => x !== id))}
+                        className="hover:text-red-500 text-xxs font-bold focus:outline-none"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Step 2: Form Detail Pelanggaran, only shown if offenders are selected */}
+        {selectedIds.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 border border-dashed border-gray-100 dark:border-gray-800 rounded-2xl opacity-50">
-            <p className="text-xs text-gray-400 italic">Harap scan barcode atau masukkan token pelaku terlebih dahulu.</p>
+            <p className="text-xs text-gray-400 italic">Harap scan barcode atau checklist pelaku terlebih dahulu.</p>
           </div>
         ) : (
           <form onSubmit={handleCreatePelanggaran} className="space-y-5 animate-fade-in">
@@ -1091,7 +1320,7 @@ export default function IndisiplinerData() {
                 >
                   <option value="">Pilih Pelanggaran...</option>
                   {jenisPelanggaranList
-                    .filter(jp => jp.aktif && (jp.target === 2 || (selectedOffenderType === "pd" ? jp.target === 1 : jp.target === 0)))
+                    .filter(jp => jp.aktif && (jp.target === 2 || ((defaultTarget || "pd") === "pd" ? jp.target === 1 : jp.target === 0)))
                     .map(jp => (
                       <option key={jp.jenis_pelanggaran_id} value={jp.jenis_pelanggaran_id}>
                         {jp.nama} ({jp.poin} Poin)
@@ -1162,11 +1391,14 @@ export default function IndisiplinerData() {
             <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-850">
               <Button variant="outline" size="sm" type="button" onClick={() => {
                 setIsPelanggaranModalOpen(false);
-                setSelectedOffender(null);
-                setSelectedOffenderType(null);
+                setSelectedIds([]);
+                setScannedSubjects({});
                 setBarcode("");
                 setShowScanner(false);
                 setLookupError(null);
+                setSelectedRombel("");
+                setStudentSearchText("");
+                setGtkSearchText("");
               }}>Batal</Button>
               <Button variant="primary" size="sm" type="submit">Simpan Pelanggaran</Button>
             </div>
@@ -1236,7 +1468,7 @@ export default function IndisiplinerData() {
               value={tindakLanjutForm.keterangan}
               onChange={(e) => setTindakLanjutForm({ ...tindakLanjutForm, keterangan: e.target.value })}
               className="w-full rounded-lg border border-gray-300 bg-transparent py-2 px-4 text-sm text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white/90"
-              placeholder="Contoh: Siswa berjanji tidak mengulangi dan diberi pembinaan..."
+              placeholder="Contoh: Peserta Didik berjanji tidak mengulangi dan diberi pembinaan..."
             />
           </div>
 

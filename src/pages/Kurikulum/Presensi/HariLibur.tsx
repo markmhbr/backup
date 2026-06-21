@@ -3,6 +3,7 @@ import PageMeta from "../../../components/common/PageMeta";
 import { presensiService } from "../../../services/presensiService";
 import ComponentCard from "../../../components/common/ComponentCard";
 import { useSekolah } from "../../../context/SekolahContext";
+import Swal from "sweetalert2";
 
 const HariLibur: React.FC = () => {
   const { sekolah } = useSekolah();
@@ -20,7 +21,7 @@ const HariLibur: React.FC = () => {
     setLoading(true);
     try {
       const response = await presensiService.getHariLibur(sekolah.sekolah_id);
-      setHolidays(response);
+      setHolidays(response || []);
     } catch (error) {
       console.error("Gagal mengambil data hari libur:", error);
     } finally {
@@ -30,7 +31,7 @@ const HariLibur: React.FC = () => {
 
   useEffect(() => {
     fetchHolidays();
-  }, [sekolah]);
+  }, [sekolah?.sekolah_id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,7 +40,16 @@ const HariLibur: React.FC = () => {
     setLoading(true);
     try {
       await presensiService.createHariLibur(sekolah.sekolah_id, formData);
-      alert("Berhasil menambahkan hari libur!");
+      
+      Swal.fire({
+        title: 'Berhasil!',
+        text: 'Hari libur berhasil ditambahkan.',
+        icon: 'success',
+        confirmButtonColor: '#4f46e5',
+        background: document.documentElement.classList.contains('dark') ? '#1e293b' : '#ffffff',
+        color: document.documentElement.classList.contains('dark') ? '#f1f5f9' : '#1e293b',
+      });
+
       setFormData({
         nama: "",
         tanggal_mulai: new Date().toISOString().split('T')[0],
@@ -48,20 +58,60 @@ const HariLibur: React.FC = () => {
       });
       fetchHolidays();
     } catch (error: any) {
-      alert(error.response?.data?.message || "Gagal menambahkan hari libur");
+      Swal.fire({
+        title: 'Gagal!',
+        text: error.response?.data?.message || 'Gagal menambahkan hari libur.',
+        icon: 'error',
+        confirmButtonColor: '#ef4444',
+        background: document.documentElement.classList.contains('dark') ? '#1e293b' : '#ffffff',
+        color: document.documentElement.classList.contains('dark') ? '#f1f5f9' : '#1e293b',
+      });
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!sekolah || !window.confirm("Yakin ingin menghapus hari libur ini?")) return;
+    if (!sekolah) return;
 
-    try {
-      await presensiService.deleteHariLibur(sekolah.sekolah_id, id);
-      fetchHolidays();
-    } catch (error) {
-      alert("Gagal menghapus hari libur");
+    const result = await Swal.fire({
+      title: 'Apakah Anda yakin?',
+      text: 'Hari libur ini akan dihapus secara permanen!',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Ya, Hapus!',
+      cancelButtonText: 'Batal',
+      background: document.documentElement.classList.contains('dark') ? '#1e293b' : '#ffffff',
+      color: document.documentElement.classList.contains('dark') ? '#f1f5f9' : '#1e293b',
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await presensiService.deleteHariLibur(sekolah.sekolah_id, id);
+        
+        Swal.fire({
+          title: 'Terhapus!',
+          text: 'Hari libur telah dihapus.',
+          icon: 'success',
+          timer: 1500,
+          showConfirmButton: false,
+          background: document.documentElement.classList.contains('dark') ? '#1e293b' : '#ffffff',
+          color: document.documentElement.classList.contains('dark') ? '#f1f5f9' : '#1e293b',
+        });
+        
+        fetchHolidays();
+      } catch (error) {
+        Swal.fire({
+          title: 'Gagal!',
+          text: 'Gagal menghapus hari libur.',
+          icon: 'error',
+          confirmButtonColor: '#ef4444',
+          background: document.documentElement.classList.contains('dark') ? '#1e293b' : '#ffffff',
+          color: document.documentElement.classList.contains('dark') ? '#f1f5f9' : '#1e293b',
+        });
+      }
     }
   };
 
@@ -143,7 +193,7 @@ const HariLibur: React.FC = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full rounded-lg bg-brand-500 py-3 font-bold text-white hover:bg-brand-600 disabled:opacity-50 shadow-md shadow-brand-500/10 transition-all active:scale-[0.98]"
+                className="w-full rounded-lg bg-brand-500 py-3 font-bold text-white hover:bg-brand-600 disabled:opacity-50 shadow-md shadow-brand-500/10 transition-all active:scale-[0.98] cursor-pointer"
               >
                 {loading ? 'Menyimpan...' : 'Simpan Hari Libur'}
               </button>
@@ -154,38 +204,40 @@ const HariLibur: React.FC = () => {
         <div className="lg:col-span-2">
           <ComponentCard title="Daftar Hari Libur">
             <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b border-gray-100 dark:border-gray-800">
-                    <th className="pb-4 font-bold text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">Nama Libur</th>
-                    <th className="pb-4 font-bold text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">Periode</th>
-                    <th className="pb-4 font-bold text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400 text-right">Aksi</th>
+              <table className="w-full border-collapse text-left text-sm text-gray-500 dark:text-gray-400">
+                <thead className="bg-gray-50 dark:bg-white/[0.02] text-xs font-medium text-gray-500 dark:text-gray-400">
+                  <tr>
+                    <th className="px-6 py-4 font-medium">Nama Libur</th>
+                    <th className="px-6 py-4 font-medium">Periode</th>
+                    <th className="px-6 py-4 font-medium text-right">Aksi</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
                   {holidays.length === 0 ? (
                     <tr>
-                      <td colSpan={3} className="py-10 text-center text-gray-400 italic">
+                      <td colSpan={3} className="px-6 py-10 text-center text-gray-400 italic">
                         Belum ada data hari libur
                       </td>
                     </tr>
                   ) : (
                     holidays.map((h) => (
-                      <tr key={h.hari_libur_id} className="group hover:bg-gray-50 dark:hover:bg-white/[0.01] transition-colors">
-                        <td className="py-4">
-                          <p className="font-semibold text-gray-800 dark:text-white/90">{h.nama}</p>
-                          {h.keterangan && <p className="text-xs text-gray-500 mt-0.5">{h.keterangan}</p>}
+                      <tr key={h.hari_libur_id} className="hover:bg-gray-50/50 dark:hover:bg-white/[0.01] transition-colors">
+                        <td className="px-6 py-4">
+                          <span className="font-medium text-gray-800 dark:text-white/90 block mb-0.5">{h.nama}</span>
+                          {h.keterangan && <span className="text-xs text-gray-500 block mt-0.5 max-w-xs truncate">{h.keterangan}</span>}
                         </td>
-                        <td className="py-4 text-sm text-gray-600 dark:text-gray-400 font-medium">
+                        <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 font-medium whitespace-nowrap">
                           {new Date(h.tanggal_mulai).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })} - {new Date(h.tanggal_selesai).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
                         </td>
-                        <td className="py-4 text-right">
+                        <td className="px-6 py-4 text-right whitespace-nowrap">
                           <button 
+                            type="button"
                             onClick={() => handleDelete(h.hari_libur_id)}
-                            className="p-2 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
+                            className="text-xs text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 font-semibold px-2.5 py-1.5 border border-red-500/30 rounded-lg bg-red-500/5 hover:bg-red-500/10 cursor-pointer transition-colors inline-flex items-center gap-1.5"
                             title="Hapus"
                           >
-                            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            Hapus
                           </button>
                         </td>
                       </tr>
