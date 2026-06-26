@@ -34,6 +34,7 @@ export default function SchoolProfile() {
     lintang: "",
     bujur: "",
     statusSekolah: "",
+    statusKepemilikan: "",
     cadisdik_id: "",
     namaKepalaSekolah: "",
     namaOperator: "",
@@ -51,6 +52,20 @@ export default function SchoolProfile() {
     rt: "",
     rw: "",
     kodePos: "",
+  });
+
+  const [administrasiData, setAdministrasiData] = useState({
+    skPendirian: "",
+    tglSkPendirian: "",
+    yayasanId: "",
+    skIzinOperasional: "",
+    tglSkIzinOperasional: "",
+    noRekening: "",
+    namaBank: "",
+    cabangKcp: "",
+    rekeningAtasNama: "",
+    npwp: "",
+    nmWp: "",
   });
 
   const [kontakData, setKontakData] = useState<{
@@ -100,6 +115,7 @@ export default function SchoolProfile() {
             lintang: s.lintang ? String(s.lintang) : prev.lintang,
             bujur: s.bujur ? String(s.bujur) : prev.bujur,
             statusSekolah: s.status_sekolah_str || prev.statusSekolah,
+            statusKepemilikan: s.status_kepemilikan_id_str || s.status_kepemilikan || prev.statusKepemilikan,
             bentukPendidikan: s.bentuk_pendidikan_id_str || prev.bentukPendidikan,
             namaKepalaSekolah: s.nama_kepala_sekolah || prev.namaKepalaSekolah,
             namaOperator: s.nama_operator || prev.namaOperator,
@@ -117,12 +133,26 @@ export default function SchoolProfile() {
             jalan: s.alamat_jalan || prev.jalan,
             desa: s.desa_kelurahan || prev.desa,
             kecamatan: s.kecamatan || prev.kecamatan,
-            kabupaten: s.kabupaten_kota || prev.kabupaten,
-            propinsi: s.provinsi || prev.propinsi,
+            kabupaten: s.kabupaten_kota || s.kabupaten || prev.kabupaten,
+            propinsi: s.provinsi || s.propinsi || prev.propinsi,
             rt: s.rt || prev.rt,
             rw: s.rw || prev.rw,
-            kodePos: s.kode_pos || prev.kodePos,
+            kodePos: s.kode_pos || s.kodePos || prev.kodePos,
           }));
+
+          setAdministrasiData({
+            skPendirian: s.sk_pendirian_sekolah || "",
+            tglSkPendirian: s.tanggal_sk_pendirian || "",
+            yayasanId: s.yayasan_id || "",
+            skIzinOperasional: s.sk_izin_operasional || "",
+            tglSkIzinOperasional: s.tanggal_sk_izin_operasional || "",
+            noRekening: s.no_rekening || "",
+            namaBank: s.nama_bank || "",
+            cabangKcp: s.cabang_kcp_unit || "",
+            rekeningAtasNama: s.rekening_atas_nama || "",
+            npwp: s.npwp || "",
+            nmWp: s.nm_wp || "",
+          });
 
           let socialMediaRaw = s.social_media;
           let socialMediaUrls: string[] = [];
@@ -232,6 +262,7 @@ export default function SchoolProfile() {
 
   const tabs = [
     { id: "profil", label: "Profil" },
+    { id: "administrasi", label: "Administrasi" },
     { id: "alamat", label: "Alamat" },
     { id: "kontak", label: "Kontak" },
     { id: "map", label: "Map" },
@@ -299,6 +330,11 @@ export default function SchoolProfile() {
   const handleAlamatChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setAlamatData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleAdministrasiChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setAdministrasiData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleKontakChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -853,6 +889,15 @@ export default function SchoolProfile() {
                       />
                     </div>
                     <div>
+                      <Label>Status Kepemilikan</Label>
+                      <Input
+                        name="statusKepemilikan"
+                        value={profileData.statusKepemilikan}
+                        onChange={handleProfileChange}
+                        disabled
+                      />
+                    </div>
+                    <div>
                       <Label>Nama Kepala Sekolah</Label>
                       <Input
                         name="namaKepalaSekolah"
@@ -879,6 +924,122 @@ export default function SchoolProfile() {
             </div>
           )}
 
+
+          {activeTab === "administrasi" && (
+            <div className="space-y-6 tab-content">
+              <h4 className="text-md font-semibold text-gray-800 dark:text-white/90 no-print">
+                Data Administrasi & Keuangan
+              </h4>
+
+              <div className="space-y-6">
+                <div className="rounded-2xl border border-gray-200 bg-gray-50 p-6 shadow-sm dark:border-gray-800 dark:bg-white/[0.03]">
+                  <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">Legalitas</h5>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div>
+                      <Label>SK Pendirian Sekolah</Label>
+                      <Input
+                        name="skPendirian"
+                        value={administrasiData.skPendirian}
+                        onChange={handleAdministrasiChange}
+                        disabled
+                      />
+                    </div>
+                    <div>
+                      <Label>Tanggal SK Pendirian</Label>
+                      <Input
+                        name="tglSkPendirian"
+                        value={administrasiData.tglSkPendirian ? new Date(administrasiData.tglSkPendirian).toLocaleDateString('id-ID') : ""}
+                        onChange={handleAdministrasiChange}
+                        disabled
+                      />
+                    </div>
+                    <div>
+                      <Label>SK Izin Operasional</Label>
+                      <Input
+                        name="skIzinOperasional"
+                        value={administrasiData.skIzinOperasional}
+                        onChange={handleAdministrasiChange}
+                        disabled
+                      />
+                    </div>
+                    <div>
+                      <Label>Tanggal SK Izin Operasional</Label>
+                      <Input
+                        name="tglSkIzinOperasional"
+                        value={administrasiData.tglSkIzinOperasional ? new Date(administrasiData.tglSkIzinOperasional).toLocaleDateString('id-ID') : ""}
+                        onChange={handleAdministrasiChange}
+                        disabled
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-gray-200 bg-gray-50 p-6 shadow-sm dark:border-gray-800 dark:bg-white/[0.03]">
+                  <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">Perpajakan & Perbankan</h5>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div>
+                      <Label>NPWP</Label>
+                      <Input
+                        name="npwp"
+                        value={administrasiData.npwp}
+                        onChange={handleAdministrasiChange}
+                        disabled
+                      />
+                    </div>
+                    <div>
+                      <Label>Nama Wajib Pajak (NM WP)</Label>
+                      <Input
+                        name="nmWp"
+                        value={administrasiData.nmWp}
+                        onChange={handleAdministrasiChange}
+                        disabled
+                      />
+                    </div>
+                    <div>
+                      <Label>Nomor Rekening</Label>
+                      <Input
+                        name="noRekening"
+                        value={administrasiData.noRekening}
+                        onChange={handleAdministrasiChange}
+                        disabled
+                      />
+                    </div>
+                    <div>
+                      <Label>Nama Bank</Label>
+                      <Input
+                        name="namaBank"
+                        value={administrasiData.namaBank}
+                        onChange={handleAdministrasiChange}
+                        disabled
+                      />
+                    </div>
+                    <div>
+                      <Label>Cabang/KCP/Unit</Label>
+                      <Input
+                        name="cabangKcp"
+                        value={administrasiData.cabangKcp}
+                        onChange={handleAdministrasiChange}
+                        disabled
+                      />
+                    </div>
+                    <div>
+                      <Label>Rekening Atas Nama</Label>
+                      <Input
+                        name="rekeningAtasNama"
+                        value={administrasiData.rekeningAtasNama}
+                        onChange={handleAdministrasiChange}
+                        disabled
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end no-print">
+                <Button onClick={handleSave}>Simpan Perubahan</Button>
+              </div>
+            </div>
+          )}
 
           {activeTab === "alamat" && (
             <div className="space-y-6 tab-content">
