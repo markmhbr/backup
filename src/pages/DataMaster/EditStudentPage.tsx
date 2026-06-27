@@ -9,7 +9,6 @@ import Label from "../../components/form/Label";
 const Input: React.FC<InputProps> = (props) => {
   return <OriginalInput {...props} showStatusIcon={true} />;
 };
-import Select from "../../components/form/Select";
 import Swal from "sweetalert2";
 import { dapodikService } from "../../services/dapodikService";
 import { getFotoUrl } from "../../utils/image";
@@ -56,107 +55,6 @@ const EditStudentPage: React.FC = () => {
   const [uploadedDocs, setUploadedDocs] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Helper function to convert to Title Case
-  const toTitleCase = (str: string) => {
-    return str ? str.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase()) : "";
-  };
-
-  // Regional Data State
-  const [provinces, setProvinces] = useState<any[]>([]);
-  const [regencies, setRegencies] = useState<any[]>([]);
-  const [districts, setDistricts] = useState<any[]>([]);
-  const [villages, setVillages] = useState<any[]>([]);
-
-  const [selectedProvinceId, setSelectedProvinceId] = useState("");
-  const [selectedRegencyId, setSelectedRegencyId] = useState("");
-  const [selectedDistrictId, setSelectedDistrictId] = useState("");
-  const [selectedVillageId, setSelectedVillageId] = useState("");
-
-  const [banks, setBanks] = useState<any[]>([]);
-
-  // Fetch Banks
-  useEffect(() => {
-    const indonesianBanks = [
-      { value: "008", label: "Bank Mandiri" },
-      { value: "002", label: "Bank Rakyat Indonesia (BRI)" },
-      { value: "009", label: "Bank Negara Indonesia (BNI)" },
-      { value: "014", label: "Bank Central Asia (BCA)" },
-      { value: "451", label: "Bank Syariah Indonesia (BSI)" },
-      { value: "200", label: "Bank Tabungan Negara (BTN)" },
-      { value: "022", label: "Bank CIMB Niaga" },
-      { value: "013", label: "Bank Permata" },
-      { value: "011", label: "Bank Danamon" },
-      { value: "426", label: "Bank Mega" },
-      { value: "110", label: "Bank BJB" },
-      { value: "542", label: "Bank Jago" },
-      { value: "147", label: "Bank Muamalat" },
-      { value: "213", label: "Bank BTPN" },
-      { value: "028", label: "Bank OCBC NISP" },
-      { value: "019", label: "Bank Panin" },
-      { value: "441", label: "Bank Bukopin" },
-      { value: "490", label: "Bank Neo Commerce" },
-      { value: "111", label: "BPD DKI" },
-      { value: "113", label: "BPD Jateng" },
-      { value: "114", label: "BPD Jatim" }
-    ];
-    setBanks(indonesianBanks.sort((a, b) => a.label.localeCompare(b.label)));
-  }, []);
-
-  // Fetch Provinces on Mount
-  useEffect(() => {
-    fetch("https://www.emsifa.com/api-wilayah-indonesia/api/provinces.json")
-      .then(res => res.json())
-      .then(data => {
-        const formatted = data.map((p: any) => ({ value: p.id, label: toTitleCase(p.name) }));
-        setProvinces(formatted.sort((a: any, b: any) => a.label.localeCompare(b.label)));
-      });
-  }, []);
-
-  // Fetch Regencies
-  useEffect(() => {
-    if (selectedProvinceId) {
-      fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/regencies/${selectedProvinceId}.json`)
-        .then(res => res.json())
-        .then(data => {
-          const formatted = data.map((r: any) => ({ value: r.id, label: toTitleCase(r.name) }));
-          setRegencies(formatted.sort((a: any, b: any) => a.label.localeCompare(b.label)));
-        });
-    } else {
-      setRegencies([]);
-    }
-    setDistricts([]);
-    setVillages([]);
-  }, [selectedProvinceId]);
-
-  // Fetch Districts
-  useEffect(() => {
-    if (selectedRegencyId) {
-      fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/districts/${selectedRegencyId}.json`)
-        .then(res => res.json())
-        .then(data => {
-          const formatted = data.map((d: any) => ({ value: d.id, label: toTitleCase(d.name) }));
-          setDistricts(formatted.sort((a: any, b: any) => a.label.localeCompare(b.label)));
-        });
-    } else {
-      setDistricts([]);
-    }
-    setVillages([]);
-  }, [selectedRegencyId]);
-
-  // Fetch Villages
-  useEffect(() => {
-    if (selectedDistrictId) {
-      fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/villages/${selectedDistrictId}.json`)
-        .then(res => res.json())
-        .then(data => {
-          const formatted = data.map((v: any) => ({ value: v.id, label: toTitleCase(v.name) }));
-          setVillages(formatted.sort((a: any, b: any) => a.label.localeCompare(b.label)));
-        });
-    } else {
-      setVillages([]);
-    }
-  }, [selectedDistrictId]);
-
   // Fetch Data from Backend
   useEffect(() => {
     const fetchData = async () => {
@@ -179,27 +77,27 @@ const EditStudentPage: React.FC = () => {
               nik: data.nik || "",
               noKK: data.no_kk || "",
               noAkte: data.no_registrasi_akta_lahir || "",
-              kebutuhanKhusus: data.kebutuhan_khusus || "",
-              agama: data.agama_id_str || "",
-              anakKe: data.anak_keberapa || "",
+              kebutuhanKhusus: data.kebutuhan_khusus_nama || "",
+              agama: data.agama_nama || "",
+              anakKe: data.anak_keberapa !== null && data.anak_keberapa !== undefined ? String(data.anak_keberapa) : "",
               avatar: data.foto || "",
               jalan: data.alamat_jalan || "",
               rt: format3Digits(data.rt),
               rw: format3Digits(data.rw),
               provinsi: data.provinsi || "",
-              kabupaten: data.kabupaten_kota || "",
+              kabupaten: data.kabupaten || data.kabupaten_kota || "",
               kecamatan: data.kecamatan || "",
               desaKelurahan: data.desa_kelurahan || "",
               kodePos: data.kode_pos || "",
-              tempatTinggal: data.jenis_tinggal_id_str || "",
-              transportasi: data.alat_transportasi_id_str || "",
+              jenisTinggal: data.jenis_tinggal_nama || "",
+              alatTransportasi: data.alat_transportasi_nama || "",
               lintang: data.lintang ? String(data.lintang) : "",
               bujur: data.bujur ? String(data.bujur) : "",
-              penerimaKIP: data.penerima_kip || "",
-              layakKIP: data.layak_pip || "",
-              penerimaKPS: data.penerima_kps || "",
+              penerimaKIP: data.penerima_kip === "1" || data.penerima_kip === 1 || data.penerima_kip === true ? "Ya" : "Tidak",
+              layakKIP: data.layak_pip === "1" || data.layak_pip === 1 || data.layak_pip === true ? "Ya" : "Tidak",
+              penerimaKPS: data.penerima_kps === "1" || data.penerima_kps === 1 || data.penerima_kps === true ? "Ya" : "Tidak",
 
-              idBank: data.id_bank || "",
+              idBank: data.bank_nama || "",
               rekeningBank: data.rekening_bank || "",
               namaKCP: data.nama_kcp || "",
               rekeningAtasNama: data.rekening_atas_nama || "",
@@ -209,78 +107,41 @@ const EditStudentPage: React.FC = () => {
               noWa: data.no_wa || "",
               emailAktif: data.email || "",
               emailAkun: data.penggunas?.[0]?.email || "",
-              tinggiBadan: data.tinggi_badan || "",
-              beratBadan: data.berat_badan || "",
-              lingkarKepala: data.lingkar_kepala || "",
+              tinggiBadan: data.tinggi_badan !== null && data.tinggi_badan !== undefined ? String(data.tinggi_badan) : "",
+              beratBadan: data.berat_badan !== null && data.berat_badan !== undefined ? String(data.berat_badan) : "",
+              lingkarKepala: data.lingkar_kepala !== null && data.lingkar_kepala !== undefined ? String(data.lingkar_kepala) : "",
+              jarakRumah: data.jarak_rumah_ke_sekolah !== null && data.jarak_rumah_ke_sekolah !== undefined ? String(data.jarak_rumah_ke_sekolah) : "",
+              jarakRumahKm: data.jarak_rumah_ke_sekolah_km !== null && data.jarak_rumah_ke_sekolah_km !== undefined ? String(data.jarak_rumah_ke_sekolah_km) : "",
+              waktuTempuh: data.waktu_tempuh_ke_sekolah !== null && data.waktu_tempuh_ke_sekolah !== undefined ? String(data.waktu_tempuh_ke_sekolah) : "",
+              menitTempuh: data.menit_tempuh_ke_sekolah !== null && data.menit_tempuh_ke_sekolah !== undefined ? String(data.menit_tempuh_ke_sekolah) : "",
+              jumlahSaudara: data.jumlah_saudara_kandung !== null && data.jumlah_saudara_kandung !== undefined ? String(data.jumlah_saudara_kandung) : "",
               
               // Ayah
               namaAyah: data.nama_ayah || "",
               nikAyah: data.nik_ayah || "",
-              pekerjaanAyah: data.pekerjaan_ayah_id_str || "",
-              tahunLahirAyah: data.tahun_lahir_ayah || "",
-              pendidikanAyah: data.pendidikan_ayah_id_str || "",
-              penghasilanAyah: data.penghasilan_ayah_id_str || "",
+              pekerjaanAyah: data.pekerjaan_ayah_nama || "",
+              tahunLahirAyah: data.tahun_lahir_ayah !== null && data.tahun_lahir_ayah !== undefined ? String(data.tahun_lahir_ayah) : "",
+              jenjangPendidikanAyah: data.jenjang_pendidikan_ayah_nama || "",
+              penghasilanAyah: data.penghasilan_ayah_nama || "",
               
               // Ibu
               namaIbu: data.nama_ibu_kandung || data.nama_ibu || "",
               nikIbu: data.nik_ibu || "",
-              pekerjaanIbu: data.pekerjaan_ibu_id_str || "",
-              tahunLahirIbu: data.tahun_lahir_ibu || "",
-              pendidikanIbu: data.pendidikan_ibu_id_str || "",
-              penghasilanIbu: data.penghasilan_ibu_id_str || "",
+              pekerjaanIbu: data.pekerjaan_ibu_nama || "",
+              tahunLahirIbu: data.tahun_lahir_ibu !== null && data.tahun_lahir_ibu !== undefined ? String(data.tahun_lahir_ibu) : "",
+              jenjangPendidikanIbu: data.jenjang_pendidikan_ibu_nama || "",
+              penghasilanIbu: data.penghasilan_ibu_nama || "",
               
               // Wali
               namaWali: data.nama_wali || "",
               nikWali: data.nik_wali || "",
-              pekerjaanWali: data.pekerjaan_wali_id_str || "",
-              tahunLahirWali: data.tahun_lahir_wali || "",
-              pendidikanWali: data.pendidikan_wali_id_str || "",
-              penghasilanWali: data.penghasilan_wali_id_str || "",
+              pekerjaanWali: data.pekerjaan_wali_nama || "",
+              tahunLahirWali: data.tahun_lahir_wali !== null && data.tahun_lahir_wali !== undefined ? String(data.tahun_lahir_wali) : "",
+              jenjangPendidikanWali: data.jenjang_pendidikan_wali_nama || "",
+              penghasilanWali: data.penghasilan_wali_nama || "",
             });
 
-            // Pre-populate regional data names to their matching EMSIFA IDs
-            try {
-              const provRes = await fetch("https://www.emsifa.com/api-wilayah-indonesia/api/provinces.json");
-              const provData = await provRes.json();
-              const formattedProvinces = provData.map((p: any) => ({ value: p.id, label: toTitleCase(p.name) }));
-              
-              const matchedProv = formattedProvinces.find((p: any) => p.label.toLowerCase() === (data.provinsi || '').toLowerCase());
-              if (matchedProv) {
-                setSelectedProvinceId(matchedProv.value);
-                
-                const regRes = await fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/regencies/${matchedProv.value}.json`);
-                const regData = await regRes.json();
-                const formattedRegencies = regData.map((r: any) => ({ value: r.id, label: toTitleCase(r.name) }));
-                setRegencies(formattedRegencies);
-                
-                const matchedReg = formattedRegencies.find((r: any) => r.label.toLowerCase() === (data.kabupaten_kota || '').toLowerCase());
-                if (matchedReg) {
-                  setSelectedRegencyId(matchedReg.value);
-                  
-                  const distRes = await fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/districts/${matchedReg.value}.json`);
-                  const distData = await distRes.json();
-                  const formattedDistricts = distData.map((d: any) => ({ value: d.id, label: toTitleCase(d.name) }));
-                  setDistricts(formattedDistricts);
-                  
-                  const matchedDist = formattedDistricts.find((d: any) => d.label.toLowerCase() === (data.kecamatan || '').toLowerCase());
-                  if (matchedDist) {
-                    setSelectedDistrictId(matchedDist.value);
-                    
-                    const vilRes = await fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/villages/${matchedDist.value}.json`);
-                    const vilData = await vilRes.json();
-                    const formattedVillages = vilData.map((v: any) => ({ value: v.id, label: toTitleCase(v.name) }));
-                    setVillages(formattedVillages);
-                    
-                    const matchedVil = formattedVillages.find((v: any) => v.label.toLowerCase() === (data.desa_kelurahan || '').toLowerCase());
-                    if (matchedVil) {
-                      setSelectedVillageId(matchedVil.value);
-                    }
-                  }
-                }
-              }
-            } catch (regError) {
-              console.error("Gagal memetakan data wilayah:", regError);
-            }
+            // Regional data is directly populated to formData above and rendered as disabled Input. No mapping needed.
           }
         } catch (error) {
           Swal.fire("Error", "Gagal mengambil data peserta didik", "error");
@@ -322,114 +183,6 @@ const EditStudentPage: React.FC = () => {
       }
     }
   };
-
-  const handleSave = async () => {
-    if (!id) return;
-
-    if (formData.noKK && formData.noKK.length !== 16) {
-      Swal.fire({
-        title: "Validasi Gagal",
-        text: "Nomor Kartu Keluarga (KK) harus tepat 16 digit.",
-        icon: "error",
-        confirmButtonColor: "#465FFF"
-      });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const updatePayload = {
-        nama: formData.nama,
-        tempat_lahir: formData.tempatLahir,
-        tanggal_lahir: formData.tanggalLahir ? new Date(formData.tanggalLahir) : null,
-        jenis_kelamin: formData.jk,
-        nisn: formData.nisn,
-        nipd: formData.nipd,
-        nik: formData.nik,
-        no_kk: formData.noKK,
-        no_registrasi_akta_lahir: formData.noAkte,
-        kebutuhan_khusus: formData.kebutuhanKhusus,
-        agama_id_str: formData.agama,
-        anak_keberapa: formData.anakKe ? String(formData.anakKe) : null,
-        foto: formData.avatar,
-        alamat_jalan: formData.jalan,
-        rt: sanitizeRtRw(formData.rt),
-        rw: sanitizeRtRw(formData.rw),
-        provinsi: formData.provinsi,
-        kabupaten_kota: formData.kabupaten,
-        kecamatan: formData.kecamatan,
-        desa_kelurahan: formData.desaKelurahan,
-        kode_pos: formData.kodePos,
-        jenis_tinggal_id_str: formData.tempatTinggal,
-        alat_transportasi_id_str: formData.transportasi,
-        lintang: formData.lintang ? formData.lintang : null,
-        bujur: formData.bujur ? formData.bujur : null,
-        penerima_kip: formData.penerimaKIP,
-        layak_pip: formData.layakKIP,
-        penerima_kps: formData.penerimaKPS,
-        
-        id_bank: formData.idBank,
-        rekening_bank: formData.rekeningBank,
-        nama_kcp: formData.namaKCP,
-        rekening_atas_nama: formData.rekeningAtasNama,
-
-        nomor_telepon_rumah: formData.noTelpRumah,
-        nomor_telepon_seluler: formData.noHp,
-        no_wa: formData.noWa,
-        email: formData.emailAktif,
-        email_akun: formData.emailAkun,
-        tinggi_badan: formData.tinggiBadan ? String(formData.tinggiBadan) : null,
-        berat_badan: formData.beratBadan ? String(formData.beratBadan) : null,
-        lingkar_kepala: formData.lingkarKepala ? Number(formData.lingkarKepala) : null,
-        
-        // Ayah
-        nama_ayah: formData.namaAyah,
-        nik_ayah: formData.nikAyah,
-        pekerjaan_ayah_id_str: formData.pekerjaanAyah,
-        tahun_lahir_ayah: formData.tahunLahirAyah ? String(formData.tahunLahirAyah) : null,
-        pendidikan_ayah_id_str: formData.pendidikanAyah,
-        penghasilan_ayah_id_str: formData.penghasilanAyah,
-        
-        // Ibu
-        nama_ibu_kandung: formData.namaIbu,
-        nama_ibu: formData.namaIbu,
-        nik_ibu: formData.nikIbu,
-        pekerjaan_ibu_id_str: formData.pekerjaanIbu,
-        tahun_lahir_ibu: formData.tahunLahirIbu ? String(formData.tahunLahirIbu) : null,
-        pendidikan_ibu_id_str: formData.pendidikanIbu,
-        penghasilan_ibu_id_str: formData.penghasilanIbu,
-        
-        // Wali
-        nama_wali: formData.namaWali,
-        nik_wali: formData.nikWali,
-        pekerjaan_wali_id_str: formData.pekerjaanWali,
-        tahun_lahir_wali: formData.tahunLahirWali ? String(formData.tahunLahirWali) : null,
-        pendidikan_wali_id_str: formData.pendidikanWali,
-        penghasilan_wali_id_str: formData.penghasilanWali,
-      };
-
-      await dapodikService.updatePesertaDidik(id, updatePayload);
-      Swal.fire({
-        title: "Berhasil",
-        text: "Data Berhasil disimpan",
-        icon: "success",
-        confirmButtonColor: "#465FFF",
-      });
-      navigate(`/${role}/student-data`);
-    } catch (error) {
-      Swal.fire("Error", "Gagal menyimpan data", "error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const studentDocTypes = [
-    { name: "Ijazah Sekolah Asal", key: "ijazah_sekolah_asal" },
-    { name: "Kartu Keluarga", key: "kartu_keluarga" },
-    { name: "Akta Kelahiran", key: "akta_kelahiran" },
-    { name: "KTP Ayah", key: "ktp_ayah" },
-    { name: "KTP Ibu", key: "ktp_ibu" },
-  ];
 
   const handleUploadDoc = async (docName: string, file: File | undefined) => {
     if (!file || !id) return;
@@ -493,6 +246,121 @@ const EditStudentPage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  const handleSave = async () => {
+    if (!id) return;
+
+    if (formData.noKK && formData.noKK.length !== 16) {
+      Swal.fire({
+        title: "Validasi Gagal",
+        text: "Nomor Kartu Keluarga (KK) harus tepat 16 digit.",
+        icon: "error",
+        confirmButtonColor: "#465FFF"
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const updatePayload = {
+        nama: formData.nama,
+        tempat_lahir: formData.tempatLahir,
+        tanggal_lahir: formData.tanggalLahir ? new Date(formData.tanggalLahir) : null,
+        jenis_kelamin: formData.jk,
+        nisn: formData.nisn,
+        nipd: formData.nipd,
+        nik: formData.nik,
+        no_kk: formData.noKK,
+        no_registrasi_akta_lahir: formData.noAkte,
+        kebutuhan_khusus_id: formData.kebutuhan_khusus_id || null,
+        agama_id: formData.agama_id || null,
+        anak_keberapa: formData.anakKe ? String(formData.anakKe) : null,
+        foto: formData.avatar,
+        alamat_jalan: formData.jalan,
+        rt: sanitizeRtRw(formData.rt),
+        rw: sanitizeRtRw(formData.rw),
+        provinsi: formData.provinsi,
+        kabupaten_kota: formData.kabupaten,
+        kecamatan: formData.kecamatan,
+        desa_kelurahan: formData.desaKelurahan,
+        kode_pos: formData.kodePos,
+        jenis_tinggal_id: formData.jenis_tinggal_id || null,
+        alat_transportasi_id: formData.alat_transportasi_id || null,
+        lintang: formData.lintang ? formData.lintang : null,
+        bujur: formData.bujur ? formData.bujur : null,
+        penerima_kip: formData.penerimaKIP,
+        layak_pip: formData.layakKIP,
+        penerima_kps: formData.penerimaKPS,
+        
+        id_bank: formData.idBank,
+        rekening_bank: formData.rekeningBank,
+        nama_kcp: formData.namaKCP,
+        rekening_atas_nama: formData.rekeningAtasNama,
+
+        nomor_telepon_rumah: formData.noTelpRumah,
+        nomor_telepon_seluler: formData.noHp,
+        no_wa: formData.noWa,
+        email: formData.emailAktif,
+        email_akun: formData.emailAkun,
+        tinggi_badan: formData.tinggiBadan ? String(formData.tinggiBadan) : null,
+        berat_badan: formData.beratBadan ? String(formData.beratBadan) : null,
+        lingkar_kepala: formData.lingkarKepala ? Number(formData.lingkarKepala) : null,
+        jarak_rumah_ke_sekolah: formData.jarakRumah ? Number(formData.jarakRumah) : null,
+        jarak_rumah_ke_sekolah_km: formData.jarakRumahKm ? Number(formData.jarakRumahKm) : null,
+        waktu_tempuh_ke_sekolah: formData.waktuTempuh ? Number(formData.waktuTempuh) : null,
+        menit_tempuh_ke_sekolah: formData.menitTempuh ? Number(formData.menitTempuh) : null,
+        jumlah_saudara_kandung: formData.jumlahSaudara ? Number(formData.jumlahSaudara) : null,
+        
+        // Ayah
+        nama_ayah: formData.namaAyah,
+        nik_ayah: formData.nikAyah,
+        pekerjaan_id_ayah: formData.pekerjaan_id_ayah || null,
+        tahun_lahir_ayah: formData.tahunLahirAyah ? String(formData.tahunLahirAyah) : null,
+        jenjang_pendidikan_ayah: formData.jenjang_pendidikan_ayah || null,
+        penghasilan_id_ayah: formData.penghasilan_id_ayah || null,
+        
+        // Ibu
+        nama_ibu_kandung: formData.namaIbu,
+        nama_ibu: formData.namaIbu,
+        nik_ibu: formData.nikIbu,
+        pekerjaan_id_ibu: formData.pekerjaan_id_ibu || null,
+        tahun_lahir_ibu: formData.tahunLahirIbu ? String(formData.tahunLahirIbu) : null,
+        jenjang_pendidikan_ibu: formData.jenjang_pendidikan_ibu || null,
+        penghasilan_id_ibu: formData.penghasilan_id_ibu || null,
+        
+        // Wali
+        nama_wali: formData.namaWali,
+        nik_wali: formData.nikWali,
+        pekerjaan_id_wali: formData.pekerjaan_id_wali || null,
+        tahun_lahir_wali: formData.tahunLahirWali ? String(formData.tahunLahirWali) : null,
+        jenjang_pendidikan_wali: formData.jenjang_pendidikan_wali || null,
+        penghasilan_id_wali: formData.penghasilan_id_wali || null,
+      };
+
+      await dapodikService.updatePesertaDidik(id, updatePayload);
+      Swal.fire({
+        title: "Berhasil",
+        text: "Data Berhasil disimpan",
+        icon: "success",
+        confirmButtonColor: "#465FFF",
+      });
+      navigate(`/${role}/student-data`);
+    } catch (error) {
+      Swal.fire("Error", "Gagal menyimpan data", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const studentDocTypes = [
+    { name: "Ijazah Sekolah Asal", key: "ijazah_sekolah_asal" },
+    { name: "Kartu Keluarga", key: "kartu_keluarga" },
+    { name: "Akta Kelahiran", key: "akta_kelahiran" },
+    { name: "KTP Ayah", key: "ktp_ayah" },
+    { name: "KTP Ibu", key: "ktp_ibu" },
+  ];
+
+
 
   return (
     <>
@@ -563,7 +431,7 @@ const EditStudentPage: React.FC = () => {
         <div className="space-y-6">
           
           {/* Card 1: Profil */}
-          {activeTab === "profil" && (
+          <div style={{ display: activeTab === "profil" ? "block" : "none" }}>
             <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6">
             <div className="border-b border-gray-100 dark:border-white/[0.05] pb-3">
               <h4 className="text-lg font-bold text-gray-800 dark:text-white/90">
@@ -618,11 +486,17 @@ const EditStudentPage: React.FC = () => {
                     <div className="space-y-2"><Label>NISN</Label><Input value={formData.nisn || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                     <div className="space-y-2"><Label>NIPD</Label><Input value={formData.nipd || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                     <div className="space-y-2"><Label>NIK</Label><Input value={formData.nik || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                    <div className="space-y-2"><Label>No. Kartu Keluarga</Label><Input value={formData.noKK || ""} placeholder="Nomor KK harus 16 digit" maxLength={16} onChange={(e) => handleInputChange("noKK", e.target.value.replace(/\D/g, ''))} /></div>
-                    <div className="space-y-2"><Label>No. Register Akte Lahir</Label><Input value={formData.noAkte || ""} placeholder="Masukkan nomor register akta lahir" onChange={(e) => handleInputChange("noAkte", e.target.value)} /></div>
-                    <div className="space-y-2"><Label>Berkebutuhan Khusus</Label><Input value={formData.kebutuhanKhusus || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                    <div className="space-y-2"><Label>Agama</Label><Input value={formData.agama || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                    <div className="space-y-2"><Label>Anak ke-</Label><Input type="number" value={formData.anakKe || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                    <div className="space-y-2"><Label>No. Kartu Keluarga</Label><Input value={formData.noKK || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                    <div className="space-y-2"><Label>No. Register Akte Lahir</Label><Input value={formData.noAkte || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                     <div className="space-y-2">
+                        <Label>Berkebutuhan Khusus</Label>
+                        <Input value={formData.kebutuhanKhusus || ""} disabled placeholder="Data kosong dari Dapodik" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Agama</Label>
+                        <Input value={formData.agama || ""} disabled placeholder="Data kosong dari Dapodik" />
+                      </div>
+                     <div className="space-y-2"><Label>Anak ke-</Label><Input type="number" value={formData.anakKe || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                   </div>
                 </div>
  
@@ -639,32 +513,28 @@ const EditStudentPage: React.FC = () => {
                     <div className="space-y-2"><Label>Jalan atau Kampung</Label><Input value={formData.jalan || ""} placeholder="Masukkan jalan atau kampung" disabled /></div>
                     <div className="space-y-2">
                       <Label>RT</Label>
-                      <Input 
-                        value={formData.rt || ""} 
-                        placeholder="000"
-                        onChange={(e) => handleInputChange("rt", e.target.value.replace(/\D/g, ''))} 
-                        onBlur={() => handleInputChange("rt", format3Digits(formData.rt))}
-                      />
+                      <Input value={formData.rt || ""} disabled placeholder="Data kosong dari Dapodik" />
                     </div>
                     <div className="space-y-2">
                       <Label>RW</Label>
-                      <Input 
-                        value={formData.rw || ""} 
-                        placeholder="000"
-                        onChange={(e) => handleInputChange("rw", e.target.value.replace(/\D/g, ''))} 
-                        onBlur={() => handleInputChange("rw", format3Digits(formData.rw))}
-                      />
+                      <Input value={formData.rw || ""} disabled placeholder="Data kosong dari Dapodik" />
                     </div>
-                    <div className="space-y-2"><Label>Provinsi</Label><Select placeholder="Pilih Provinsi" options={provinces} value={selectedProvinceId} onChange={(val) => {setSelectedProvinceId(val); handleInputChange("provinsi", provinces.find(p=>p.value===val)?.label || ""); }} /></div>
-                    <div className="space-y-2"><Label>Kab./Kota</Label><Select placeholder="Pilih Kab/Kota" options={regencies} value={selectedRegencyId} disabled={!selectedProvinceId} onChange={(val) => {setSelectedRegencyId(val); handleInputChange("kabupaten", regencies.find(r=>r.value===val)?.label || ""); }} /></div>
-                    <div className="space-y-2"><Label>Kecamatan</Label><Select placeholder="Pilih Kecamatan" options={districts} value={selectedDistrictId} disabled={!selectedRegencyId} onChange={(val) => {setSelectedDistrictId(val); handleInputChange("kecamatan", districts.find(d=>d.value===val)?.label || ""); }} /></div>
-                    <div className="space-y-2"><Label>Desa/Kelurahan</Label><Select placeholder="Pilih Desa/Kelurahan" options={villages} value={selectedVillageId} disabled={!selectedDistrictId} onChange={(val) => { setSelectedVillageId(val); handleInputChange("desaKelurahan", villages.find(v=>v.value===val)?.label || ""); }} /></div>
-                    <div className="space-y-2"><Label>Kode Pos</Label><Input value={formData.kodePos || ""} placeholder="Masukkan kode pos" onChange={(e) => handleInputChange("kodePos", e.target.value)} /></div>
-                    <div className="space-y-2"><Label>Tempat Tinggal</Label><Input value={formData.tempatTinggal || ""} placeholder="Masukkan tempat tinggal" onChange={(e) => handleInputChange("tempatTinggal", e.target.value)} /></div>
-                    <div className="space-y-2"><Label>Transportasi</Label><Input value={formData.transportasi || ""} placeholder="Masukkan alat transportasi" onChange={(e) => handleInputChange("transportasi", e.target.value)} /></div>
-                    <div className="col-span-full grid grid-cols-2 gap-4">
-                      <div className="space-y-2"><Label>Lintang</Label><Input value={formData.lintang || ""} placeholder="Contoh: -6.200000" onChange={(e) => handleInputChange("lintang", e.target.value)} /></div>
-                      <div className="space-y-2"><Label>Bujur</Label><Input value={formData.bujur || ""} placeholder="Contoh: 106.816666" onChange={(e) => handleInputChange("bujur", e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Provinsi</Label><Input value={formData.provinsi || ""} disabled placeholder="Data kosong dari Dapodik" /></div>
+                    <div className="space-y-2"><Label>Kab./Kota</Label><Input value={formData.kabupaten || ""} disabled placeholder="Data kosong dari Dapodik" /></div>
+                    <div className="space-y-2"><Label>Kecamatan</Label><Input value={formData.kecamatan || ""} disabled placeholder="Data kosong dari Dapodik" /></div>
+                    <div className="space-y-2"><Label>Desa/Kelurahan</Label><Input value={formData.desaKelurahan || ""} disabled placeholder="Data kosong dari Dapodik" /></div>
+                    <div className="space-y-2"><Label>Kode Pos</Label><Input value={formData.kodePos || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                     <div className="space-y-2">
+                       <Label>Tempat Tinggal</Label>
+                       <Input value={formData.jenisTinggal || ""} disabled placeholder="Data kosong dari Dapodik" />
+                     </div>
+                     <div className="space-y-2">
+                       <Label>Transportasi</Label>
+                       <Input value={formData.alatTransportasi || ""} disabled placeholder="Data kosong dari Dapodik" />
+                     </div>
+                     <div className="col-span-full grid grid-cols-2 gap-4">
+                      <div className="space-y-2"><Label>Lintang</Label><Input value={formData.lintang || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                      <div className="space-y-2"><Label>Bujur</Label><Input value={formData.bujur || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                     </div>
                   </div>
                 </div>
@@ -678,10 +548,10 @@ const EditStudentPage: React.FC = () => {
                     Kontak
                   </h5>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2"><Label>No. Telp. Rumah</Label><Input value={formData.noTelpRumah || ""} placeholder="Contoh: 022-123456" onChange={(e) => handleInputChange("noTelpRumah", e.target.value)} /></div>
+                    <div className="space-y-2"><Label>No. Telp. Rumah</Label><Input value={formData.noTelpRumah || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                     <div className="space-y-2"><Label>No. Handphone</Label><Input value={formData.noHp || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                    <div className="space-y-2"><Label>No. Whatsapp</Label><Input value={formData.noWa || ""} placeholder="0812XXXXXXXX" onChange={(e) => handleInputChange("noWa", e.target.value)} /></div>
-                    <div className="space-y-2"><Label>Email Aktif</Label><Input type="email" value={formData.emailAktif || ""} placeholder="nama@email.com" onChange={(e) => handleInputChange("emailAktif", e.target.value)} /></div>
+                    <div className="space-y-2"><Label>No. Whatsapp <span className="text-red-500">*</span></Label><Input value={formData.noWa || ""} placeholder="0812XXXXXXXX" onChange={(e) => handleInputChange("noWa", e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Email Aktif <span className="text-red-500">*</span></Label><Input type="email" value={formData.emailAktif || ""} placeholder="nama@email.com" onChange={(e) => handleInputChange("emailAktif", e.target.value)} /></div>
                     <div className="space-y-2"><Label>Email Akun</Label><Input type="email" value={formData.emailAkun || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                   </div>
                 </div>
@@ -695,30 +565,34 @@ const EditStudentPage: React.FC = () => {
                     Kesejahteraan & Bank
                   </h5>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2"><Label>Penerima KIP</Label><Input value={formData.penerimaKIP || ""} placeholder="Masukkan status penerima KIP" onChange={(e) => handleInputChange("penerimaKIP", e.target.value)} /></div>
-                    <div className="space-y-2"><Label>Layak PIP</Label><Input value={formData.layakKIP || ""} placeholder="Masukkan status kelayakan PIP" onChange={(e) => handleInputChange("layakKIP", e.target.value)} /></div>
-                    <div className="space-y-2"><Label>Penerima KPS/PKH</Label><Input value={formData.penerimaKPS || ""} placeholder="Masukkan status penerima KPS/PKH" onChange={(e) => handleInputChange("penerimaKPS", e.target.value)} /></div>
-                    <div className="space-y-2">
-                      <Label>Nama Bank</Label>
-                      <Select 
-                        placeholder="Pilih Bank"
-                        options={banks}
-                        value={formData.idBank || ""}
-                        onChange={(val) => handleInputChange("idBank", val)}
-                      />
-                    </div>
-                    <div className="space-y-2"><Label>No. Rekening Bank</Label><Input value={formData.rekeningBank || ""} placeholder="Nomor rekening bank" onChange={(e) => handleInputChange("rekeningBank", e.target.value)} /></div>
-                    <div className="space-y-2"><Label>Cabang Bank (KCP)</Label><Input value={formData.namaKCP || ""} placeholder="Nama cabang bank" onChange={(e) => handleInputChange("namaKCP", e.target.value)} /></div>
-                    <div className="space-y-2"><Label>Rekening Atas Nama</Label><Input value={formData.rekeningAtasNama || ""} placeholder="Nama pemilik rekening" onChange={(e) => handleInputChange("rekeningAtasNama", e.target.value)} /></div>
+                     <div className="space-y-2">
+                       <Label>Penerima KIP</Label>
+                       <Input value={formData.penerimaKIP || ""} disabled placeholder="Data kosong dari Dapodik" />
+                     </div>
+                     <div className="space-y-2">
+                       <Label>Layak PIP</Label>
+                       <Input value={formData.layakKIP || ""} disabled placeholder="Data kosong dari Dapodik" />
+                     </div>
+                     <div className="space-y-2">
+                       <Label>Penerima KPS/PKH</Label>
+                       <Input value={formData.penerimaKPS || ""} disabled placeholder="Data kosong dari Dapodik" />
+                     </div>
+                     <div className="space-y-2">
+                       <Label>Nama Bank</Label>
+                       <Input value={formData.idBank || ""} disabled placeholder="Data kosong dari Dapodik" />
+                     </div>
+                     <div className="space-y-2"><Label>No. Rekening Bank</Label><Input value={formData.rekeningBank || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                     <div className="space-y-2"><Label>Cabang Bank (KCP)</Label><Input value={formData.namaKCP || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                     <div className="space-y-2"><Label>Rekening Atas Nama</Label><Input value={formData.rekeningAtasNama || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-          )}
+          </div>
 
           {/* Card 2: Data Periodik */}
-          {activeTab === "periodik" && (
+          <div style={{ display: activeTab === "periodik" ? "block" : "none" }}>
             <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6">
             <div className="border-b border-gray-100 dark:border-white/[0.05] pb-3">
               <h4 className="text-lg font-bold text-gray-800 dark:text-white/90">
@@ -735,17 +609,22 @@ const EditStudentPage: React.FC = () => {
                   Data Fisik
                 </h5>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2"><Label>Tinggi Badan (cm)</Label><Input type="number" value={formData.tinggiBadan || ""} placeholder="Contoh: 160" onChange={(e) => handleInputChange("tinggiBadan", e.target.value)} /></div>
-                  <div className="space-y-2"><Label>Berat Badan (kg)</Label><Input type="number" value={formData.beratBadan || ""} placeholder="Contoh: 50" onChange={(e) => handleInputChange("beratBadan", e.target.value)} /></div>
-                  <div className="space-y-2"><Label>Lingkar Kepala (cm)</Label><Input type="number" value={formData.lingkarKepala || ""} placeholder="Contoh: 55" onChange={(e) => handleInputChange("lingkarKepala", e.target.value)} /></div>
+                  <div className="space-y-2"><Label>Tinggi Badan (cm)</Label><Input type="number" value={formData.tinggiBadan || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                  <div className="space-y-2"><Label>Berat Badan (kg)</Label><Input type="number" value={formData.beratBadan || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                  <div className="space-y-2"><Label>Lingkar Kepala (cm)</Label><Input type="number" value={formData.lingkarKepala || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                  <div className="space-y-2"><Label>Jarak Rumah ke Sekolah (m)</Label><Input type="number" value={formData.jarakRumah || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                  <div className="space-y-2"><Label>Jarak Rumah ke Sekolah (km)</Label><Input type="number" value={formData.jarakRumahKm || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                  <div className="space-y-2"><Label>Waktu Tempuh (jam/menit)</Label><Input type="number" value={formData.waktuTempuh || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                  <div className="space-y-2"><Label>Menit Tempuh (menit)</Label><Input type="number" value={formData.menitTempuh || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                  <div className="space-y-2"><Label>Jumlah Saudara Kandung</Label><Input type="number" value={formData.jumlahSaudara || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                 </div>
               </div>
             </div>
           </div>
-          )}
+          </div>
 
           {/* Card 3: Orang Tua & Wali */}
-          {activeTab === "orangtua" && (
+          <div style={{ display: activeTab === "orangtua" ? "block" : "none" }}>
             <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-8">
             <div className="border-b border-gray-100 dark:border-white/[0.05] pb-3">
               <h4 className="text-lg font-bold text-gray-800 dark:text-white/90">
@@ -763,11 +642,20 @@ const EditStudentPage: React.FC = () => {
               </h5>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2"><Label>Nama Lengkap</Label><Input value={formData.namaAyah || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                <div className="space-y-2"><Label>NIK</Label><Input value={formData.nikAyah || ""} placeholder="Masukkan NIK ayah" onChange={(e) => handleInputChange("nikAyah", e.target.value)} /></div>
-                <div className="space-y-2"><Label>Pekerjaan</Label><Input value={formData.pekerjaanAyah || ""} placeholder="Masukkan pekerjaan ayah" onChange={(e) => handleInputChange("pekerjaanAyah", e.target.value)} /></div>
-                <div className="space-y-2"><Label>Tahun Lahir</Label><Input type="number" value={formData.tahunLahirAyah || ""} placeholder="Contoh: 1975" onChange={(e) => handleInputChange("tahunLahirAyah", e.target.value)} /></div>
-                <div className="space-y-2"><Label>Pendidikan</Label><Input value={formData.pendidikanAyah || ""} placeholder="Masukkan pendidikan ayah" onChange={(e) => handleInputChange("pendidikanAyah", e.target.value)} /></div>
-                <div className="space-y-2"><Label>Penghasilan</Label><Input value={formData.penghasilanAyah || ""} placeholder="Masukkan penghasilan ayah" onChange={(e) => handleInputChange("penghasilanAyah", e.target.value)} /></div>
+                <div className="space-y-2"><Label>NIK</Label><Input value={formData.nikAyah || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                <div className="space-y-2">
+                   <Label>Pekerjaan</Label>
+                   <Input value={formData.pekerjaanAyah || ""} disabled placeholder="Data kosong dari Dapodik" />
+                 </div>
+                 <div className="space-y-2"><Label>Tahun Lahir</Label><Input type="number" value={formData.tahunLahirAyah || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                 <div className="space-y-2">
+                   <Label>Pendidikan</Label>
+                   <Input value={formData.jenjangPendidikanAyah || ""} disabled placeholder="Data kosong dari Dapodik" />
+                 </div>
+                 <div className="space-y-2">
+                   <Label>Penghasilan</Label>
+                   <Input value={formData.penghasilanAyah || ""} disabled placeholder="Data kosong dari Dapodik" />
+                 </div>
               </div>
             </div>
  
@@ -781,11 +669,20 @@ const EditStudentPage: React.FC = () => {
               </h5>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2"><Label>Nama Lengkap</Label><Input value={formData.namaIbu || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                <div className="space-y-2"><Label>NIK</Label><Input value={formData.nikIbu || ""} placeholder="Masukkan NIK ibu" onChange={(e) => handleInputChange("nikIbu", e.target.value)} /></div>
-                <div className="space-y-2"><Label>Pekerjaan</Label><Input value={formData.pekerjaanIbu || ""} placeholder="Masukkan pekerjaan ibu" onChange={(e) => handleInputChange("pekerjaanIbu", e.target.value)} /></div>
-                <div className="space-y-2"><Label>Tahun Lahir</Label><Input type="number" value={formData.tahunLahirIbu || ""} placeholder="Contoh: 1980" onChange={(e) => handleInputChange("tahunLahirIbu", e.target.value)} /></div>
-                <div className="space-y-2"><Label>Pendidikan</Label><Input value={formData.pendidikanIbu || ""} placeholder="Masukkan pendidikan ibu" onChange={(e) => handleInputChange("pendidikanIbu", e.target.value)} /></div>
-                <div className="space-y-2"><Label>Penghasilan</Label><Input value={formData.penghasilanIbu || ""} placeholder="Masukkan penghasilan ibu" onChange={(e) => handleInputChange("penghasilanIbu", e.target.value)} /></div>
+                <div className="space-y-2"><Label>NIK</Label><Input value={formData.nikIbu || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                <div className="space-y-2">
+                   <Label>Pekerjaan</Label>
+                   <Input value={formData.pekerjaanIbu || ""} disabled placeholder="Data kosong dari Dapodik" />
+                 </div>
+                 <div className="space-y-2"><Label>Tahun Lahir</Label><Input type="number" value={formData.tahunLahirIbu || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                 <div className="space-y-2">
+                   <Label>Pendidikan</Label>
+                   <Input value={formData.jenjangPendidikanIbu || ""} disabled placeholder="Data kosong dari Dapodik" />
+                 </div>
+                 <div className="space-y-2">
+                   <Label>Penghasilan</Label>
+                   <Input value={formData.penghasilanIbu || ""} disabled placeholder="Data kosong dari Dapodik" />
+                 </div>
               </div>
             </div>
  
@@ -798,19 +695,28 @@ const EditStudentPage: React.FC = () => {
                 Data Wali
               </h5>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>Nama Lengkap</Label><Input value={formData.namaWali || ""} placeholder="Masukkan nama lengkap wali" onChange={(e) => handleInputChange("namaWali", e.target.value)} /></div>
-                <div className="space-y-2"><Label>NIK</Label><Input value={formData.nikWali || ""} placeholder="Masukkan NIK wali" onChange={(e) => handleInputChange("nikWali", e.target.value)} /></div>
-                <div className="space-y-2"><Label>Pekerjaan</Label><Input value={formData.pekerjaanWali || ""} placeholder="Masukkan pekerjaan wali" onChange={(e) => handleInputChange("pekerjaanWali", e.target.value)} /></div>
-                <div className="space-y-2"><Label>Tahun Lahir</Label><Input type="number" value={formData.tahunLahirWali || ""} placeholder="Contoh: 1985" onChange={(e) => handleInputChange("tahunLahirWali", e.target.value)} /></div>
-                <div className="space-y-2"><Label>Pendidikan</Label><Input value={formData.pendidikanWali || ""} placeholder="Masukkan pendidikan wali" onChange={(e) => handleInputChange("pendidikanWali", e.target.value)} /></div>
-                <div className="space-y-2"><Label>Penghasilan</Label><Input value={formData.penghasilanWali || ""} placeholder="Masukkan penghasilan wali" onChange={(e) => handleInputChange("penghasilanWali", e.target.value)} /></div>
+                <div className="space-y-2"><Label>Nama Lengkap</Label><Input value={formData.namaWali || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                <div className="space-y-2"><Label>NIK</Label><Input value={formData.nikWali || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                <div className="space-y-2">
+                   <Label>Pekerjaan</Label>
+                   <Input value={formData.pekerjaanWali || ""} disabled placeholder="Data kosong dari Dapodik" />
+                 </div>
+                 <div className="space-y-2"><Label>Tahun Lahir</Label><Input type="number" value={formData.tahunLahirWali || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                 <div className="space-y-2">
+                   <Label>Pendidikan</Label>
+                   <Input value={formData.jenjangPendidikanWali || ""} disabled placeholder="Data kosong dari Dapodik" />
+                 </div>
+                 <div className="space-y-2">
+                   <Label>Penghasilan</Label>
+                   <Input value={formData.penghasilanWali || ""} disabled placeholder="Data kosong dari Dapodik" />
+                 </div>
               </div>
             </div>
           </div>
-          )}
+          </div>
 
           {/* Card 4: Dokumen */}
-          {activeTab === "dokumen" && (
+          <div style={{ display: activeTab === "dokumen" ? "block" : "none" }}>
             <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6">
             <div className="border-b border-gray-100 dark:border-white/[0.05] pb-3">
               <h4 className="text-lg font-bold text-gray-800 dark:text-white/90">
@@ -859,7 +765,7 @@ const EditStudentPage: React.FC = () => {
               })}
             </div>
           </div>
-          )}
+          </div>
 
         </div>
 

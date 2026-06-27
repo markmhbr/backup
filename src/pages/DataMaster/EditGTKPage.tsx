@@ -9,7 +9,6 @@ import Label from "../../components/form/Label";
 const Input: React.FC<InputProps> = (props) => {
   return <OriginalInput {...props} showStatusIcon={true} />;
 };
-import Select from "../../components/form/Select";
 import Switch from "../../components/form/switch/Switch";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "../../components/ui/table";
 import { Modal } from "../../components/ui/modal";
@@ -70,115 +69,12 @@ const EditGTKPage: React.FC = () => {
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
   const [tempCoords, setTempCoords] = useState<{lat: string, lng: string} | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
   // Document Upload State
   const [docName, setDocName] = useState("");
   const [docFile, setDocFile] = useState<File | null>(null);
   const [pendingDocs, setPendingDocs] = useState<any[]>([]); 
   const docFileInputRef = useRef<HTMLInputElement>(null);
-
-  // Regional Data State
-  const [provinces, setProvinces] = useState<any[]>([]);
-  const [regencies, setRegencies] = useState<any[]>([]);
-  const [districts, setDistricts] = useState<any[]>([]);
-  const [villages, setVillages] = useState<any[]>([]);
-  const [banks, setBanks] = useState<any[]>([]);
-
-  const [selectedProvinceId, setSelectedProvinceId] = useState("");
-  const [selectedRegencyId, setSelectedRegencyId] = useState("");
-  const [selectedDistrictId, setSelectedDistrictId] = useState("");
-  const [selectedVillageId, setSelectedVillageId] = useState("");
-
   const [errors, setErrors] = useState<any>({});
-
-  // Helper function to convert to Title Case
-  const toTitleCase = (str: string) => {
-    return str ? str.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase()) : "";
-  };
-
-  // Fetch Provinces on Mount
-  useEffect(() => {
-    fetch("https://www.emsifa.com/api-wilayah-indonesia/api/provinces.json")
-      .then(res => res.json())
-      .then(data => {
-        const formatted = data.map((p: any) => ({ value: p.id, label: toTitleCase(p.name) }));
-        setProvinces(formatted.sort((a: any, b: any) => a.label.localeCompare(b.label)));
-      });
-  }, []);
-
-  // Fetch Regencies
-  useEffect(() => {
-    if (selectedProvinceId) {
-      fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/regencies/${selectedProvinceId}.json`)
-        .then(res => res.json())
-        .then(data => {
-          const formatted = data.map((r: any) => ({ value: r.id, label: toTitleCase(r.name) }));
-          setRegencies(formatted.sort((a: any, b: any) => a.label.localeCompare(b.label)));
-        });
-    } else {
-      setRegencies([]);
-    }
-    setDistricts([]);
-    setVillages([]);
-  }, [selectedProvinceId]);
-
-  // Fetch Districts
-  useEffect(() => {
-    if (selectedRegencyId) {
-      fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/districts/${selectedRegencyId}.json`)
-        .then(res => res.json())
-        .then(data => {
-          const formatted = data.map((d: any) => ({ value: d.id, label: toTitleCase(d.name) }));
-          setDistricts(formatted.sort((a: any, b: any) => a.label.localeCompare(b.label)));
-        });
-    } else {
-      setDistricts([]);
-    }
-    setVillages([]);
-  }, [selectedRegencyId]);
-
-  // Fetch Villages
-  useEffect(() => {
-    if (selectedDistrictId) {
-      fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/villages/${selectedDistrictId}.json`)
-        .then(res => res.json())
-        .then(data => {
-          const formatted = data.map((v: any) => ({ value: v.id, label: toTitleCase(v.name) }));
-          setVillages(formatted.sort((a: any, b: any) => a.label.localeCompare(b.label)));
-        });
-    } else {
-      setVillages([]);
-    }
-  }, [selectedDistrictId]);
-
-  // Fetch Banks
-  useEffect(() => {
-    const indonesianBanks = [
-      { value: "008", label: "Bank Mandiri" },
-      { value: "002", label: "Bank Rakyat Indonesia (BRI)" },
-      { value: "009", label: "Bank Negara Indonesia (BNI)" },
-      { value: "014", label: "Bank Central Asia (BCA)" },
-      { value: "451", label: "Bank Syariah Indonesia (BSI)" },
-      { value: "200", label: "Bank Tabungan Negara (BTN)" },
-      { value: "022", label: "Bank CIMB Niaga" },
-      { value: "013", label: "Bank Permata" },
-      { value: "011", label: "Bank Danamon" },
-      { value: "426", label: "Bank Mega" },
-      { value: "110", label: "Bank BJB" },
-      { value: "542", label: "Bank Jago" },
-      { value: "147", label: "Bank Muamalat" },
-      { value: "213", label: "Bank BTPN" },
-      { value: "028", label: "Bank OCBC NISP" },
-      { value: "019", label: "Bank Panin" },
-      { value: "441", label: "Bank Bukopin" },
-      { value: "490", label: "Bank Neo Commerce" },
-      { value: "111", label: "BPD DKI" },
-      { value: "113", label: "BPD Jateng" },
-      { value: "114", label: "BPD Jatim" }
-    ];
-    setBanks(indonesianBanks.sort((a, b) => a.label.localeCompare(b.label)));
-  }, []);
-
   // Fetch Data from Backend
   useEffect(() => {
     const fetchData = async () => {
@@ -204,39 +100,44 @@ const EditGTKPage: React.FC = () => {
               tempatLahir: data.tempat_lahir || "",
               tanggalLahir: data.tanggal_lahir ? data.tanggal_lahir.split('T')[0] : "",
               ibuKandung: data.nama_ibu_kandung || "",
-              agama: data.agama_id_str || "",
+              agama: data.agama_nama || "",
               kewarganegaraan: data.kewarganegaraan || "ID",
-              statusPerkawinan: data.status_perkawinan || "",
+              statusPerkawinan: data.status_perkawinan === "1" || data.status_perkawinan === 1 ? "Ya" : "Tidak",
               namaPasangan: data.nama_suami_istri || "",
-              pekerjaanPasangan: data.pekerjaan_suami_istri || "",
+              pekerjaanPasangan: data.pekerjaan_suami_istri_nama || "",
               namaWajibPajak: data.nama_wajib_pajak || "",
               npwp: data.npwp || "",
               
               kampungJalan: data.alamat_jalan || "",
               rt: format3Digits(data.rt),
               rw: format3Digits(data.rw),
-              dusun: data.dusun || "",
+              dusun: data.nama_dusun || "",
               provinsi: data.provinsi || "",
-              kotaKabupaten: data.kabupaten_kota || "",
+              kotaKabupaten: data.kabupaten || data.kabupaten_kota || "",
               kecamatan: data.kecamatan || "",
               desaKelurahan: data.desa_kelurahan || "",
               kodePos: data.kode_pos || "",
               lintang: data.lintang ? String(data.lintang) : "",
               bujur: data.bujur ? String(data.bujur) : "",
               
-              jenisPTK: data.jenis_ptk_id_str || "",
-              jabatanPTK: data.jabatan_ptk_id_str || "",
-              statusInduk: data.ptk_induk === "1" ? "Ya" : data.ptk_induk === "0" ? "Tidak" : data.ptk_induk || "",
+              jenisPtk: data.jenis_ptk_nama || "",
+              jabatanPtk: data.jabatan_ptk_nama || "",
+              ptkInduk: data.ptk_induk_str || "",
               skPengangkatan: data.sk_pengangkatan || "",
               tmtPengangkatan: data.tmt_pengangkatan ? data.tmt_pengangkatan.split('T')[0] : "",
-              lembagaPengangkat: data.lembaga_pengangkat || "",
+              lembagaPengangkat: data.lembaga_pengangkat_nama || "",
               skCpns: data.sk_cpns || "",
               tmtCpns: data.tmt_cpns ? data.tmt_cpns.split('T')[0] : "",
               tmtPns: data.tmt_pns ? data.tmt_pns.split('T')[0] : "",
-              pangkatTerakhir: data.pangkat_golongan_terakhir || "",
-              sumberGaji: data.sumber_gaji || "",
+              pangkatTerakhir: data.pangkat_golongan_nama || "",
+              sumberGaji: data.sumber_gaji_nama || "",
               
-              riwayatKepangkatan: data.rwy_kepangkatan ? (typeof data.rwy_kepangkatan === 'string' ? JSON.parse(data.rwy_kepangkatan) : data.rwy_kepangkatan) : [],
+              riwayatKepangkatan: data.rwy_kepangkatan ? data.rwy_kepangkatan.map((k: any) => ({
+                gol: k.pangkat_golongan_nama || k.pangkat || "-",
+                nomorSk: k.nomor_sk || "",
+                tmt: k.tmt_pangkat ? k.tmt_pangkat.split('T')[0] : (k.tmt_golongan ? k.tmt_golongan.split('T')[0] : "-"),
+                masaKerja: k.masa_kerja_gol_tahun !== undefined ? `${k.masa_kerja_gol_tahun || 0}th ${k.masa_kerja_gol_bulan || 0}bln` : (k.masaKerja || `${k.masa_kerja_tahun || 0}th ${k.masa_kerja_bulan || 0}bln`),
+              })) : [],
               
               pendidikanTerakhir: data.pendidikan_terakhir || "",
               bidangStudi: data.bidang_studi_terakhir || "",
@@ -246,10 +147,10 @@ const EditGTKPage: React.FC = () => {
               
               lisensiKepsek: data.lisensi_kepsek ? "Ya" : "Tidak",
               nuk: data.nuks || "",
-              keahlianLab: data.keahlian_laboratorium || "",
-              kebutuhanKhusus: data.mampu_menangani_kebutuhan_khusus || "",
-              keahlianBraille: data.keahlian_braille ? "Ya" : "Tidak",
-              bahasaIsyarat: data.keahlian_bahasa_isyarat ? "Ya" : "Tidak",
+              keahlianLab: data.keahlian_laboratorium_nama || "",
+              kebutuhanKhusus: data.kebutuhan_khusus_nama || "",
+              keahlianBraille: data.keahlian_braille_str || "",
+              bahasaIsyarat: data.keahlian_bhs_isyarat_str || "",
               
               noTelpRumah: data.no_telepon_rumah || "",
               noHp: data.no_hp || "",
@@ -258,9 +159,9 @@ const EditGTKPage: React.FC = () => {
               idTelegram: data.qr_token || "",
               
               riwayatSertifikasi: data.rwy_sertifikasi ? data.rwy_sertifikasi.map((s: any) => ({
-                lembagaSertifikasi: s.lemb_sertifikasi?.nm_lemb_sert || s.kode_lemb_sert || "",
-                bidangStudi: s.bidang_studi?.bidang_studi || s.bidang_studi_id_str || "",
-                jenisSertifikasi: s.id_jenis_sertifikasi || "",
+                lembagaSertifikasi: s.lembaga_sertifikasi_nama || s.kode_lemb_sert || "",
+                bidangStudi: s.bidang_studi_nama || s.bidang_studi_id_str || "",
+                jenisSertifikasi: s.jenis_sertifikasi_nama || s.id_jenis_sertifikasi || "",
                 tglBerlaku: s.tgl_sert ? s.tgl_sert.split('T')[0] : "",
                 tglHabisBerlaku: s.tgl_exp_sert ? s.tgl_exp_sert.split('T')[0] : "",
                 noSertifikasi: s.nomor_sertifikat || "",
@@ -271,55 +172,11 @@ const EditGTKPage: React.FC = () => {
               memilikiSertifikasi: data.rwy_sertifikasi && data.rwy_sertifikasi.length > 0 ? "Ya" : "Tidak",
               avatar: data.foto || "",
               
-              namaBank: data.id_bank || "",
+              namaBank: data.bank_nama || "",
               cabangBank: data.nama_kcp || "",
               noRekening: data.rekening_bank || "",
               atasNamaRekening: data.rekening_atas_nama || "",
             });
-
-            // Pre-populate regional data names to their matching EMSIFA IDs
-            try {
-              const provRes = await fetch("https://www.emsifa.com/api-wilayah-indonesia/api/provinces.json");
-              const provData = await provRes.json();
-              const formattedProvinces = provData.map((p: any) => ({ value: p.id, label: toTitleCase(p.name) }));
-              
-              const matchedProv = formattedProvinces.find((p: any) => p.label.toLowerCase() === (data.provinsi || '').toLowerCase());
-              if (matchedProv) {
-                setSelectedProvinceId(matchedProv.value);
-                
-                const regRes = await fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/regencies/${matchedProv.value}.json`);
-                const regData = await regRes.json();
-                const formattedRegencies = regData.map((r: any) => ({ value: r.id, label: toTitleCase(r.name) }));
-                setRegencies(formattedRegencies);
-                
-                const matchedReg = formattedRegencies.find((r: any) => r.label.toLowerCase() === (data.kabupaten_kota || '').toLowerCase());
-                if (matchedReg) {
-                  setSelectedRegencyId(matchedReg.value);
-                  
-                  const distRes = await fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/districts/${matchedReg.value}.json`);
-                  const distData = await distRes.json();
-                  const formattedDistricts = distData.map((d: any) => ({ value: d.id, label: toTitleCase(d.name) }));
-                  setDistricts(formattedDistricts);
-                  
-                  const matchedDist = formattedDistricts.find((d: any) => d.label.toLowerCase() === (data.kecamatan || '').toLowerCase());
-                  if (matchedDist) {
-                    setSelectedDistrictId(matchedDist.value);
-                    
-                    const vilRes = await fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/villages/${matchedDist.value}.json`);
-                    const vilData = await vilRes.json();
-                    const formattedVillages = vilData.map((v: any) => ({ value: v.id, label: toTitleCase(v.name) }));
-                    setVillages(formattedVillages);
-                    
-                    const matchedVil = formattedVillages.find((v: any) => v.label.toLowerCase() === (data.desa_kelurahan || '').toLowerCase());
-                    if (matchedVil) {
-                      setSelectedVillageId(matchedVil.value);
-                    }
-                  }
-                }
-              }
-            } catch (regError) {
-              console.error("Gagal memetakan data wilayah:", regError);
-            }
           }
         } catch (error) {
           Swal.fire("Error", "Gagal mengambil data GTK", "error");
@@ -627,18 +484,18 @@ const EditGTKPage: React.FC = () => {
         tempat_lahir: formData.tempatLahir,
         tanggal_lahir: formData.tanggalLahir ? new Date(formData.tanggalLahir) : null,
         nama_ibu_kandung: formData.ibuKandung,
-        agama_id_str: formData.agama,
+        agama_id: formData.agama_id || null,
         kewarganegaraan: formData.kewarganegaraan,
         status_perkawinan: formData.statusPerkawinan,
         nama_suami_istri: formData.namaPasangan,
-        pekerjaan_suami_istri: formData.pekerjaanPasangan,
+        pekerjaan_suami_istri: formData.pekerjaan_suami_istri || null,
         nama_wajib_pajak: formData.namaWajibPajak,
         npwp: formData.npwp,
         
         alamat_jalan: formData.kampungJalan,
         rt: sanitizeRtRw(formData.rt),
         rw: sanitizeRtRw(formData.rw),
-        dusun: formData.dusun,
+        nama_dusun: formData.dusun,
         provinsi: formData.provinsi,
         kabupaten_kota: formData.kotaKabupaten,
         kecamatan: formData.kecamatan,
@@ -647,27 +504,27 @@ const EditGTKPage: React.FC = () => {
         lintang: formData.lintang ? formData.lintang : null,
         bujur: formData.bujur ? formData.bujur : null,
         
-        jenis_ptk_id_str: formData.jenisPTK,
-        jabatan_ptk_id_str: formData.jabatanPTK,
-        ptk_induk: formData.statusInduk === "Ya" ? "1" : formData.statusInduk === "Tidak" ? "0" : formData.statusInduk,
+        jenis_ptk_id: formData.jenis_ptk_id || null,
+        jabatan_ptk_id: formData.jabatan_ptk_id || null,
+        ptk_induk: formData.ptk_induk || null,
         sk_pengangkatan: formData.skPengangkatan,
         tmt_pengangkatan: formData.tmtPengangkatan ? new Date(formData.tmtPengangkatan) : null,
-        lembaga_pengangkat: formData.lembagaPengangkat,
+        lembaga_pengangkat_id: formData.lembaga_pengangkat_id || null,
         sk_cpns: formData.skCpns,
         tmt_cpns: formData.tmtCpns ? new Date(formData.tmtCpns) : null,
         tmt_pns: formData.tmtPns ? new Date(formData.tmtPns) : null,
-        pangkat_golongan_terakhir: formData.pangkatTerakhir,
-        sumber_gaji: formData.sumberGaji,
+        pangkat_golongan_id: formData.pangkat_golongan_id || null,
+        sumber_gaji_id: formData.sumber_gaji_id || null,
         
         pendidikan_terakhir: formData.pendidikanTerakhir,
         bidang_studi_terakhir: formData.bidangStudi,
         
         lisensi_kepsek: formData.lisensiKepsek === "Ya",
         nuks: formData.nuk,
-        keahlian_laboratorium: formData.keahlianLab,
-        mampu_menangani_kebutuhan_khusus: formData.kebutuhanKhusus,
-        keahlian_braille: formData.keahlianBraille === "Ya",
-        keahlian_bahasa_isyarat: formData.bahasaIsyarat === "Ya",
+        keahlian_laboratorium_id: formData.keahlian_laboratorium_id || null,
+        kebutuhan_khusus_id: formData.kebutuhan_khusus_id || null,
+        keahlian_braille: formData.keahlian_braille || null,
+        keahlian_bahasa_isyarat: formData.keahlian_bahasa_isyarat || null,
 
         no_telepon_rumah: formData.noTelpRumah,
         no_hp: formData.noHp,
@@ -838,30 +695,40 @@ const EditGTKPage: React.FC = () => {
                   <div className="space-y-2"><Label>Jenis Kelamin</Label><Input value={formData.jk === "L" ? "Laki-laki" : formData.jk === "P" ? "Perempuan" : formData.jk || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                   <div className="space-y-2"><Label>Tempat Lahir</Label><Input value={formData.tempatLahir || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                   <div className="space-y-2"><Label>Tanggal Lahir</Label><Input type="date" value={formData.tanggalLahir || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                  <div className="space-y-2"><Label>Nama Ibu Kandung</Label><Input value={formData.ibuKandung || ""} placeholder="Masukkan nama ibu kandung" onChange={(e) => handleInputChange("ibuKandung", e.target.value)} /></div>
-                  <div className="space-y-2"><Label>Agama</Label><Input value={formData.agama || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                  <div className="space-y-2"><Label>Kewarganegaraan</Label><Input value={formData.kewarganegaraan || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                  <div className="space-y-2"><Label>Status Perkawinan</Label><Input value={formData.statusPerkawinan || ""} placeholder="Masukkan status perkawinan" onChange={(e) => handleInputChange("statusPerkawinan", e.target.value)} /></div>
-                  <div className="space-y-2"><Label>Nama Pasangan</Label><Input value={formData.namaPasangan || ""} placeholder="Masukkan nama pasangan" onChange={(e) => handleInputChange("namaPasangan", e.target.value)} /></div>
-                  <div className="space-y-2"><Label>Pekerjaan Pasangan</Label><Input value={formData.pekerjaanPasangan || ""} placeholder="Masukkan pekerjaan pasangan" onChange={(e) => handleInputChange("pekerjaanPasangan", e.target.value)} /></div>
-                  <div className="space-y-2">
-                    <Label>Nama Wajib Pajak <span className="text-red-500">*</span></Label>
-                    <Input 
-                      error={errors.namaWajibPajak} 
-                      value={formData.namaWajibPajak || ""} 
-                      placeholder="Masukkan nama wajib pajak"
-                      onChange={(e) => handleInputChange("namaWajibPajak", e.target.value)} 
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>NPWP <span className="text-red-500">*</span></Label>
-                    <Input 
-                      error={errors.npwp} 
-                      value={formData.npwp || ""} 
-                      placeholder="Masukkan NPWP"
-                      onChange={(e) => handleInputChange("npwp", e.target.value)} 
-                    />
-                  </div>
+                     <div className="space-y-2">
+                       <Label>Agama</Label>
+                       <Input value={formData.agama || ""} disabled placeholder="Data kosong dari Dapodik" />
+                     </div>
+                     <div className="space-y-2"><Label>Kewarganegaraan</Label><Input value={formData.kewarganegaraan || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                     <div className="space-y-2">
+                       <Label>Status Perkawinan</Label>
+                       <Input value={formData.statusPerkawinan || ""} disabled placeholder="Data kosong dari Dapodik" />
+                     </div>
+                     <div className="space-y-2"><Label>Nama Pasangan</Label><Input value={formData.namaPasangan || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                     <div className="space-y-2">
+                       <Label>Pekerjaan Pasangan</Label>
+                       <Input value={formData.pekerjaanPasangan || ""} disabled placeholder="Data kosong dari Dapodik" />
+                     </div>
+                   <div className="space-y-2">
+                     <Label>Nama Wajib Pajak <span className="text-red-500">*</span></Label>
+                     <Input 
+                       error={errors.namaWajibPajak} 
+                       value={formData.namaWajibPajak || ""} 
+                       placeholder="Masukkan nama wajib pajak"
+                       onChange={(e) => handleInputChange("namaWajibPajak", e.target.value)} 
+                       disabled
+                     />
+                   </div>
+                   <div className="space-y-2">
+                     <Label>NPWP <span className="text-red-500">*</span></Label>
+                     <Input 
+                       error={errors.npwp} 
+                       value={formData.npwp || ""} 
+                       placeholder="Masukkan NPWP"
+                       onChange={(e) => handleInputChange("npwp", e.target.value)} 
+                       disabled
+                     />
+                   </div>
               </div>
             </div>
           </div>
@@ -876,66 +743,71 @@ const EditGTKPage: React.FC = () => {
               </h4>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Kampung/Jalan</Label><Input value={formData.kampungJalan || ""} placeholder="Masukkan kampung atau jalan" onChange={(e) => handleInputChange("kampungJalan", e.target.value)} /></div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>RT</Label>
-                  <Input 
-                    value={formData.rt || ""} 
-                    placeholder="000"
-                    onChange={(e) => handleInputChange("rt", e.target.value.replace(/\D/g, ''))} 
-                    onBlur={() => handleInputChange("rt", format3Digits(formData.rt))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>RW</Label>
-                  <Input 
-                    value={formData.rw || ""} 
-                    placeholder="000"
-                    onChange={(e) => handleInputChange("rw", e.target.value.replace(/\D/g, ''))} 
-                    onBlur={() => handleInputChange("rw", format3Digits(formData.rw))}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2"><Label>Dusun</Label><Input value={formData.dusun || ""} placeholder="Masukkan dusun" onChange={(e) => handleInputChange("dusun", e.target.value)} /></div>
-              <div className="space-y-2"><Label>Provinsi</Label><Select placeholder="Pilih Provinsi" options={provinces} value={selectedProvinceId} onChange={(val) => {setSelectedProvinceId(val); handleInputChange("provinsi", provinces.find(p=>p.value===val)?.label || ""); }} /></div>
-              <div className="space-y-2"><Label>Kab./Kota</Label><Select placeholder="Pilih Kab/Kota" options={regencies} value={selectedRegencyId} disabled={!selectedProvinceId} onChange={(val) => {setSelectedRegencyId(val); handleInputChange("kotaKabupaten", regencies.find(r=>r.value===val)?.label || ""); }} /></div>
-              <div className="space-y-2"><Label>Kecamatan</Label><Select placeholder="Pilih Kecamatan" options={districts} value={selectedDistrictId} disabled={!selectedRegencyId} onChange={(val) => {setSelectedDistrictId(val); handleInputChange("kecamatan", districts.find(d=>d.value===val)?.label || ""); }} /></div>
-              <div className="space-y-2"><Label>Desa/Kelurahan</Label><Select placeholder="Pilih Desa/Kelurahan" options={villages} value={selectedVillageId} disabled={!selectedDistrictId} onChange={(val) => { setSelectedVillageId(val); handleInputChange("desaKelurahan", villages.find(v=>v.value===val)?.label || ""); }} /></div>
-              <div className="space-y-2"><Label>Kode Pos</Label><Input value={formData.kodePos || ""} placeholder="Masukkan kode pos" onChange={(e) => handleInputChange("kodePos", e.target.value)} /></div>
-              <div className="space-y-2">
-                <Label>Lintang <span className="text-red-500">*</span></Label>
-                <Input 
-                  error={errors.lintang}
-                  value={formData.lintang || ""} 
-                  placeholder="Contoh: -6.200000"
-                  onChange={(e) => handleInputChange("lintang", e.target.value)} 
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Bujur <span className="text-red-500">*</span></Label>
-                <Input 
-                  error={errors.bujur}
-                  value={formData.bujur || ""} 
-                  placeholder="Contoh: 106.816666"
-                  onChange={(e) => handleInputChange("bujur", e.target.value)} 
-                />
-              </div>
-              <div className="col-span-full pt-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="border-success-500 text-success-600 hover:bg-success-50 dark:hover:bg-success-950/20" 
-                  onClick={handleCheckCoordinates}
-                >
-                  <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.4 2.4a1 1 0 01-1.4-1.1V6a1 1 0 01.6-1L9 3l6 2.4 5.4-2.4a1 1 0 011.4 1.1V18a1 1 0 01-.6 1L15 21l-6-2.4zM9 3v17m6-17v17" />
-                  </svg>
-                  Cek Koordinat / Cari Alamat
-                </Button>
-              </div>
-            </div>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <div className="space-y-2"><Label>Kampung/Jalan</Label><Input value={formData.kampungJalan || ""} placeholder="Masukkan kampung atau jalan" onChange={(e) => handleInputChange("kampungJalan", e.target.value)} disabled /></div>
+               <div className="grid grid-cols-2 gap-4">
+                 <div className="space-y-2">
+                   <Label>RT</Label>
+                   <Input 
+                     value={formData.rt || ""} 
+                     placeholder="000"
+                     onChange={(e) => handleInputChange("rt", e.target.value.replace(/\D/g, ''))} 
+                     onBlur={() => handleInputChange("rt", format3Digits(formData.rt))}
+                     disabled
+                   />
+                 </div>
+                 <div className="space-y-2">
+                   <Label>RW</Label>
+                   <Input 
+                     value={formData.rw || ""} 
+                     placeholder="000"
+                     onChange={(e) => handleInputChange("rw", e.target.value.replace(/\D/g, ''))} 
+                     onBlur={() => handleInputChange("rw", format3Digits(formData.rw))}
+                     disabled
+                   />
+                 </div>
+               </div>
+               <div className="space-y-2"><Label>Dusun</Label><Input value={formData.dusun || ""} placeholder="Masukkan dusun" onChange={(e) => handleInputChange("dusun", e.target.value)} disabled /></div>
+               <div className="space-y-2"><Label>Provinsi</Label><Input value={formData.provinsi || ""} disabled placeholder="Data kosong dari Dapodik" /></div>
+               <div className="space-y-2"><Label>Kab./Kota</Label><Input value={formData.kotaKabupaten || ""} disabled placeholder="Data kosong dari Dapodik" /></div>
+               <div className="space-y-2"><Label>Kecamatan</Label><Input value={formData.kecamatan || ""} disabled placeholder="Data kosong dari Dapodik" /></div>
+               <div className="space-y-2"><Label>Desa/Kelurahan</Label><Input value={formData.desaKelurahan || ""} disabled placeholder="Data kosong dari Dapodik" /></div>
+               <div className="space-y-2"><Label>Kode Pos</Label><Input value={formData.kodePos || ""} placeholder="Masukkan kode pos" onChange={(e) => handleInputChange("kodePos", e.target.value)} disabled /></div>
+               <div className="space-y-2">
+                 <Label>Lintang <span className="text-red-500">*</span></Label>
+                 <Input 
+                   error={errors.lintang}
+                   value={formData.lintang || ""} 
+                   placeholder="Contoh: -6.200000"
+                   onChange={(e) => handleInputChange("lintang", e.target.value)} 
+                   disabled
+                 />
+               </div>
+               <div className="space-y-2">
+                 <Label>Bujur <span className="text-red-500">*</span></Label>
+                 <Input 
+                   error={errors.bujur}
+                   value={formData.bujur || ""} 
+                   placeholder="Contoh: 106.816666"
+                   onChange={(e) => handleInputChange("bujur", e.target.value)} 
+                   disabled
+                 />
+               </div>
+               <div className="col-span-full pt-2">
+                 <Button 
+                   variant="outline" 
+                   size="sm" 
+                   className="border-gray-200 text-gray-400 cursor-not-allowed opacity-60" 
+                   onClick={handleCheckCoordinates}
+                   disabled
+                 >
+                   <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.4 2.4a1 1 0 01-1.4-1.1V6a1 1 0 01.6-1L9 3l6 2.4 5.4-2.4a1 1 0 011.4 1.1V18a1 1 0 01-.6 1L15 21l-6-2.4zM9 3v17m6-17v17" />
+                   </svg>
+                   Cek Koordinat / Cari Alamat
+                 </Button>
+               </div>
+             </div>
           </div>
           )}
 
@@ -950,17 +822,35 @@ const EditGTKPage: React.FC = () => {
 
             <div className="space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2"><Label>Jenis PTK</Label><Input value={formData.jenisPTK || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                  <div className="space-y-2"><Label>Jabatan PTK</Label><Input value={formData.jabatanPTK || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                  <div className="space-y-2"><Label>Status Induk</Label><Input value={formData.statusInduk || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                  <div className="space-y-2">
+                    <Label>Jenis PTK</Label>
+                    <Input value={formData.jenisPtk || ""} disabled placeholder="Data kosong dari Dapodik" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Jabatan PTK</Label>
+                    <Input value={formData.jabatanPtk || ""} disabled placeholder="Data kosong dari Dapodik" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Status Induk (PTK Induk)</Label>
+                    <Input value={formData.ptkInduk || ""} disabled placeholder="Data kosong dari Dapodik" />
+                  </div>
                   <div className="space-y-2"><Label>SK. Pengangkatan</Label><Input value={formData.skPengangkatan || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                   <div className="space-y-2"><Label>TMT Pengangkatan</Label><Input type="date" value={formData.tmtPengangkatan || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                  <div className="space-y-2"><Label>Lembaga Pengangkat</Label><Input value={formData.lembagaPengangkat || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                  <div className="space-y-2">
+                    <Label>Lembaga Pengangkat</Label>
+                    <Input value={formData.lembagaPengangkat || ""} disabled placeholder="Data kosong dari Dapodik" />
+                  </div>
                   <div className="space-y-2"><Label>SK CPNS</Label><Input value={formData.skCpns || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                   <div className="space-y-2"><Label>TMT CPNS</Label><Input type="date" value={formData.tmtCpns || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                   <div className="space-y-2"><Label>TMT PNS</Label><Input type="date" value={formData.tmtPns || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                  <div className="space-y-2"><Label>Pangkat Terakhir</Label><Input value={formData.pangkatTerakhir || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                  <div className="space-y-2 md:col-span-2"><Label>Sumber Gaji</Label><Input value={formData.sumberGaji || ""} placeholder="Masukkan sumber gaji" onChange={(e) => handleInputChange("sumberGaji", e.target.value)} /></div>
+                  <div className="space-y-2">
+                    <Label>Pangkat Terakhir</Label>
+                    <Input value={formData.pangkatTerakhir || ""} disabled placeholder="Data kosong dari Dapodik" />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Sumber Gaji</Label>
+                    <Input value={formData.sumberGaji || ""} disabled placeholder="Data kosong dari Dapodik" />
+                  </div>
               </div>
               
               <div className="space-y-4">
@@ -1050,7 +940,7 @@ const EditGTKPage: React.FC = () => {
                                           <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{r.jenjang || r.jenjang_pendidikan_id_str || "-"}</TableCell>
                                           <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{r.institusi || r.nama_satuan_pendidikan || r.satuan_pendidikan_formal || "-"}</TableCell>
                                           <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{r.tahunLulus || r.tahun_lulus || "-"}</TableCell>
-                                          <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{r.ipk || r.ipk_rata_rata_nilai || "-"}</TableCell>
+                                          <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{r.ipk || (r.ipk_rata_rata_nilai !== null && r.ipk_rata_rata_nilai !== undefined ? String(r.ipk_rata_rata_nilai) : "-")}</TableCell>
                                       </TableRow>
                                   ))
                               ) : (
@@ -1077,10 +967,22 @@ const EditGTKPage: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2"><Label>Lisensi Kepsek</Label><Input value={formData.lisensiKepsek || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                 <div className="space-y-2"><Label>No. Registrasi (NUK)</Label><Input value={formData.nuk || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                <div className="space-y-2"><Label>Keahlian Lab</Label><Input value={formData.keahlianLab || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                <div className="space-y-2"><Label>Menangani Keb. Khusus</Label><Input value={formData.kebutuhanKhusus || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                <div className="space-y-2"><Label>Keahlian Braille</Label><Input value={formData.keahlianBraille || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                <div className="space-y-2"><Label>Bahasa Isyarat</Label><Input value={formData.bahasaIsyarat || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                <div className="space-y-2">
+                  <Label>Keahlian Lab</Label>
+                  <Input value={formData.keahlianLab || ""} disabled placeholder="Data kosong dari Dapodik" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Menangani Keb. Khusus</Label>
+                  <Input value={formData.kebutuhanKhusus || ""} disabled placeholder="Data kosong dari Dapodik" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Keahlian Braille</Label>
+                  <Input value={formData.keahlianBraille || ""} disabled placeholder="Data kosong dari Dapodik" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Bahasa Isyarat</Label>
+                  <Input value={formData.bahasaIsyarat || ""} disabled placeholder="Data kosong dari Dapodik" />
+                </div>
               </div>
             </div>
           </>
@@ -1097,21 +999,23 @@ const EditGTKPage: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>No. Telp Rumah <span className="text-red-500">*</span></Label>
+                <Label>No. Telp Rumah</Label>
                 <Input 
                   error={errors.noTelpRumah}
                   value={formData.noTelpRumah || ""} 
                   onChange={(e) => handleInputChange("noTelpRumah", e.target.value)}
                   placeholder="Contoh: 022-123456" 
+                  disabled
                 />
               </div>
               <div className="space-y-2">
-                <Label>No. Handphone <span className="text-red-500">*</span></Label>
+                <Label>No. Handphone</Label>
                 <Input 
                   error={errors.noHp}
                   value={formData.noHp || ""} 
                   onChange={(e) => handleInputChange("noHp", e.target.value)}
                   placeholder="0812XXXXXXXX" 
+                  disabled
                 />
               </div>
               <div className="space-y-2">
@@ -1213,42 +1117,35 @@ const EditGTKPage: React.FC = () => {
                   <h5 className="font-semibold text-gray-800 dark:text-white/90">Data Bank</h5>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>Nama Bank {formData.memilikiSertifikasi === "Ya" && <span className="text-red-500">*</span>}</Label>
-                        <Select 
-                          className={errors.namaBank ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""}
-                          placeholder="Pilih Bank"
-                          options={banks}
-                          value={formData.namaBank || ""}
-                          disabled={formData.memilikiSertifikasi !== "Ya"}
-                          onChange={(val) => handleInputChange("namaBank", val)}
-                        />
+                        <Label>Nama Bank</Label>
+                        <Input value={formData.namaBank || ""} disabled placeholder="Data kosong dari Dapodik" />
                       </div>
-                      <div className="space-y-2">
-                        <Label>Cabang Bank {formData.memilikiSertifikasi === "Ya" && <span className="text-red-500">*</span>}</Label>
+                       <div className="space-y-2">
+                        <Label>Cabang Bank</Label>
                         <Input 
                           error={errors.cabangBank}
                           value={formData.cabangBank || ""} 
-                          disabled={formData.memilikiSertifikasi !== "Ya"}
+                          disabled={true}
                           onChange={(e) => handleInputChange("cabangBank", e.target.value)}
                           placeholder="Nama cabang" 
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>No. Rekening {formData.memilikiSertifikasi === "Ya" && <span className="text-red-500">*</span>}</Label>
+                        <Label>No. Rekening</Label>
                         <Input 
                           error={errors.noRekening}
                           value={formData.noRekening || ""} 
-                          disabled={formData.memilikiSertifikasi !== "Ya"}
+                          disabled={true}
                           onChange={(e) => handleInputChange("noRekening", e.target.value)}
                           placeholder="Nomor rekening" 
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Atas Nama (a.n.) {formData.memilikiSertifikasi === "Ya" && <span className="text-red-500">*</span>}</Label>
+                        <Label>Atas Nama (a.n.)</Label>
                         <Input 
                           error={errors.atasNamaRekening}
                           value={formData.atasNamaRekening || ""} 
-                          disabled={formData.memilikiSertifikasi !== "Ya"}
+                          disabled={true}
                           onChange={(e) => handleInputChange("atasNamaRekening", e.target.value)}
                           placeholder="Nama pemilik rekening" 
                         />
