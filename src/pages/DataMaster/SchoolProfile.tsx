@@ -408,7 +408,7 @@ export default function SchoolProfile() {
   const handleExport = () => {
     Swal.fire({
       title: "Export Data?",
-      text: "Data profil sekolah akan diunduh dalam format Excel.",
+      text: "Data profil sekolah akan diunduh dalam format CSV.",
       icon: "question",
       showCancelButton: true,
       confirmButtonColor: "#10b981",
@@ -417,13 +417,44 @@ export default function SchoolProfile() {
       cancelButtonText: "Batal"
     }).then((result) => {
       if (result.isConfirmed) {
-        Swal.fire({
-          title: "Berhasil!",
-          text: "File sedang diunduh...",
-          icon: "success",
-          timer: 2000,
-          showConfirmButton: false,
-        });
+        try {
+          // Prepare data rows (Headers as row 1, values as row 2)
+          const headers = [
+            "Nama Sekolah", "NPSN", "NSS", "Bentuk Pendidikan", "Status Sekolah", "Status Kepemilikan", "Kepala Sekolah", "Operator",
+            "Jalan", "RT/RW", "Desa/Kelurahan", "Kecamatan", "Kabupaten/Kota", "Provinsi", "Kode Pos",
+            "SK Pendirian", "Tanggal SK Pendirian", "SK Izin Operasional", "Tanggal SK Izin Operasional", "NPWP", "Nama Wajib Pajak", "Nama Bank", "No. Rekening", "Atas Nama Rekening", "Cabang/KCP Bank",
+            "Email", "Telepon", "Website", "Fax"
+          ];
+          const values = [
+            profileData.namaSekolah, profileData.npsn, profileData.nss, profileData.bentukPendidikan, profileData.statusSekolah, profileData.statusKepemilikan, profileData.namaKepalaSekolah, profileData.namaOperator,
+            alamatData.jalan, `${format3Digits(alamatData.rt)} / ${format3Digits(alamatData.rw)}`, alamatData.desa, alamatData.kecamatan, alamatData.kabupaten, alamatData.propinsi, alamatData.kodePos,
+            administrasiData.skPendirian, administrasiData.tglSkPendirian, administrasiData.skIzinOperasional, administrasiData.tglSkIzinOperasional, administrasiData.npwp, administrasiData.nmWp, administrasiData.namaBank, administrasiData.noRekening, administrasiData.rekeningAtasNama, administrasiData.cabangKcp,
+            kontakData.email, kontakData.telepon, kontakData.website, kontakData.nomorFax
+          ];
+          const rows = [headers, values];
+
+          // Generate CSV content
+          const csvContent = "\uFEFF" + rows.map(e => e.map(val => `"${String(val || '').replace(/"/g, '""')}"`).join(",")).join("\n");
+          const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.setAttribute("href", url);
+          link.setAttribute("download", `Profil_Sekolah_${profileData.namaSekolah.replace(/\s+/g, '_') || 'Sekolah'}.csv`);
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+
+          Swal.fire({
+            title: "Berhasil!",
+            text: "Profil sekolah berhasil diunduh.",
+            icon: "success",
+            timer: 2000,
+            showConfirmButton: false,
+          });
+        } catch (err) {
+          console.error(err);
+          Swal.fire("Error", "Gagal melakukan export data", "error");
+        }
       }
     });
   };

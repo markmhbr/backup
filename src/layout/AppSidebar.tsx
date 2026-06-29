@@ -67,10 +67,20 @@ const navItems: NavItem[] = [
             icon: <DotIcon />,
           },
           {
+            name: "Pengajuan Perbaikan",
+            path: "/gtk-perbaikan",
+            icon: <DotIcon />,
+          },
+          {
             name: "GTK Non Aktif",
             path: "/gtk-data?tab=nonaktif",
             icon: <DotIcon />,
             color: "text-red-500 dark:text-red-400",
+          },
+          {
+            name: "Buku Induk",
+            path: "/gtk-buku-induk",
+            icon: <DotIcon />,
           },
         ],
       },
@@ -94,10 +104,20 @@ const navItems: NavItem[] = [
             icon: <DotIcon />,
           },
           {
+            name: "Pengajuan Perbaikan",
+            path: "/student-perbaikan",
+            icon: <DotIcon />,
+          },
+          {
             name: "PD Keluar",
             path: "/student-data?tab=keluar",
             icon: <DotIcon />,
             color: "text-red-500 dark:text-red-400",
+          },
+          {
+            name: "Buku Induk",
+            path: "/student-buku-induk",
+            icon: <DotIcon />,
           },
         ],
       },
@@ -125,7 +145,11 @@ const navItems: NavItem[] = [
             path: "/class-data?tab=pilihan",
             icon: <DotIcon />,
           },
-
+          {
+            name: "Wali",
+            path: "/class-data?tab=wali",
+            icon: <DotIcon />,
+          },
           {
             name: "Rekap Rombel",
             path: "/class-data?tab=rekap",

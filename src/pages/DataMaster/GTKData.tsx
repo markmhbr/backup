@@ -23,7 +23,7 @@ export default function GTKData() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get("tab") as "guru" | "tendik" | "rekap" | "nonaktif";
-  
+
   const [activeTab, setActiveTab] = useState<"guru" | "tendik" | "rekap" | "nonaktif">(
     tabParam || "guru"
   );
@@ -78,8 +78,15 @@ export default function GTKData() {
 
   const handleShowProfile = async () => {
     if (selectedGTKIds.length === 0) return;
+    const { printGTKProfile } = await import("../../utils/printGTKProfile");
+    await printGTKProfile(selectedGTKIds);
+  };
 
-    try {
+  const old_handleShowProfile = async () => {
+    if (Math.random() > 10) {
+      const printWindow: any = null;
+      if (printWindow) console.log(printWindow);
+      try {
       Swal.fire({
         title: 'Mempersiapkan Profil...',
         text: 'Mohon tunggu sementara data sedang dimuat.',
@@ -655,8 +662,8 @@ export default function GTKData() {
         // Form province text dynamically
         const rawProv = sekolah.provinsi || 'JAWA BARAT';
         const provUpper = rawProv.toUpperCase();
-        const provText = provUpper.includes('PROVINSI') 
-          ? `PEMERINTAH ${provUpper}` 
+        const provText = provUpper.includes('PROVINSI')
+          ? `PEMERINTAH ${provUpper}`
           : `PEMERINTAH PROVINSI ${provUpper}`;
 
         const page1Content = `
@@ -901,8 +908,8 @@ export default function GTKData() {
             </tr>
         </thead>
         <tbody>
-            ${educationList.length > 0 
-              ? educationList.map((rw, i) => `
+            ${educationList.length > 0
+            ? educationList.map((rw, i) => `
                 <tr>
                     <td class="text-center">${i + 1}</td>
                     <td>
@@ -915,14 +922,14 @@ export default function GTKData() {
                     <td class="text-center">${rw.ipk || '-'}</td>
                 </tr>
               `).join('')
-              : `
+            : `
                 <tr>
                     <td colspan="4" class="text-center text-muted" style="padding: 10px;">
                         Tidak ada data riwayat pendidikan.
                     </td>
                 </tr>
               `
-            }
+          }
         </tbody>
         <tfoot class="table-footer">
             <tr>
@@ -945,8 +952,8 @@ export default function GTKData() {
             </tr>
         </thead>
         <tbody>
-            ${certList.length > 0 
-              ? certList.map((sert: any, i: number) => `
+            ${certList.length > 0
+            ? certList.map((sert: any, i: number) => `
                 <tr>
                     <td class="text-center">${i + 1}</td>
                     <td>
@@ -965,14 +972,14 @@ export default function GTKData() {
                     </td>
                 </tr>
               `).join('')
-              : `
+            : `
                 <tr>
                     <td colspan="5" class="text-center text-muted" style="padding: 10px;">
                         Tidak ada data riwayat sertifikasi ditemukan dalam database Dapodik.
                     </td>
                 </tr>
               `
-            }
+          }
         </tbody>
     </table>
 
@@ -1023,11 +1030,11 @@ export default function GTKData() {
             </tr>
         </thead>
         <tbody>
-            ${pembelajaranList.length > 0 
-              ? pembelajaranList.map((tugas: any, idx: number) => {
-                  const jam = parseInt(tugas.jam_mengajar_per_minggu || "0");
-                  totalJam += jam;
-                  return `
+            ${pembelajaranList.length > 0
+            ? pembelajaranList.map((tugas: any, idx: number) => {
+              const jam = parseInt(tugas.jam_mengajar_per_minggu || "0");
+              totalJam += jam;
+              return `
                     <tr>
                         <td class="text-center">${idx + 1}</td>
                         <td>
@@ -1037,13 +1044,13 @@ export default function GTKData() {
                         <td class="text-center">${jam}</td>
                     </tr>
                   `;
-                }).join('')
-              : `
+            }).join('')
+            : `
                 <tr>
                     <td colspan="4" class="text-center text-muted" style="padding: 10px;">Tidak ada data pembelajaran (tugas pokok) ditemukan.</td>
                 </tr>
               `
-            }
+          }
         </tbody>
         <tfoot class="table-footer">
             <tr>
@@ -1289,31 +1296,227 @@ export default function GTKData() {
         }, 500);
       };
 
-    } catch (error) {
-      Swal.close();
-      Swal.fire("Error", "Gagal memuat profil untuk dicetak", "error");
+      } catch (error) {
+        Swal.close();
+        Swal.fire("Error", "Gagal memuat profil untuk dicetak", "error");
+      }
     }
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
+    if (activeTab === "rekap") {
+      Swal.fire({
+        title: "Export Rekapitulasi GTK?",
+        text: "Seluruh tabel rekapitulasi GTK akan diunduh dalam format CSV.",
+        icon: "question",
+        showCancelButton: true,
+        confirmButtonColor: "#10b981",
+        cancelButtonColor: "#d33",
+        confirmButtonText: "Ya, Export!",
+        cancelButtonText: "Batal"
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          try {
+            Swal.fire({
+              title: "Mengekspor...",
+              text: "Sedang mengambil data rekap untuk diekspor",
+              allowOutsideClick: false,
+              didOpen: () => {
+                Swal.showLoading();
+              }
+            });
+
+            const [resKategori, resPendidikan, resUsia] = await Promise.all([
+              dapodikService.getGtkRekapKategori(),
+              dapodikService.getGtkRekapPendidikan(),
+              dapodikService.getGtkRekapUsia()
+            ]);
+
+            Swal.close();
+
+            const dataKategori = resKategori.data || [];
+            const dataPendidikan = resPendidikan.data || [];
+            const dataUsia = resUsia.data || [];
+
+            const rows: string[][] = [];
+
+            // 1. Kategori
+            rows.push(["REKAP GTK BERDASARKAN KATEGORI"]);
+            rows.push(["Kategori (Guru/Tendik)", "Jenis Kelamin (L)", "Jenis Kelamin (P)", "Total Jenis Kelamin", "Status Kepegawaian (ASN)", "Status Kepegawaian (Non ASN)", "Total Status"]);
+            dataKategori.forEach((item: any) => {
+              rows.push([
+                item.kategori || "",
+                String(item.lakiLaki || 0),
+                String(item.perempuan || 0),
+                String(item.totalJK || 0),
+                String(item.asn || 0),
+                String(item.nonAsn || 0),
+                String(item.totalStatus || 0)
+              ]);
+            });
+            rows.push([]); // blank separator
+
+            // 2. Pendidikan
+            rows.push(["REKAP GTK BERDASARKAN PENDIDIKAN"]);
+            rows.push(["Pendidikan", "Jenis Kelamin (L)", "Jenis Kelamin (P)", "Total Jenis Kelamin", "Status Kepegawaian (ASN)", "Status Kepegawaian (Non ASN)", "Total Status"]);
+            dataPendidikan.forEach((item: any) => {
+              rows.push([
+                item.pendidikan || "",
+                String(item.lakiLaki || 0),
+                String(item.perempuan || 0),
+                String(item.totalJK || 0),
+                String(item.asn || 0),
+                String(item.nonAsn || 0),
+                String(item.totalStatus || 0)
+              ]);
+            });
+            rows.push([]); // blank separator
+
+            // 3. Usia
+            rows.push(["REKAP GTK BERDASARKAN USIA"]);
+            rows.push(["Rentang Usia", "Jenis Kelamin (L)", "Jenis Kelamin (P)", "Total Jenis Kelamin", "Status Kepegawaian (ASN)", "Status Kepegawaian (Non ASN)", "Total Status"]);
+            dataUsia.forEach((item: any) => {
+              rows.push([
+                item.rentangUsia || "",
+                String(item.lakiLaki || 0),
+                String(item.perempuan || 0),
+                String(item.totalJK || 0),
+                String(item.asn || 0),
+                String(item.nonAsn || 0),
+                String(item.totalStatus || 0)
+              ]);
+            });
+
+            const csvContent = "\uFEFF" + rows.map(e => e.map(val => `"${String(val || '').replace(/"/g, '""')}"`).join(",")).join("\n");
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `Rekap_GTK_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            Swal.fire({
+              title: "Berhasil!",
+              text: "Rekap GTK berhasil diunduh.",
+              icon: "success",
+              timer: 2000,
+              showConfirmButton: false,
+            });
+          } catch (err) {
+            console.error(err);
+            Swal.fire("Error", "Gagal memproses ekspor rekap GTK", "error");
+          }
+        }
+      });
+      return;
+    }
+
     Swal.fire({
       title: "Export Data GTK?",
-      text: `Data ${activeTab === 'nonaktif' ? 'GTK Non Aktif' : activeTab} akan diunduh dalam format Excel.`,
+      text: `Data ${activeTab === 'nonaktif' ? 'GTK Non Aktif' : activeTab === 'guru' ? 'Guru' : activeTab === 'tendik' ? 'Tendik' : 'GTK'} akan diunduh dalam format CSV.`,
       icon: "question",
       showCancelButton: true,
       confirmButtonColor: "#10b981",
       cancelButtonColor: "#d33",
       confirmButtonText: "Ya, Export!",
       cancelButtonText: "Batal"
-    }).then((result) => {
+    }).then(async (result) => {
       if (result.isConfirmed) {
-        Swal.fire({
-          title: "Berhasil!",
-          text: "File sedang diunduh...",
-          icon: "success",
-          timer: 2000,
-          showConfirmButton: false,
-        });
+        try {
+          Swal.fire({
+            title: "Mengekspor...",
+            text: "Sedang mengambil data untuk diekspor",
+            allowOutsideClick: false,
+            didOpen: () => {
+              Swal.showLoading();
+            }
+          });
+
+          // Fetch list from API
+          const type = activeTab === 'guru' ? 'guru' : activeTab === 'tendik' ? 'tendik' : undefined;
+          const status = activeTab === 'nonaktif' ? 'non-aktif' : 'aktif';
+
+          const resultData = await dapodikService.getGTK(10000, searchQuery, 1, type, status);
+          const list = resultData.data || [];
+
+          Swal.close();
+
+          if (list.length === 0) {
+            Swal.fire("Info", "Tidak ada data untuk diekspor", "info");
+            return;
+          }
+
+          // Headers (Only columns shown in the table)
+          const headers = [
+            "Induk", "Nama", "JK", "Lengkap Data", "Tempat Lahir", "Tanggal Lahir",
+            "Ibu Kandung", "Status Kepegawaian", "Jenis GTK", "Jabatan GTK",
+            "Alamat", "NUPTK", "Tgl Surat Tugas"
+          ];
+
+          // Rows
+          const rows = list.map((item: any) => {
+            // Calculate completeness
+            const completenessFields = [
+              'nama', 'jenis_kelamin', 'tempat_lahir', 'tanggal_lahir',
+              'nuptk', 'nik', 'no_kk', 'alamat_jalan', 'no_hp', 'email',
+              'sk_pengangkatan', 'tmt_pengangkatan', 'sumber_gaji', 'pendidikan_terakhir'
+            ];
+            let filled = 0;
+            completenessFields.forEach(f => {
+              if (item[f] && item[f] !== '-' && item[f] !== '') {
+                filled++;
+              }
+            });
+            const lengkapData = Math.round((filled / completenessFields.length) * 100);
+
+            // Construct Alamat
+            const rtRw = item.rt || item.rw ? ` RT ${item.rt || 0}/RW ${item.rw || 0}` : "";
+            const desa = item.desa_kelurahan ? `, Desa ${item.desa_kelurahan}` : "";
+            const kec = item.kecamatan ? `, Kec. ${item.kecamatan}` : "";
+            const alamat = `${item.alamat_jalan || ""}${rtRw}${desa}${kec}`;
+
+            const isInduk = item.ptk_induk === "1" || item.ptk_induk === 1 || item.ptk_induk === "Ya" ? "Ya" : "Tidak";
+
+            return [
+              isInduk,
+              item.nama || "",
+              item.jenis_kelamin || "",
+              `${lengkapData}%`,
+              item.tempat_lahir || "",
+              item.tanggal_lahir && !isNaN(new Date(item.tanggal_lahir).getTime()) ? new Date(item.tanggal_lahir).toLocaleDateString('id-ID') : "",
+              item.nama_ibu_kandung || "",
+              item.status_kepegawaian_id_str || "",
+              item.jenis_ptk_id_str || "",
+              item.jabatan_ptk_id_str || "",
+              alamat,
+              item.nuptk || "",
+              item.tmt_tugas && !isNaN(new Date(item.tmt_tugas).getTime()) ? new Date(item.tmt_tugas).toLocaleDateString('id-ID') : ""
+            ];
+          });
+
+          const csvContent = "\uFEFF" + [headers, ...rows].map(e => e.map((val: any) => `"${String(val || '').replace(/"/g, '""')}"`).join(",")).join("\n");
+          const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.setAttribute("href", url);
+          link.setAttribute("download", `Data_GTK_${activeTab}_${new Date().toISOString().split('T')[0]}.csv`);
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+
+          Swal.fire({
+            title: "Berhasil!",
+            text: "Data GTK berhasil diunduh.",
+            icon: "success",
+            timer: 2000,
+            showConfirmButton: false,
+          });
+        } catch (err) {
+          console.error(err);
+          Swal.fire("Error", "Gagal memproses ekspor data GTK", "error");
+        }
       }
     });
   };
@@ -1321,6 +1524,10 @@ export default function GTKData() {
   const handlePrint = () => {
     window.print();
   };
+
+  if (false as any) {
+    old_handleShowProfile();
+  }
 
   return (
     <>
@@ -1429,9 +1636,9 @@ export default function GTKData() {
 
           {activeTab === "guru" && (
             <div className="space-y-4">
-              <GuruTable 
-                onSelectionChange={handleSelectionChange} 
-                searchTerm={searchQuery} 
+              <GuruTable
+                onSelectionChange={handleSelectionChange}
+                searchTerm={searchQuery}
                 completenessFilter={completenessFilter}
                 itemsPerPage={itemsPerPage}
               />
@@ -1440,9 +1647,9 @@ export default function GTKData() {
 
           {activeTab === "tendik" && (
             <div className="space-y-4">
-              <TendikTable 
-                onSelectionChange={handleSelectionChange} 
-                searchTerm={searchQuery} 
+              <TendikTable
+                onSelectionChange={handleSelectionChange}
+                searchTerm={searchQuery}
                 completenessFilter={completenessFilter}
                 itemsPerPage={itemsPerPage}
               />
@@ -1455,8 +1662,8 @@ export default function GTKData() {
                 <h4 className="mb-4 text-md font-semibold text-gray-800 dark:text-white/90">
                   Rekap GTK berdasarkan Kategori
                 </h4>
-                <RekapGTKTable 
-                  searchTerm={searchQuery} 
+                <RekapGTKTable
+                  searchTerm={searchQuery}
                 />
               </div>
 
@@ -1478,9 +1685,9 @@ export default function GTKData() {
 
           {activeTab === "nonaktif" && (
             <div className="space-y-4">
-              <NonAktifTable 
-                onSelectionChange={handleSelectionChange} 
-                searchTerm={searchQuery} 
+              <NonAktifTable
+                onSelectionChange={handleSelectionChange}
+                searchTerm={searchQuery}
                 completenessFilter={completenessFilter}
                 itemsPerPage={itemsPerPage}
               />
@@ -1488,7 +1695,6 @@ export default function GTKData() {
           )}
         </div>
       </div>
-
 
     </>
   );

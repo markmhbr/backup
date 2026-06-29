@@ -132,7 +132,7 @@ export const dapodikService = {
     }
   },
 
-  getRombonganBelajar: async (type: 'reguler' | 'pilihan' = 'reguler', limit: number = 10, page: number = 1, search: string = '', tingkat: string = '') => {
+  getRombonganBelajar: async (type: string = 'reguler', limit: number = 10, page: number = 1, search: string = '', tingkat: string = '') => {
     try {
       let url = `/dapodik/rombongan-belajar?type=${type}&limit=${limit}&page=${page}&search=${search}`;
       if (tingkat) url += `&tingkat=${tingkat}`;
@@ -394,6 +394,51 @@ export const dapodikService = {
       return response.data;
     } catch (error: any) {
       console.error('Gagal mengambil data ruang:', error);
+      throw error;
+    }
+  },
+
+  buatPengajuanPerbaikan: async (payload: {
+    ptk_id?: string;
+    peserta_didik_id?: string;
+    tipe: 'GTK' | 'SISWA';
+    perubahan: any;
+  }) => {
+    try {
+      const response = await api.post('/pengajuan-perbaikan', payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Gagal mengajukan perbaikan data:', error);
+      throw error;
+    }
+  },
+
+  getPengajuanPerbaikan: async () => {
+    try {
+      const response = await api.get('/pengajuan-perbaikan');
+      return response.data;
+    } catch (error: any) {
+      console.error('Gagal mengambil daftar pengajuan perbaikan:', error);
+      throw error;
+    }
+  },
+
+  setujuiPengajuan: async (id: string) => {
+    try {
+      const response = await api.post(`/pengajuan-perbaikan/${id}/setujui`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Gagal menyetujui pengajuan:', error);
+      throw error;
+    }
+  },
+
+  tolakPengajuan: async (id: string) => {
+    try {
+      const response = await api.post(`/pengajuan-perbaikan/${id}/tolak`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Gagal menolak pengajuan:', error);
       throw error;
     }
   }

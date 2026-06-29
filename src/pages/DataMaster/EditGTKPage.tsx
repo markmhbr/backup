@@ -13,6 +13,7 @@ import Switch from "../../components/form/switch/Switch";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "../../components/ui/table";
 import { Modal } from "../../components/ui/modal";
 import { dapodikService } from "../../services/dapodikService";
+import { referenceService } from "../../services/referenceService";
 import Swal from "sweetalert2";
 import { getFotoUrl } from "../../utils/image";
 
@@ -57,10 +58,7 @@ const EditGTKPage: React.FC = () => {
     : "http://localhost:3000";
 
   const hasTabError = (tabId: string) => {
-    if (tabId === "profil") return !!(errors.namaWajibPajak || errors.npwp);
-    if (tabId === "alamat") return !!(errors.lintang || errors.bujur);
-    if (tabId === "kontak") return !!(errors.noTelpRumah || errors.noHp || errors.noWa || errors.idTelegram);
-    if (tabId === "sertifikasi") return formData.memilikiSertifikasi === "Ya" && !!(errors.namaBank || errors.cabangBank || errors.noRekening || errors.atasNamaRekening);
+    if (tabId === "kontak") return !!(errors.noWa || errors.idTelegram);
     return false;
   };
 
@@ -75,6 +73,270 @@ const EditGTKPage: React.FC = () => {
   const [pendingDocs, setPendingDocs] = useState<any[]>([]); 
   const docFileInputRef = useRef<HTMLInputElement>(null);
   const [errors, setErrors] = useState<any>({});
+
+  const [isPengajuanModalOpen, setIsPengajuanModalOpen] = useState(false);
+  const [isFormPengajuanOpen, setIsFormPengajuanOpen] = useState(false);
+  const [selectedFields, setSelectedFields] = useState<string[]>([]);
+  const [pengajuanForm, setPengajuanForm] = useState<any>({});
+
+  const [bankList, setBankList] = useState<any[]>([]);
+  const [refOptions, setRefOptions] = useState<any>(null);
+  const [provinces, setProvinces] = useState<any[]>([]);
+  const [kabupatens, setKabupatens] = useState<any[]>([]);
+  const [kecamatans, setKecamatans] = useState<any[]>([]);
+  const [desas, setDesas] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadReferences = async () => {
+      try {
+        const [banksRes, optionsRes, provsRes] = await Promise.allSettled([
+          referenceService.getBank(),
+          referenceService.getOptions(),
+          referenceService.getWilayah(1)
+        ]);
+
+        if (banksRes.status === "fulfilled") {
+          const val = banksRes.value;
+          setBankList(val?.data || val || []);
+        }
+        if (optionsRes.status === "fulfilled") {
+          const val = optionsRes.value;
+          setRefOptions(val?.data || val || null);
+        }
+        if (provsRes.status === "fulfilled") {
+          const val = provsRes.value;
+          setProvinces(val?.data || val || []);
+        }
+      } catch (err) {
+        console.error("Gagal mengambil data referensi:", err);
+      }
+    };
+    loadReferences();
+  }, []);
+
+  const FIELD_MAP_GTK: { [key: string]: { label: string, dbKey: string, localKey: string } } = {
+    nama: { label: 'Nama Lengkap', dbKey: 'nama', localKey: 'nama' },
+    nik: { label: 'NIK', dbKey: 'nik', localKey: 'nik' },
+    no_kk: { label: 'No. Kartu Keluarga', dbKey: 'no_kk', localKey: 'kk' },
+    jenis_kelamin: { label: 'Jenis Kelamin', dbKey: 'jenis_kelamin', localKey: 'jk' },
+    tempat_lahir: { label: 'Tempat Lahir', dbKey: 'tempat_lahir', localKey: 'tempatLahir' },
+    tanggal_lahir: { label: 'Tanggal Lahir', dbKey: 'tanggal_lahir', localKey: 'tanggalLahir' },
+    agama_id: { label: 'Agama', dbKey: 'agama_id', localKey: 'agama_id' },
+    status_perkawinan: { label: 'Status Perkawinan', dbKey: 'status_perkawinan', localKey: 'statusPerkawinan' },
+    nama_suami_istri: { label: 'Nama Pasangan', dbKey: 'nama_suami_istri', localKey: 'namaPasangan' },
+    pekerjaan_suami_istri: { label: 'Pekerjaan Pasangan', dbKey: 'pekerjaan_suami_istri', localKey: 'pekerjaanPasangan' },
+    nama_wajib_pajak: { label: 'Nama Wajib Pajak', dbKey: 'nama_wajib_pajak', localKey: 'namaWajibPajak' },
+    npwp: { label: 'NPWP', dbKey: 'npwp', localKey: 'npwp' },
+    alamat_jalan: { label: 'Kampung/Jalan', dbKey: 'alamat_jalan', localKey: 'kampungJalan' },
+    rt: { label: 'RT', dbKey: 'rt', localKey: 'rt' },
+    rw: { label: 'RW', dbKey: 'rw', localKey: 'rw' },
+    nama_dusun: { label: 'Dusun', dbKey: 'nama_dusun', localKey: 'dusun' },
+    wilayah: { label: 'Wilayah (Provinsi, Kab, Kec, Desa)', dbKey: 'wilayah', localKey: 'wilayah' },
+    kode_pos: { label: 'Kode Pos', dbKey: 'kode_pos', localKey: 'kodePos' },
+    lintang_bujur: { label: 'Koordinat (Lintang & Bujur)', dbKey: 'lintang_bujur', localKey: 'lintang_bujur' },
+    id_bank: { label: 'Nama Bank', dbKey: 'id_bank', localKey: 'idBank' },
+    nama_kcp: { label: 'Cabang Bank', dbKey: 'nama_kcp', localKey: 'cabangBank' },
+    rekening_bank: { label: 'No. Rekening', dbKey: 'rekening_bank', localKey: 'noRekening' },
+    rekening_atas_nama: { label: 'Atas Nama Rekening', dbKey: 'rekening_atas_nama', localKey: 'atasNamaRekening' },
+    no_telepon_rumah: { label: 'No. Telepon Rumah', dbKey: 'no_telepon_rumah', localKey: 'noTelpRumah' },
+    no_hp: { label: 'No. Handphone', dbKey: 'no_hp', localKey: 'noHp' }
+  };
+
+  useEffect(() => {
+    if (isFormPengajuanOpen) {
+      const loadDataOnOpen = async () => {
+        try {
+          if (provinces.length === 0) {
+            const provsRes = await referenceService.getWilayah(1);
+            setProvinces(provsRes?.data || provsRes || []);
+          }
+          if (bankList.length === 0) {
+            const banksRes = await referenceService.getBank();
+            setBankList(banksRes?.data || banksRes || []);
+          }
+        } catch (e) {
+          console.error("Gagal reload data referensi:", e);
+        }
+      };
+      loadDataOnOpen();
+    }
+  }, [isFormPengajuanOpen, provinces.length, bankList.length]);
+
+  const handleFieldToggle = (fieldKey: string) => {
+    setSelectedFields(prev =>
+      prev.includes(fieldKey)
+        ? prev.filter(f => f !== fieldKey)
+        : [...prev, fieldKey]
+    );
+  };
+
+  const handleStartPerbaikan = () => {
+    if (selectedFields.length === 0) {
+      Swal.fire("Info", "Pilih minimal satu data untuk diajukan perbaikan", "info");
+      return;
+    }
+    
+    const initialForm: any = {};
+    selectedFields.forEach(fieldKey => {
+      if (fieldKey === "lintang_bujur") {
+        initialForm["lintang"] = formData["lintang"] || "";
+        initialForm["bujur"] = formData["bujur"] || "";
+      } else if (fieldKey === "wilayah") {
+        initialForm["provinsi"] = formData["provinsi"] || "";
+        initialForm["kabupaten_kota"] = formData["kotaKabupaten"] || "";
+        initialForm["kecamatan"] = formData["kecamatan"] || "";
+        initialForm["desa_kelurahan"] = formData["desaKelurahan"] || "";
+      } else {
+        const mapping = FIELD_MAP_GTK[fieldKey];
+        if (mapping) {
+          initialForm[fieldKey] = formData[mapping.localKey] || "";
+        }
+      }
+    });
+    setPengajuanForm(initialForm);
+    
+    setIsPengajuanModalOpen(false);
+    setIsFormPengajuanOpen(true);
+  };
+
+  const handlePengajuanInputChange = (fieldKey: string, val: string) => {
+    setPengajuanForm((prev: any) => ({
+      ...prev,
+      [fieldKey]: val,
+    }));
+  };
+
+  const handleProvinceChange = async (provName: string, provCode: string) => {
+    handlePengajuanInputChange("provinsi", provName);
+    handlePengajuanInputChange("_provinsi_code", provCode);
+    handlePengajuanInputChange("kabupaten_kota", "");
+    handlePengajuanInputChange("_kabupaten_code", "");
+    handlePengajuanInputChange("kecamatan", "");
+    handlePengajuanInputChange("desa_kelurahan", "");
+    setKabupatens([]);
+    setKecamatans([]);
+    setDesas([]);
+    if (!provCode) return;
+    try {
+      const res = await referenceService.getWilayah(2, provCode);
+      setKabupatens(res?.data || res || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleKabupatenChange = async (kabName: string, kabCode: string) => {
+    handlePengajuanInputChange("kabupaten_kota", kabName);
+    handlePengajuanInputChange("_kabupaten_code", kabCode);
+    handlePengajuanInputChange("kecamatan", "");
+    handlePengajuanInputChange("desa_kelurahan", "");
+    setKecamatans([]);
+    setDesas([]);
+    if (!kabCode) return;
+    try {
+      const res = await referenceService.getWilayah(3, kabCode);
+      setKecamatans(res?.data || res || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleKecamatanChange = async (kecName: string, kecCode: string) => {
+    handlePengajuanInputChange("kecamatan", kecCode);
+    handlePengajuanInputChange("_kecamatan_name", kecName);
+    handlePengajuanInputChange("desa_kelurahan", "");
+    setDesas([]);
+    if (!kecCode) return;
+    try {
+      const res = await referenceService.getWilayah(4, kecCode);
+      setDesas(res?.data || res || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDesaChange = (desaName: string) => {
+    handlePengajuanInputChange("desa_kelurahan", desaName);
+    handlePengajuanInputChange("_desa_name", desaName);
+  };
+
+  const handleSubmitPengajuan = async () => {
+    setLoading(true);
+    try {
+      const perubahan: any = {};
+      selectedFields.forEach(fieldKey => {
+        if (fieldKey === "lintang_bujur") {
+          perubahan["lintang"] = {
+            sebelumnya: formData["lintang"] || null,
+            diajukan: pengajuanForm["lintang"] || null
+          };
+          perubahan["bujur"] = {
+            sebelumnya: formData["bujur"] || null,
+            diajukan: pengajuanForm["bujur"] || null
+          };
+        } else if (fieldKey === "wilayah") {
+          perubahan["provinsi"] = {
+            sebelumnya: formData["provinsi"] || null,
+            diajukan: pengajuanForm["provinsi"] || null
+          };
+          perubahan["kabupaten_kota"] = {
+            sebelumnya: formData["kotaKabupaten"] || null,
+            diajukan: pengajuanForm["kabupaten_kota"] || null
+          };
+          const rawKecName = pengajuanForm["_kecamatan_name"] || "";
+          const kecPart = rawKecName.startsWith("Kec.") ? rawKecName : `Kec. ${rawKecName}`;
+          const rawKabName = pengajuanForm["kabupaten_kota"] || "";
+          const kabPart = rawKabName.startsWith("Kab.") ? rawKabName : `Kab. ${rawKabName}`;
+          perubahan["kecamatan"] = {
+            sebelumnya: formData["kecamatan"] || null,
+            diajukan: pengajuanForm["kecamatan"] || null,
+            diajukan_nama: rawKecName ? `${kecPart} - ${kabPart}` : ""
+          };
+          perubahan["desa_kelurahan"] = {
+            sebelumnya: formData["desaKelurahan"] || null,
+            diajukan: pengajuanForm["desa_kelurahan"] || null,
+            diajukan_nama: pengajuanForm["_desa_name"] || ""
+          };
+        } else {
+          const mapping = FIELD_MAP_GTK[fieldKey];
+          if (mapping) {
+            if (fieldKey === "id_bank") {
+              const bankName = bankList.find((b: any) => String(b.id_bank || b.id) === String(pengajuanForm[fieldKey]))?.nm_bank || "";
+              perubahan[mapping.dbKey] = {
+                sebelumnya: formData[mapping.localKey] || null,
+                diajukan: pengajuanForm[fieldKey] || null,
+                diajukan_nama: bankName
+              };
+            } else {
+              perubahan[mapping.dbKey] = {
+                sebelumnya: formData[mapping.localKey] || null,
+                diajukan: pengajuanForm[fieldKey] || null
+              };
+            }
+          }
+        }
+      });
+
+      await dapodikService.buatPengajuanPerbaikan({
+        ptk_id: id,
+        tipe: 'GTK',
+        perubahan: perubahan
+      });
+
+      Swal.fire({
+        title: "Berhasil",
+        text: "Pengajuan perbaikan data berhasil dikirim dan menunggu persetujuan.",
+        icon: "success",
+        confirmButtonColor: "#465FFF"
+      });
+      setIsFormPengajuanOpen(false);
+      setSelectedFields([]);
+    } catch (err: any) {
+      Swal.fire("Error", err.response?.data?.message || "Gagal mengirim pengajuan perbaikan data", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
   // Fetch Data from Backend
   useEffect(() => {
     const fetchData = async () => {
@@ -101,10 +363,11 @@ const EditGTKPage: React.FC = () => {
               tanggalLahir: data.tanggal_lahir ? data.tanggal_lahir.split('T')[0] : "",
               ibuKandung: data.nama_ibu_kandung || "",
               agama: data.agama_nama || "",
+              agama_id: data.agama_id || "",
               kewarganegaraan: data.kewarganegaraan || "ID",
-              statusPerkawinan: data.status_perkawinan === "1" || data.status_perkawinan === 1 ? "Ya" : "Tidak",
+              statusPerkawinan: data.status_perkawinan !== null && data.status_perkawinan !== undefined ? String(data.status_perkawinan) : "",
               namaPasangan: data.nama_suami_istri || "",
-              pekerjaanPasangan: data.pekerjaan_suami_istri_nama || "",
+              pekerjaanPasangan: data.pekerjaan_suami_istri !== null && data.pekerjaan_suami_istri !== undefined ? String(data.pekerjaan_suami_istri) : "",
               namaWajibPajak: data.nama_wajib_pajak || "",
               npwp: data.npwp || "",
               
@@ -172,6 +435,7 @@ const EditGTKPage: React.FC = () => {
               memilikiSertifikasi: data.rwy_sertifikasi && data.rwy_sertifikasi.length > 0 ? "Ya" : "Tidak",
               avatar: data.foto || "",
               
+              idBank: data.id_bank || "",
               namaBank: data.bank_nama || "",
               cabangBank: data.nama_kcp || "",
               noRekening: data.rekening_bank || "",
@@ -444,21 +708,8 @@ const EditGTKPage: React.FC = () => {
     const newErrors: any = {};
     
     // Check validation constraints matching dashboard required fields (*)
-    if (!formData.namaWajibPajak) { newErrors.namaWajibPajak = true; hasError = true; }
-    if (!formData.npwp) { newErrors.npwp = true; hasError = true; }
-    if (!formData.lintang) { newErrors.lintang = true; hasError = true; }
-    if (!formData.bujur) { newErrors.bujur = true; hasError = true; }
-    if (!formData.noTelpRumah) { newErrors.noTelpRumah = true; hasError = true; }
-    if (!formData.noHp) { newErrors.noHp = true; hasError = true; }
     if (!formData.noWa) { newErrors.noWa = true; hasError = true; }
     if (!formData.idTelegram) { newErrors.idTelegram = true; hasError = true; }
-
-    if (formData.memilikiSertifikasi === "Ya") {
-      if (!formData.namaBank) { newErrors.namaBank = true; hasError = true; }
-      if (!formData.cabangBank) { newErrors.cabangBank = true; hasError = true; }
-      if (!formData.noRekening) { newErrors.noRekening = true; hasError = true; }
-      if (!formData.atasNamaRekening) { newErrors.atasNamaRekening = true; hasError = true; }
-    }
 
     if (hasError) {
       setErrors(newErrors);
@@ -596,6 +847,12 @@ const EditGTKPage: React.FC = () => {
             >
               Batal
             </button>
+            <button
+              onClick={() => setIsPengajuanModalOpen(true)}
+              className="px-4 py-2.5 rounded-lg border border-brand-500 text-sm font-semibold text-brand-500 hover:bg-brand-50/50 dark:hover:bg-brand-500/10 transition-colors"
+            >
+              Pengajuan Perbaikan
+            </button>
             <Button variant="primary-outline" onClick={handleSave} disabled={loading}>
               Simpan Perubahan
             </Button>
@@ -689,7 +946,7 @@ const EditGTKPage: React.FC = () => {
               <div className="w-full lg:w-2/3 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2"><Label>Nama Lengkap</Label><Input value={formData.nama || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                   <div className="space-y-2"><Label>NIK</Label><Input value={formData.nik || ""} maxLength={16} placeholder="Data kosong dari Dapodik" disabled /></div>
-                  <div className="space-y-2"><Label>Nomor KK</Label><Input value={formData.kk || ""} maxLength={16} placeholder="Masukkan nomor KK (16 digit)" onChange={(e) => handleInputChange("kk", e.target.value.replace(/\D/g, ''))} /></div>
+                  <div className="space-y-2"><Label>Nomor KK</Label><Input value={formData.kk || ""} maxLength={16} placeholder="Data kosong dari Dapodik" disabled /></div>
                   <div className="space-y-2"><Label>NUPTK</Label><Input value={formData.nuptk || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                   <div className="space-y-2"><Label>NIP/NIY/NIGB</Label><Input value={formData.nipNiyNigb || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                   <div className="space-y-2"><Label>Jenis Kelamin</Label><Input value={formData.jk === "L" ? "Laki-laki" : formData.jk === "P" ? "Perempuan" : formData.jk || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
@@ -700,34 +957,34 @@ const EditGTKPage: React.FC = () => {
                        <Input value={formData.agama || ""} disabled placeholder="Data kosong dari Dapodik" />
                      </div>
                      <div className="space-y-2"><Label>Kewarganegaraan</Label><Input value={formData.kewarganegaraan || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                     <div className="space-y-2">
-                       <Label>Status Perkawinan</Label>
-                       <Input value={formData.statusPerkawinan || ""} disabled placeholder="Data kosong dari Dapodik" />
-                     </div>
-                     <div className="space-y-2"><Label>Nama Pasangan</Label><Input value={formData.namaPasangan || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                     <div className="space-y-2">
-                       <Label>Pekerjaan Pasangan</Label>
-                       <Input value={formData.pekerjaanPasangan || ""} disabled placeholder="Data kosong dari Dapodik" />
-                     </div>
+                      <div className="space-y-2">
+                        <Label>Status Perkawinan</Label>
+                        <Input value={formData.statusPerkawinan === "1" || formData.statusPerkawinan === 1 ? "Kawin" : formData.statusPerkawinan === "2" || formData.statusPerkawinan === 2 ? "Belum Kawin" : formData.statusPerkawinan === "3" || formData.statusPerkawinan === 3 ? "Janda/Duda" : formData.statusPerkawinan || ""} disabled placeholder="Data kosong dari Dapodik" />
+                      </div>
+                      <div className="space-y-2"><Label>Nama Pasangan</Label><Input value={formData.namaPasangan || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                      <div className="space-y-2">
+                        <Label>Pekerjaan Pasangan</Label>
+                        <Input value={(refOptions?.pekerjaan || refOptions?.mst_pekerjaan || []).find((o: any) => String(o.pekerjaan_id || o.id) === String(formData.pekerjaanPasangan))?.nama || formData.pekerjaanPasangan || ""} disabled placeholder="Data kosong dari Dapodik" />
+                      </div>
                    <div className="space-y-2">
-                     <Label>Nama Wajib Pajak <span className="text-red-500">*</span></Label>
-                     <Input 
-                       error={errors.namaWajibPajak} 
-                       value={formData.namaWajibPajak || ""} 
-                       placeholder="Masukkan nama wajib pajak"
-                       onChange={(e) => handleInputChange("namaWajibPajak", e.target.value)} 
-                       disabled
-                     />
+                      <Label>Nama Wajib Pajak</Label>
+                      <Input 
+                        error={errors.namaWajibPajak} 
+                        value={formData.namaWajibPajak || ""} 
+                        placeholder="Masukkan nama wajib pajak"
+                        onChange={(e) => handleInputChange("namaWajibPajak", e.target.value)} 
+                        disabled
+                      />
                    </div>
                    <div className="space-y-2">
-                     <Label>NPWP <span className="text-red-500">*</span></Label>
-                     <Input 
-                       error={errors.npwp} 
-                       value={formData.npwp || ""} 
-                       placeholder="Masukkan NPWP"
-                       onChange={(e) => handleInputChange("npwp", e.target.value)} 
-                       disabled
-                     />
+                      <Label>NPWP</Label>
+                      <Input 
+                        error={errors.npwp} 
+                        value={formData.npwp || ""} 
+                        placeholder="Masukkan NPWP"
+                        onChange={(e) => handleInputChange("npwp", e.target.value)} 
+                        disabled
+                      />
                    </div>
               </div>
             </div>
@@ -774,24 +1031,24 @@ const EditGTKPage: React.FC = () => {
                <div className="space-y-2"><Label>Desa/Kelurahan</Label><Input value={formData.desaKelurahan || ""} disabled placeholder="Data kosong dari Dapodik" /></div>
                <div className="space-y-2"><Label>Kode Pos</Label><Input value={formData.kodePos || ""} placeholder="Masukkan kode pos" onChange={(e) => handleInputChange("kodePos", e.target.value)} disabled /></div>
                <div className="space-y-2">
-                 <Label>Lintang <span className="text-red-500">*</span></Label>
-                 <Input 
-                   error={errors.lintang}
-                   value={formData.lintang || ""} 
-                   placeholder="Contoh: -6.200000"
-                   onChange={(e) => handleInputChange("lintang", e.target.value)} 
-                   disabled
-                 />
+                  <Label>Lintang</Label>
+                  <Input 
+                    error={errors.lintang}
+                    value={formData.lintang || ""} 
+                    placeholder="Contoh: -6.200000"
+                    onChange={(e) => handleInputChange("lintang", e.target.value)} 
+                    disabled
+                  />
                </div>
                <div className="space-y-2">
-                 <Label>Bujur <span className="text-red-500">*</span></Label>
-                 <Input 
-                   error={errors.bujur}
-                   value={formData.bujur || ""} 
-                   placeholder="Contoh: 106.816666"
-                   onChange={(e) => handleInputChange("bujur", e.target.value)} 
-                   disabled
-                 />
+                  <Label>Bujur</Label>
+                  <Input 
+                    error={errors.bujur}
+                    value={formData.bujur || ""} 
+                    placeholder="Contoh: 106.816666"
+                    onChange={(e) => handleInputChange("bujur", e.target.value)} 
+                    disabled
+                  />
                </div>
                <div className="col-span-full pt-2">
                  <Button 
@@ -1246,6 +1503,279 @@ const EditGTKPage: React.FC = () => {
         <div className="px-6 py-4 border-t bg-gray-50 dark:bg-white/[0.02] flex justify-between items-center">
            <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Terpilih: <span className="text-brand-500">{tempCoords?.lat}, {tempCoords?.lng}</span></div>
            <div className="flex gap-3"><button onClick={() => setIsMapModalOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-400">Batal</button><Button variant="primary" size="sm" onClick={handleUseLocation}>Gunakan Lokasi Ini</Button></div>
+        </div>
+      </Modal>
+
+      {/* Modal Checklist Pengajuan Perbaikan */}
+      <Modal isOpen={isPengajuanModalOpen} onClose={() => setIsPengajuanModalOpen(false)} className="max-w-[600px] p-6 overflow-hidden">
+        <div className="flex justify-between items-center mb-4 border-b border-gray-100 dark:border-white/[0.05] pb-3">
+          <h3 className="text-lg font-bold text-gray-800 dark:text-white/90">Pilih Data yang Ingin Diperbaiki</h3>
+          <button onClick={() => setIsPengajuanModalOpen(false)} className="text-gray-500 hover:text-gray-700 dark:hover:text-white">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-3 max-h-[400px] overflow-y-auto custom-scrollbar p-1">
+          {Object.keys(FIELD_MAP_GTK)
+            .filter((key) => {
+              if ((key === "nama_suami_istri" || key === "pekerjaan_suami_istri") && formData.statusPerkawinan !== "1") {
+                return false;
+              }
+              if (
+                (key === "id_bank" || key === "nama_kcp" || key === "rekening_bank" || key === "rekening_atas_nama") &&
+                formData.memilikiSertifikasi !== "Ya"
+              ) {
+                return false;
+              }
+              return true;
+            })
+            .map((key) => {
+              const field = FIELD_MAP_GTK[key];
+              const isChecked = selectedFields.includes(key);
+              return (
+                <label key={key} className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-white/[0.02] cursor-pointer transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={() => handleFieldToggle(key)}
+                    className="rounded border-gray-300 text-brand-500 focus:ring-brand-500 size-4"
+                  />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{field.label}</span>
+                </label>
+              );
+            })}
+        </div>
+        <div className="flex justify-end gap-3 mt-6 border-t border-gray-100 dark:border-white/[0.05] pt-4">
+          <button
+            onClick={() => setIsPengajuanModalOpen(false)}
+            className="px-4 py-2 text-sm font-semibold text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+          >
+            Batal
+          </button>
+          <Button variant="primary" onClick={handleStartPerbaikan}>
+            Mulai Perbaikan
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Modal Form Pengajuan Perbaikan Side-by-Side */}
+      <Modal isOpen={isFormPengajuanOpen} onClose={() => setIsFormPengajuanOpen(false)} className="max-w-[800px] p-6 overflow-hidden">
+        <div className="flex justify-between items-center mb-4 border-b border-gray-100 dark:border-white/[0.05] pb-3">
+          <h3 className="text-lg font-bold text-gray-800 dark:text-white/90">Formulir Pengajuan Perbaikan Data</h3>
+          <button onClick={() => setIsFormPengajuanOpen(false)} className="text-gray-500 hover:text-gray-700 dark:hover:text-white">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+        <div className="space-y-4 max-h-[450px] overflow-y-auto custom-scrollbar pr-2 p-1">
+          <div className="grid grid-cols-2 gap-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 border-b pb-2">
+            <div>Data Sebelumnya</div>
+            <div>Data yang Diajukan</div>
+          </div>
+          {selectedFields.map((fieldKey) => {
+            const field = FIELD_MAP_GTK[fieldKey];
+            if (!field) return null;
+
+            let oldVal = "";
+            if (fieldKey === "lintang_bujur") {
+              oldVal = `Lintang: ${formData.lintang || "-"}, Bujur: ${formData.bujur || "-"}`;
+            } else if (fieldKey === "wilayah") {
+              oldVal = `${formData.provinsi || "-"} / ${formData.kotaKabupaten || "-"} / ${formData.kecamatan || "-"} / ${formData.desaKelurahan || "-"}`;
+            } else {
+              oldVal = formData[field.localKey] || "-";
+              if (fieldKey === "jenis_kelamin") {
+                oldVal = formData.jk === "L" ? "Laki-laki" : formData.jk === "P" ? "Perempuan" : formData.jk || "-";
+              } else if (fieldKey === "status_perkawinan") {
+                oldVal = formData.statusPerkawinan || "-";
+              } else if (fieldKey === "agama_id") {
+                oldVal = formData.agama || "-";
+              } else if (fieldKey === "id_bank") {
+                oldVal = formData.namaBank || "-";
+              }
+            }
+
+            return (
+              <div key={fieldKey} className="grid grid-cols-2 gap-4 items-start border-b border-gray-50 dark:border-white/[0.01] pb-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">{field.label}</label>
+                  <div className="p-3 bg-gray-50 dark:bg-white/[0.02] border border-gray-200 dark:border-gray-800 rounded-xl text-sm text-gray-600 dark:text-gray-400 min-h-[45px] flex items-center">
+                    {oldVal}
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">{field.label} Baru</label>
+                  {fieldKey === "jenis_kelamin" ? (
+                    <select
+                      value={pengajuanForm[fieldKey] || ""}
+                      onChange={(e) => handlePengajuanInputChange(fieldKey, e.target.value)}
+                      className="w-full px-3 py-2.5 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl text-sm text-gray-800 dark:text-white/90 outline-none"
+                    >
+                      <option value="">Pilih Jenis Kelamin</option>
+                      <option value="L">Laki-laki</option>
+                      <option value="P">Perempuan</option>
+                    </select>
+                  ) : fieldKey === "status_perkawinan" ? (
+                    <select
+                      value={pengajuanForm[fieldKey] || ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        handlePengajuanInputChange(fieldKey, val);
+                        if (val !== "1") {
+                          handlePengajuanInputChange("nama_suami_istri", "");
+                          handlePengajuanInputChange("pekerjaan_suami_istri", "");
+                        }
+                      }}
+                      className="w-full px-3 py-2.5 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl text-sm text-gray-800 dark:text-white/90 outline-none"
+                    >
+                      <option value="">Pilih Status Perkawinan</option>
+                      <option value="1">Kawin</option>
+                      <option value="2">Belum Kawin</option>
+                      <option value="3">Janda/Duda</option>
+                    </select>
+                  ) : fieldKey === "agama_id" ? (
+                    <select
+                      value={pengajuanForm[fieldKey] || ""}
+                      onChange={(e) => handlePengajuanInputChange(fieldKey, e.target.value)}
+                      className="w-full px-3 py-2.5 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl text-sm text-gray-800 dark:text-white/90 outline-none"
+                    >
+                      <option value="">Pilih Agama</option>
+                      {(refOptions?.agama || refOptions?.mst_agama || [
+                        { agama_id: 1, nama: "Islam" },
+                        { agama_id: 2, nama: "Kristen" },
+                        { agama_id: 3, nama: "Katolik" },
+                        { agama_id: 4, nama: "Hindu" },
+                        { agama_id: 5, nama: "Buddha" },
+                        { agama_id: 6, nama: "Khonghucu" }
+                      ]).map((r: any) => (
+                        <option key={r.agama_id || r.id} value={r.agama_id || r.id}>
+                          {r.nama || r.nama_agama || r.agama_nama}
+                        </option>
+                      ))}
+                    </select>
+                  ) : fieldKey === "id_bank" ? (
+                    <select
+                      value={pengajuanForm[fieldKey] || ""}
+                      onChange={(e) => handlePengajuanInputChange(fieldKey, e.target.value)}
+                      className="w-full px-3 py-2.5 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl text-sm text-gray-800 dark:text-white/90 outline-none"
+                    >
+                      <option value="">Pilih Bank</option>
+                      {bankList.map((b: any) => (
+                        <option key={b.id_bank || b.id} value={b.id_bank || b.id}>
+                          {b.nm_bank || b.nama_bank || b.nama || b.bank_nama}
+                        </option>
+                      ))}
+                    </select>
+                  ) : fieldKey === "wilayah" ? (
+                    <div className="space-y-2">
+                      <select
+                        value={pengajuanForm._provinsi_code || ""}
+                        onChange={(e) => {
+                          const code = e.target.value;
+                          const name = provinces.find((p: any) => p.kode_wilayah === code)?.nama || "";
+                          handleProvinceChange(name, code);
+                        }}
+                        className="w-full px-3 py-2.5 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl text-sm text-gray-800 dark:text-white/90 outline-none"
+                      >
+                        <option value="">Pilih Provinsi</option>
+                        {provinces.map((p: any) => (
+                          <option key={p.kode_wilayah} value={p.kode_wilayah}>
+                            {p.nama}
+                          </option>
+                        ))}
+                      </select>
+
+                      <select
+                        value={pengajuanForm._kabupaten_code || ""}
+                        onChange={(e) => {
+                          const code = e.target.value;
+                          const name = kabupatens.find((k: any) => k.kode_wilayah === code)?.nama || "";
+                          handleKabupatenChange(name, code);
+                        }}
+                        disabled={!pengajuanForm.provinsi}
+                        className="w-full px-3 py-2.5 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl text-sm text-gray-800 dark:text-white/90 outline-none disabled:opacity-50"
+                      >
+                        <option value="">Pilih Kabupaten/Kota</option>
+                        {kabupatens.map((k: any) => (
+                          <option key={k.kode_wilayah} value={k.kode_wilayah}>
+                            {k.nama}
+                          </option>
+                        ))}
+                      </select>
+
+                      <select
+                        value={pengajuanForm.kecamatan || ""}
+                        onChange={(e) => {
+                          const code = e.target.value;
+                          const name = kecamatans.find((kec: any) => kec.kode_wilayah === code)?.nama || "";
+                          handleKecamatanChange(name, code);
+                        }}
+                        disabled={!pengajuanForm.kabupaten_kota}
+                        className="w-full px-3 py-2.5 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl text-sm text-gray-800 dark:text-white/90 outline-none disabled:opacity-50"
+                      >
+                        <option value="">Pilih Kecamatan</option>
+                        {kecamatans.map((kec: any) => (
+                          <option key={kec.kode_wilayah} value={kec.kode_wilayah}>
+                            {kec.nama}
+                          </option>
+                        ))}
+                      </select>
+
+                      <select
+                        value={pengajuanForm.desa_kelurahan || ""}
+                        onChange={(e) => handleDesaChange(e.target.value)}
+                        disabled={!pengajuanForm.kecamatan}
+                        className="w-full px-3 py-2.5 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl text-sm text-gray-800 dark:text-white/90 outline-none disabled:opacity-50"
+                      >
+                        <option value="">Pilih Desa/Kelurahan</option>
+                        {desas.map((d: any) => (
+                          <option key={d.kode_wilayah} value={d.nama}>
+                            {d.nama}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : fieldKey === "lintang_bujur" ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        value={pengajuanForm.lintang || ""}
+                        onChange={(e) => handlePengajuanInputChange("lintang", e.target.value)}
+                        className="w-full px-3 py-2.5 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl text-sm text-gray-800 dark:text-white/90 outline-none"
+                        placeholder="Lintang"
+                      />
+                      <input
+                        type="text"
+                        value={pengajuanForm.bujur || ""}
+                        onChange={(e) => handlePengajuanInputChange("bujur", e.target.value)}
+                        className="w-full px-3 py-2.5 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl text-sm text-gray-800 dark:text-white/90 outline-none"
+                        placeholder="Bujur"
+                      />
+                    </div>
+                  ) : (
+                    <input
+                      type={fieldKey === 'tanggal_lahir' ? 'date' : 'text'}
+                      value={pengajuanForm[fieldKey] || ""}
+                      onChange={(e) => handlePengajuanInputChange(fieldKey, e.target.value)}
+                      className="w-full px-3 py-2.5 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl text-sm text-gray-800 dark:text-white/90 outline-none"
+                      placeholder={`Masukkan ${field.label} baru...`}
+                    />
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex justify-end gap-3 mt-6 border-t border-gray-100 dark:border-white/[0.05] pt-4">
+          <button
+            onClick={() => {
+              setIsFormPengajuanOpen(false);
+              setIsPengajuanModalOpen(true);
+            }}
+            className="px-4 py-2 text-sm font-semibold text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+          >
+            Kembali
+          </button>
+          <Button variant="primary" onClick={handleSubmitPengajuan} disabled={loading}>
+            {loading ? "Mengirim..." : "Kirim Pengajuan"}
+          </Button>
         </div>
       </Modal>
     </>

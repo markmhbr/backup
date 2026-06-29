@@ -5,7 +5,10 @@ import BangunanTable from "../../components/sarpras/BangunanTable";
 import RuangTable from "../../components/sarpras/RuangTable";
 import Input from "../../components/form/input/InputField";
 import Select from "../../components/form/Select";
-import { SearchIcon } from "../../icons";
+import { SearchIcon, DownloadIcon } from "../../icons";
+import Button from "../../components/ui/button/Button";
+import Swal from "sweetalert2";
+import { dapodikService } from "../../services/dapodikService";
 
 export default function SarprasData() {
   const [activeTab, setActiveTab] = useState<"tanah" | "bangunan" | "ruang">("tanah");
@@ -24,6 +27,161 @@ export default function SarprasData() {
     { value: "100", label: "100" },
   ];
 
+  const handleExport = async () => {
+    Swal.fire({
+      title: `Export Data ${activeTab === 'tanah' ? 'Tanah' : activeTab === 'bangunan' ? 'Bangunan' : 'Ruangan'}?`,
+      text: `Data ${activeTab === 'tanah' ? 'Tanah' : activeTab === 'bangunan' ? 'Bangunan' : 'Ruangan'} akan diunduh dalam format CSV.`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#10b981",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Ya, Export!",
+      cancelButtonText: "Batal"
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          Swal.fire({
+            title: "Mengekspor...",
+            text: "Sedang mengambil data untuk diekspor",
+            allowOutsideClick: false,
+            didOpen: () => {
+              Swal.showLoading();
+            }
+          });
+
+          if (activeTab === "tanah") {
+            const res = await dapodikService.getTanah(10000, searchQuery, 1);
+            Swal.close();
+            const list = res.data || [];
+
+            if (list.length === 0) {
+              Swal.fire("Info", "Tidak ada data untuk diekspor", "info");
+              return;
+            }
+
+            const headers = ["Nama", "Jenis", "No. Sertifikat", "Panjang (m)", "Lebar (m)", "Luas (m²)", "Alamat"];
+            const rows = list.map((item: any) => [
+              item.nama || "",
+              item.jenis_prasarana_id_str || "Tanah",
+              item.no_sertifikat_tanah || "-",
+              String(item.panjang || 0),
+              String(item.lebar || 0),
+              String(item.luas || 0),
+              item.alamat_jalan || "-"
+            ]);
+
+            const csvContent = "\uFEFF" + [headers, ...rows].map(e => e.map((val: any) => `"${String(val || '').replace(/"/g, '""')}"`).join(",")).join("\n");
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `Data_Tanah_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            Swal.fire({
+              title: "Berhasil!",
+              text: "Data Tanah berhasil diunduh.",
+              icon: "success",
+              timer: 2000,
+              showConfirmButton: false,
+            });
+            return;
+          }
+
+          if (activeTab === "bangunan") {
+            const res = await dapodikService.getBangunan(10000, searchQuery, 1);
+            Swal.close();
+            const list = res.data || [];
+
+            if (list.length === 0) {
+              Swal.fire("Info", "Tidak ada data untuk diekspor", "info");
+              return;
+            }
+
+            const headers = ["Nama", "Jenis", "Thn Dibangun", "Jml Lantai", "Panjang (m)", "Lebar (m)", "Luas Tapak (m²)", "Nilai Aset"];
+            const rows = list.map((item: any) => [
+              item.nama || "",
+              item.jenis_prasarana_id_str || "Bangunan",
+              item.thn_dibangun || "-",
+              String(item.jml_lantai || 1),
+              String(item.panjang || 0),
+              String(item.lebar || 0),
+              String(item.luas_tapak_bangunan || 0),
+              `Rp ${Number(item.nilai_perolehan_aset || 0).toLocaleString('id-ID')}`
+            ]);
+
+            const csvContent = "\uFEFF" + [headers, ...rows].map(e => e.map((val: any) => `"${String(val || '').replace(/"/g, '""')}"`).join(",")).join("\n");
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `Data_Bangunan_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            Swal.fire({
+              title: "Berhasil!",
+              text: "Data Bangunan berhasil diunduh.",
+              icon: "success",
+              timer: 2000,
+              showConfirmButton: false,
+            });
+            return;
+          }
+
+          if (activeTab === "ruang") {
+            const res = await dapodikService.getRuang(10000, searchQuery, 1);
+            Swal.close();
+            const list = res.data || [];
+
+            if (list.length === 0) {
+              Swal.fire("Info", "Tidak ada data untuk diekspor", "info");
+              return;
+            }
+
+            const headers = ["Nama Ruang", "Kode Ruang", "Jenis", "Lantai", "Panjang (m)", "Lebar (m)", "Luas (m²)", "Kapasitas"];
+            const rows = list.map((item: any) => [
+              item.nm_ruang || "",
+              item.kd_ruang || "-",
+              item.jenis_prasarana_id_str || "Ruang",
+              String(item.lantai || 1),
+              String(item.panjang || 0),
+              String(item.lebar || 0),
+              String(item.luas_ruang || 0),
+              String(item.kapasitas || 0)
+            ]);
+
+            const csvContent = "\uFEFF" + [headers, ...rows].map(e => e.map((val: any) => `"${String(val || '').replace(/"/g, '""')}"`).join(",")).join("\n");
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `Data_Ruangan_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            Swal.fire({
+              title: "Berhasil!",
+              text: "Data Ruangan berhasil diunduh.",
+              icon: "success",
+              timer: 2000,
+              showConfirmButton: false,
+            });
+            return;
+          }
+
+        } catch (err) {
+          console.error(err);
+          Swal.fire("Error", "Gagal memproses ekspor data", "error");
+        }
+      }
+    });
+  };
+
   return (
     <>
       <PageMeta
@@ -40,6 +198,17 @@ export default function SarprasData() {
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
               Kelola daftar tanah, gedung, dan ruangan sekolah Anda di sini.
             </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              variant="success-outline"
+              size="sm"
+              className="min-w-[110px]"
+              startIcon={<DownloadIcon className="size-4" />}
+              onClick={handleExport}
+            >
+              Export
+            </Button>
           </div>
         </div>
 

@@ -10,12 +10,13 @@ import RombelTable from "../../components/school/RombelTable";
 import EkskulTable from "../../components/school/EkskulTable";
 import RekapRombelKategoriTable from "../../components/school/RekapRombelKategoriTable";
 import RekapRombelKompetensiTable from "../../components/school/RekapRombelKompetensiTable";
+import { dapodikService } from "../../services/dapodikService";
 
 export default function ClassData() {
   const [searchParams] = useSearchParams();
-  const tabParam = searchParams.get("tab") as "reguler" | "praktik" | "ekskul" | "pilihan" | "rekap";
+  const tabParam = searchParams.get("tab") as "reguler" | "praktik" | "ekskul" | "pilihan" | "rekap" | "wali";
   
-  const [activeTab, setActiveTab] = useState<"reguler" | "praktik" | "ekskul" | "pilihan" | "rekap">(
+  const [activeTab, setActiveTab] = useState<"reguler" | "praktik" | "ekskul" | "pilihan" | "rekap" | "wali">(
     tabParam || "reguler"
   );
 
@@ -79,25 +80,169 @@ export default function ClassData() {
     });
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     Swal.fire({
-      title: "Export Data?",
-      text: `Data Rombongan Belajar (${activeTab}) akan diunduh dalam format Excel.`,
+      title: `Export Data ${activeTab === 'rekap' ? 'Rekap Rombel' : activeTab === 'ekskul' ? 'Ekskul' : 'Rombel'}?`,
+      text: `Data ${activeTab === 'rekap' ? 'Rekapitulasi' : activeTab === 'ekskul' ? 'Ekskul' : activeTab} akan diunduh dalam format CSV.`,
       icon: "question",
       showCancelButton: true,
       confirmButtonColor: "#10b981",
       cancelButtonColor: "#d33",
       confirmButtonText: "Ya, Export!",
       cancelButtonText: "Batal"
-    }).then((result) => {
+    }).then(async (result) => {
       if (result.isConfirmed) {
-        Swal.fire({
-          title: "Berhasil!",
-          text: "File sedang diunduh...",
-          icon: "success",
-          timer: 2000,
-          showConfirmButton: false,
-        });
+        try {
+          Swal.fire({
+            title: "Mengekspor...",
+            text: "Sedang mengambil data untuk diekspor",
+            allowOutsideClick: false,
+            didOpen: () => {
+              Swal.showLoading();
+            }
+          });
+
+          if (activeTab === "rekap") {
+            const [resKategori, resKompetensi] = await Promise.all([
+              dapodikService.getRombelRekapKategori(),
+              dapodikService.getRombelRekapKompetensi()
+            ]);
+
+            Swal.close();
+
+            const dataKategori = resKategori.data || [];
+            const dataKompetensi = resKompetensi.data || [];
+
+            const rows: string[][] = [];
+
+            // 1. Kategori
+            rows.push(["REKAP ROMBEL BERDASARKAN KATEGORI"]);
+            rows.push(["Kategori Rombel", "Tingkat 10", "Tingkat 11", "Tingkat 12", "Total"]);
+            dataKategori.forEach((item: any) => {
+              rows.push([
+                item.kategori || "",
+                String(item.tingkat10 || 0),
+                String(item.tingkat11 || 0),
+                String(item.tingkat12 || 0),
+                String(item.total || 0)
+              ]);
+            });
+            rows.push([]); // blank separator
+
+            // 2. Kompetensi
+            rows.push(["REKAP ROMBEL BERDASARKAN KOMPETENSI KEAHLIAN"]);
+            rows.push(["Kompetensi Keahlian", "Tingkat 10", "Tingkat 11", "Tingkat 12", "Total"]);
+            dataKompetensi.forEach((item: any) => {
+              rows.push([
+                item.kompetensi || "",
+                String(item.tingkat10 || 0),
+                String(item.tingkat11 || 0),
+                String(item.tingkat12 || 0),
+                String(item.total || 0)
+              ]);
+            });
+
+            const csvContent = "\uFEFF" + rows.map(e => e.map(val => `"${String(val || '').replace(/"/g, '""')}"`).join(",")).join("\n");
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `Rekap_Rombel_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            Swal.fire({
+              title: "Berhasil!",
+              text: "Rekap Rombel berhasil diunduh.",
+              icon: "success",
+              timer: 2000,
+              showConfirmButton: false,
+            });
+            return;
+          }
+
+          if (activeTab === "ekskul") {
+            const res = await dapodikService.getEkstrakurikuler(searchQuery);
+            Swal.close();
+            const list = res.data || [];
+
+            if (list.length === 0) {
+              Swal.fire("Info", "Tidak ada data untuk diekspor", "info");
+              return;
+            }
+
+            const headers = ["Nama Ekskul", "Pembina", "Prasarana"];
+            const rows = list.map((item: any) => [
+              item.nama || "",
+              item.ptk_id_str || "",
+              item.id_ruang_str || ""
+            ]);
+
+            const csvContent = "\uFEFF" + [headers, ...rows].map(e => e.map((val: any) => `"${String(val || '').replace(/"/g, '""')}"`).join(",")).join("\n");
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `Data_Ekskul_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            Swal.fire({
+              title: "Berhasil!",
+              text: "Data Ekskul berhasil diunduh.",
+              icon: "success",
+              timer: 2000,
+              showConfirmButton: false,
+            });
+            return;
+          }
+
+          // reguler, praktik, pilihan, wali
+          const res = await dapodikService.getRombonganBelajar(activeTab, 10000, 1, searchQuery, gradeFilter);
+          Swal.close();
+          const list = res.data || [];
+
+          if (list.length === 0) {
+            Swal.fire("Info", "Tidak ada data untuk diekspor", "info");
+            return;
+          }
+
+          const headers = ["Nama Rombel", "Wali Kelas", "Tingkat", "Kurikulum", "Ruang", "Jumlah PD", "Moving Kelas", "Kebutuhan Khusus"];
+          const rows = list.map((item: any) => [
+            item.nama || "",
+            item.ptk_id_str || "",
+            item.tingkat_pendidikan_id_str || "",
+            item.kurikulum_id_str || "",
+            item.id_ruang_str || "",
+            String(item.jumlah_siswa || 0),
+            item.movingKelas || "Tidak",
+            item.kebutuhanKhusus || "Tidak"
+          ]);
+
+          const csvContent = "\uFEFF" + [headers, ...rows].map(e => e.map((val: any) => `"${String(val || '').replace(/"/g, '""')}"`).join(",")).join("\n");
+          const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.setAttribute("href", url);
+          link.setAttribute("download", `Data_Rombel_${activeTab}_${new Date().toISOString().split('T')[0]}.csv`);
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+
+          Swal.fire({
+            title: "Berhasil!",
+            text: `Data Rombel ${activeTab} berhasil diunduh.`,
+            icon: "success",
+            timer: 2000,
+            showConfirmButton: false,
+          });
+
+        } catch (err) {
+          console.error(err);
+          Swal.fire("Error", "Gagal memproses ekspor data", "error");
+        }
       }
     });
   };
@@ -200,7 +345,7 @@ export default function ClassData() {
                     className="pl-10"
                   />
                 </div>
-                {(activeTab === "reguler" || activeTab === "praktik") && (
+                {(activeTab === "reguler" || activeTab === "praktik" || activeTab === "wali") && (
                   <div className="w-full sm:w-56">
                       <Select
                           options={gradeOptions}
@@ -213,7 +358,7 @@ export default function ClassData() {
             </div>
           )}
 
-          {(activeTab === "reguler" || activeTab === "praktik" || activeTab === "pilihan") && (
+          {(activeTab === "reguler" || activeTab === "praktik" || activeTab === "pilihan" || activeTab === "wali") && (
             <RombelTable 
               type={activeTab}
               onSelectionChange={handleSelectionChange} 

@@ -75,7 +75,7 @@ export default function SubjectTable({ searchTerm, itemsPerPage }: SubjectTableP
               ))
             ) : subjectData.length > 0 ? subjectData.map((item, index) => (
               <TableRow key={item.mata_pelajaran_id || index}>
-                <TableCell className="px-5 py-4 text-start text-gray-500 dark:text-gray-400 text-theme-sm">{item.mata_pelajaran_id?.substring(0, 8) || "-"}</TableCell>
+                <TableCell className="px-5 py-4 text-start text-gray-500 dark:text-gray-400 text-theme-sm">{String(item.mata_pelajaran_id || '').substring(0, 8) || "-"}</TableCell>
                 <TableCell className="px-5 py-4 text-start font-medium text-gray-800 dark:text-white/90 whitespace-nowrap">{item.nama_mata_pelajaran}</TableCell>
               </TableRow>
             )) : (

@@ -29,7 +29,7 @@ interface Rombel {
 }
 
 interface RombelTableProps {
-  type: "reguler" | "praktik" | "ekskul" | "pilihan";
+  type: "reguler" | "praktik" | "ekskul" | "pilihan" | "wali";
   onSelectionChange: (selectedIds: string[]) => void;
   searchTerm: string;
   gradeFilter: string;
@@ -59,7 +59,7 @@ export default function RombelTable({ type, onSelectionChange, searchTerm, grade
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const apiType = type === "pilihan" ? "pilihan" : "reguler";
+        const apiType = type;
         const response = await dapodikService.getRombonganBelajar(apiType, itemsPerPage, currentPage, searchTerm, gradeFilter);
         
         if (response) {

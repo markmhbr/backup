@@ -1064,25 +1064,220 @@ export default function StudentData() {
     }
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
+    if (activeTab === "rekap") {
+      Swal.fire({
+        title: "Export Rekapitulasi Peserta Didik?",
+        text: "Seluruh tabel rekapitulasi Peserta Didik akan diunduh dalam format CSV.",
+        icon: "question",
+        showCancelButton: true,
+        confirmButtonColor: "#10b981",
+        cancelButtonColor: "#d33",
+        confirmButtonText: "Ya, Export!",
+        cancelButtonText: "Batal"
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          try {
+            Swal.fire({
+              title: "Mengekspor...",
+              text: "Sedang mengambil data rekap untuk diekspor",
+              allowOutsideClick: false,
+              didOpen: () => {
+                Swal.showLoading();
+              }
+            });
+
+            const [resTingkat, resKompetensi, resUsia] = await Promise.all([
+              dapodikService.getPdRekapTingkat(),
+              dapodikService.getPdRekapKompetensi(),
+              dapodikService.getPdRekapUsia()
+            ]);
+
+            Swal.close();
+
+            const dataTingkat = resTingkat.data || [];
+            const dataKompetensi = resKompetensi.data || [];
+            const dataUsia = resUsia.data || [];
+
+            const rows: string[][] = [];
+
+            // 1. Tingkat
+            rows.push(["REKAP PESERTA DIDIK BERDASARKAN TINGKAT"]);
+            rows.push(["Tingkat Kelas", "Jenis Kelamin (L)", "Jenis Kelamin (P)", "Total Jenis Kelamin", "Status Masuk (Baru)", "Status Masuk (Pindahan)", "JML"]);
+            dataTingkat.forEach((item: any) => {
+              rows.push([
+                item.tingkat ? `Tingkat ${item.tingkat}` : "",
+                String(item.l || 0),
+                String(item.p || 0),
+                String(item.total || 0),
+                String(item.siswaBaru || 0),
+                String(item.pindahan || 0),
+                String(item.total || 0)
+              ]);
+            });
+            rows.push([]); // blank separator
+
+            // 2. Kompetensi
+            rows.push(["REKAP PESERTA DIDIK BERDASARKAN KOMPETENSI KEAHLIAN"]);
+            rows.push([
+              "Kompetensi Keahlian", 
+              "Tingkat X (L)", "Tingkat X (P)", "Tingkat X (JML)", 
+              "Tingkat XI (L)", "Tingkat XI (P)", "Tingkat XI (JML)", 
+              "Tingkat XII (L)", "Tingkat XII (P)", "Tingkat XII (JML)", 
+              "Total"
+            ]);
+            dataKompetensi.forEach((item: any) => {
+              rows.push([
+                item.kompetensi || "",
+                String(item.xL || 0),
+                String(item.xP || 0),
+                String(item.xJml || 0),
+                String(item.xiL || 0),
+                String(item.xiP || 0),
+                String(item.xiJml || 0),
+                String(item.xiiL || 0),
+                String(item.xiiP || 0),
+                String(item.xiiJml || 0),
+                String(item.grandTotal || 0)
+              ]);
+            });
+            rows.push([]); // blank separator
+
+            // 3. Usia
+            rows.push(["REKAP PESERTA DIDIK BERDASARKAN USIA"]);
+            rows.push(["Rentang Usia", "Jenis Kelamin (L)", "Jenis Kelamin (P)", "Total"]);
+            dataUsia.forEach((item: any) => {
+              rows.push([
+                item.usia || "",
+                String(item.l || 0),
+                String(item.p || 0),
+                String(item.total || 0)
+              ]);
+            });
+
+            const csvContent = "\uFEFF" + rows.map(e => e.map(val => `"${String(val || '').replace(/"/g, '""')}"`).join(",")).join("\n");
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `Rekap_Peserta_Didik_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            Swal.fire({
+              title: "Berhasil!",
+              text: "Rekap Peserta Didik berhasil diunduh.",
+              icon: "success",
+              timer: 2000,
+              showConfirmButton: false,
+            });
+          } catch (err) {
+            console.error(err);
+            Swal.fire("Error", "Gagal memproses ekspor rekap peserta didik", "error");
+          }
+        }
+      });
+      return;
+    }
+
     Swal.fire({
-      title: "Export Data?",
-      text: `Data ${activeTab === 'aktif' ? 'Peserta Didik' : activeTab === 'rekap' ? 'Rekap PD' : 'PD Keluar'} akan diunduh dalam format Excel.`,
+      title: "Export Data Peserta Didik?",
+      text: `Data ${activeTab === 'aktif' ? 'Peserta Didik' : 'PD Keluar'} akan diunduh dalam format CSV.`,
       icon: "question",
       showCancelButton: true,
       confirmButtonColor: "#10b981",
       cancelButtonColor: "#d33",
       confirmButtonText: "Ya, Export!",
       cancelButtonText: "Batal"
-    }).then((result) => {
+    }).then(async (result) => {
       if (result.isConfirmed) {
-        Swal.fire({
-          title: "Berhasil!",
-          text: "File sedang diunduh...",
-          icon: "success",
-          timer: 2000,
-          showConfirmButton: false,
-        });
+        try {
+          Swal.fire({
+            title: "Mengekspor...",
+            text: "Sedang mengambil data untuk diekspor",
+            allowOutsideClick: false,
+            didOpen: () => {
+              Swal.showLoading();
+            }
+          });
+
+          // Fetch list from API (pass status to the 5th argument)
+          const statusParam = activeTab === 'aktif' ? 'aktif' : 'non-aktif';
+          const resultData = await dapodikService.getPesertaDidik(10000, searchQuery, 1, undefined, statusParam);
+          const list = resultData.data || [];
+
+          Swal.close();
+
+          if (list.length === 0) {
+            Swal.fire("Info", "Tidak ada data untuk diekspor", "info");
+            return;
+          }
+
+          // Headers (Only columns shown in the table)
+          const headers = [
+            "Nama", "JK", "Lengkap Data", "NISN", "NIPD", "NIK", "No. KK",
+            "Tingkat", "Rombel", "Tgl Masuk", "Terdaftar Sebagai", "Tempat Lahir", "Tgl Lahir"
+          ];
+
+          // Rows
+          const rows = list.map((item: any) => {
+            // Calculate completeness
+            const completenessFields = [
+              'nama', 'nisn', 'nik', 'no_kk', 'tempat_lahir', 'tanggal_lahir', 
+              'agama_id_str', 'alamat_jalan', 'rt', 'rw', 'nama_dusun', 'desa_kelurahan',
+              'kecamatan', 'kode_pos', 'tempat_tinggal_id_str', 'alat_transportasi_id_str',
+              'penerima_kps', 'nama_ayah', 'nama_ibu_kandung', 'no_hp', 'email_aktif'
+            ];
+            let filled = 0;
+            completenessFields.forEach(f => {
+              if (item[f] && item[f] !== '-' && item[f] !== '') {
+                filled++;
+              }
+            });
+            const lengkapData = Math.round((filled / completenessFields.length) * 100);
+
+            const rombel = item.rombongan_belajar || item.anggota_rombel?.[0]?.rombongan_belajar;
+            const jenisPendaftaran = item.jenis_pendaftaran_id === 1 || String(item.jenis_pendaftaran_id) === "1" ? "Siswa Baru" : "Pindahan";
+
+            return [
+              item.nama || "",
+              item.jenis_kelamin || "",
+              `${lengkapData}%`,
+              item.nisn || "",
+              item.nipd || "",
+              item.nik || "",
+              item.no_kk || "",
+              rombel?.tingkat_pendidikan_id ? String(rombel.tingkat_pendidikan_id) : "",
+              rombel?.nama || "",
+              item.tanggal_masuk_sekolah ? new Date(item.tanggal_masuk_sekolah).toLocaleDateString('id-ID') : "",
+              jenisPendaftaran,
+              item.tempat_lahir || "",
+              item.tanggal_lahir && !isNaN(new Date(item.tanggal_lahir).getTime()) ? new Date(item.tanggal_lahir).toLocaleDateString('id-ID') : ""
+            ];
+          });
+
+          const csvContent = "\uFEFF" + [headers, ...rows].map(e => e.map((val: any) => `"${String(val || '').replace(/"/g, '""')}"`).join(",")).join("\n");
+          const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.setAttribute("href", url);
+          link.setAttribute("download", `Data_Peserta_Didik_${activeTab}_${new Date().toISOString().split('T')[0]}.csv`);
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+
+          Swal.fire({
+            title: "Berhasil!",
+            text: "Data Peserta Didik berhasil diunduh.",
+            icon: "success",
+            timer: 2000,
+            showConfirmButton: false,
+          });
+        } catch (err) {
+          console.error(err);
+          Swal.fire("Error", "Gagal memproses ekspor data peserta didik", "error");
+        }
       }
     });
   };

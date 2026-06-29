@@ -10,8 +10,11 @@ const Input: React.FC<InputProps> = (props) => {
   return <OriginalInput {...props} showStatusIcon={true} />;
 };
 import Swal from "sweetalert2";
+import Switch from "../../components/form/switch/Switch";
+import { Modal } from "../../components/ui/modal";
 import { dapodikService } from "../../services/dapodikService";
 import { getFotoUrl } from "../../utils/image";
+import { referenceService } from "../../services/referenceService";
 
 
 const format3Digits = (value: string | number | null | undefined): string => {
@@ -55,6 +58,303 @@ const EditStudentPage: React.FC = () => {
   const [uploadedDocs, setUploadedDocs] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [isPengajuanModalOpen, setIsPengajuanModalOpen] = useState(false);
+  const [isFormPengajuanOpen, setIsFormPengajuanOpen] = useState(false);
+  const [selectedFields, setSelectedFields] = useState<string[]>([]);
+  const [pengajuanForm, setPengajuanForm] = useState<any>({});
+
+  const [refOptions, setRefOptions] = useState<any>(null);
+  const [provinces, setProvinces] = useState<any[]>([]);
+  const [kabupatens, setKabupatens] = useState<any[]>([]);
+  const [kecamatans, setKecamatans] = useState<any[]>([]);
+  const [desas, setDesas] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (isFormPengajuanOpen) {
+      const loadDataOnOpen = async () => {
+        try {
+          if (provinces.length === 0) {
+            const provsRes = await referenceService.getWilayah(1);
+            setProvinces(provsRes?.data || provsRes || []);
+          }
+          if (!refOptions) {
+            const optionsRes = await referenceService.getOptions();
+            setRefOptions(optionsRes?.data || optionsRes || null);
+          }
+        } catch (e) {
+          console.error("Gagal reload data referensi:", e);
+        }
+      };
+      loadDataOnOpen();
+    }
+  }, [isFormPengajuanOpen, provinces.length, refOptions]);
+
+  const FIELD_MAP_SISWA: { [key: string]: { label: string, dbKey: string, localKey: string } } = {
+    nama: { label: 'Nama Lengkap', dbKey: 'nama', localKey: 'nama' },
+    tempat_lahir: { label: 'Tempat Lahir', dbKey: 'tempat_lahir', localKey: 'tempatLahir' },
+    tanggal_lahir: { label: 'Tanggal Lahir', dbKey: 'tanggal_lahir', localKey: 'tanggalLahir' },
+    jenis_kelamin: { label: 'Jenis Kelamin', dbKey: 'jenis_kelamin', localKey: 'jk' },
+    nik: { label: 'NIK', dbKey: 'nik', localKey: 'nik' },
+    no_kk: { label: 'No. Kartu Keluarga', dbKey: 'no_kk', localKey: 'noKK' },
+    reg_akta_lahir: { label: 'No. Register Akte Lahir', dbKey: 'reg_akta_lahir', localKey: 'noAkte' },
+    agama_id: { label: 'Agama', dbKey: 'agama_id', localKey: 'agama_id' },
+    anak_keberapa: { label: 'Anak Ke-', dbKey: 'anak_keberapa', localKey: 'anakKe' },
+    alamat_jalan: { label: 'Jalan atau Kampung', dbKey: 'alamat_jalan', localKey: 'jalan' },
+    rt: { label: 'RT', dbKey: 'rt', localKey: 'rt' },
+    rw: { label: 'RW', dbKey: 'rw', localKey: 'rw' },
+    wilayah: { label: 'Wilayah (Provinsi, Kab, Kec, Desa)', dbKey: 'wilayah', localKey: 'wilayah' },
+    kode_pos: { label: 'Kode Pos', dbKey: 'kode_pos', localKey: 'kodePos' },
+    tempat_tinggal: { label: 'Tempat Tinggal', dbKey: 'jenis_tinggal_id', localKey: 'jenisTinggalId' },
+    transportasi: { label: 'Alat Transportasi', dbKey: 'alat_transportasi_id', localKey: 'alatTransportasiId' },
+    lintang_bujur: { label: 'Koordinat (Lintang & Bujur)', dbKey: 'lintang_bujur', localKey: 'lintang_bujur' },
+    no_telepon_rumah: { label: 'No. Telepon Rumah', dbKey: 'no_telepon_rumah', localKey: 'noTelpRumah' },
+    no_hp: { label: 'No. Handphone (WhatsApp)', dbKey: 'nomor_telepon_seluler', localKey: 'noHp' },
+    tinggi_badan: { label: 'Tinggi Badan (cm)', dbKey: 'tinggi_badan', localKey: 'tinggiBadan' },
+    berat_badan: { label: 'Berat Badan (kg)', dbKey: 'berat_badan', localKey: 'beratBadan' },
+    lingkar_kepala: { label: 'Lingkar Kepala (cm)', dbKey: 'lingkar_kepala', localKey: 'lingkarKepala' },
+    jarak_sekolah: { label: 'Jarak Rumah ke Sekolah', dbKey: 'jarak_sekolah', localKey: 'jarak_sekolah' },
+    waktu_tempuh: { label: 'Waktu Tempuh ke Sekolah', dbKey: 'waktu_tempuh', localKey: 'waktu_tempuh' },
+    jumlah_saudara_kandung: { label: 'Jumlah Saudara Kandung', dbKey: 'jumlah_saudara_kandung', localKey: 'jumlahSaudara' },
+    data_orang_tua: { label: 'Data Orang Tua (Ayah & Ibu)', dbKey: 'data_orang_tua', localKey: 'data_orang_tua' },
+    data_wali: { label: 'Data Wali', dbKey: 'data_wali', localKey: 'data_wali' }
+  };
+
+  const handleFieldToggle = (fieldKey: string) => {
+    setSelectedFields(prev =>
+      prev.includes(fieldKey)
+        ? prev.filter(f => f !== fieldKey)
+        : [...prev, fieldKey]
+    );
+  };
+
+  const handleStartPerbaikan = () => {
+    if (selectedFields.length === 0) {
+      Swal.fire("Info", "Pilih minimal satu data untuk diajukan perbaikan", "info");
+      return;
+    }
+    
+    const initialForm: any = {};
+    selectedFields.forEach(fieldKey => {
+      if (fieldKey === "lintang_bujur") {
+        initialForm["lintang"] = formData["lintang"] || "";
+        initialForm["bujur"] = formData["bujur"] || "";
+      } else if (fieldKey === "wilayah") {
+        initialForm["provinsi"] = formData["provinsi"] || "";
+        initialForm["kabupaten_kota"] = formData["kabupaten"] || "";
+        initialForm["kecamatan"] = formData["kecamatan"] || "";
+        initialForm["desa_kelurahan"] = formData["desaKelurahan"] || "";
+      } else if (fieldKey === "jarak_sekolah") {
+        initialForm["jarak_rumah_ke_sekolah"] = formData["jarakRumah"] || "";
+        initialForm["jarak_rumah_ke_sekolah_km"] = formData["jarakRumahKm"] || "";
+      } else if (fieldKey === "waktu_tempuh") {
+        initialForm["waktu_tempuh_ke_sekolah"] = formData["waktuTempuh"] || "";
+        initialForm["menit_tempuh_ke_sekolah"] = formData["menitTempuh"] || "";
+      } else if (fieldKey === "data_orang_tua") {
+        initialForm["nama_ayah"] = formData["namaAyah"] || "";
+        initialForm["nik_ayah"] = formData["nikAyah"] || "";
+        initialForm["pekerjaan_id_ayah"] = formData["pekerjaan_id_ayah"] || "";
+        initialForm["tahun_lahir_ayah"] = formData["tahunLahirAyah"] || "";
+        initialForm["jenjang_pendidikan_ayah"] = formData["jenjang_pendidikan_ayah"] || "";
+        initialForm["penghasilan_id_ayah"] = formData["penghasilan_id_ayah"] || "";
+
+        initialForm["nama_ibu_kandung"] = formData["namaIbu"] || "";
+        initialForm["nik_ibu"] = formData["nikIbu"] || "";
+        initialForm["pekerjaan_id_ibu"] = formData["pekerjaan_id_ibu"] || "";
+        initialForm["tahun_lahir_ibu"] = formData["tahunLahirIbu"] || "";
+        initialForm["jenjang_pendidikan_ibu"] = formData["jenjang_pendidikan_ibu"] || "";
+        initialForm["penghasilan_id_ibu"] = formData["penghasilan_id_ibu"] || "";
+      } else if (fieldKey === "data_wali") {
+        initialForm["is_wali"] = formData["isWali"] || false;
+        initialForm["nama_wali"] = formData["namaWali"] || "";
+        initialForm["nik_wali"] = formData["nikWali"] || "";
+        initialForm["pekerjaan_id_wali"] = formData["pekerjaan_id_wali"] || "";
+        initialForm["tahun_lahir_wali"] = formData["tahunLahirWali"] || "";
+        initialForm["jenjang_pendidikan_wali"] = formData["jenjang_pendidikan_wali"] || "";
+        initialForm["penghasilan_id_wali"] = formData["penghasilan_id_wali"] || "";
+      } else {
+        const mapping = FIELD_MAP_SISWA[fieldKey];
+        if (mapping) {
+          initialForm[fieldKey] = formData[mapping.localKey] || "";
+        }
+      }
+    });
+    setPengajuanForm(initialForm);
+    
+    setIsPengajuanModalOpen(false);
+    setIsFormPengajuanOpen(true);
+  };
+
+  const handlePengajuanInputChange = (fieldKey: string, val: any) => {
+    setPengajuanForm((prev: any) => ({
+      ...prev,
+      [fieldKey]: val,
+    }));
+  };
+
+  const handleProvinceChange = async (provName: string, provCode: string) => {
+    handlePengajuanInputChange("provinsi", provName);
+    handlePengajuanInputChange("_provinsi_code", provCode);
+    handlePengajuanInputChange("kabupaten_kota", "");
+    handlePengajuanInputChange("_kabupaten_code", "");
+    handlePengajuanInputChange("kecamatan", "");
+    handlePengajuanInputChange("desa_kelurahan", "");
+    setKabupatens([]);
+    setKecamatans([]);
+    setDesas([]);
+    if (!provCode) return;
+    try {
+      const res = await referenceService.getWilayah(2, provCode);
+      setKabupatens(res?.data || res || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleKabupatenChange = async (kabName: string, kabCode: string) => {
+    handlePengajuanInputChange("kabupaten_kota", kabName);
+    handlePengajuanInputChange("_kabupaten_code", kabCode);
+    handlePengajuanInputChange("kecamatan", "");
+    handlePengajuanInputChange("desa_kelurahan", "");
+    setKecamatans([]);
+    setDesas([]);
+    if (!kabCode) return;
+    try {
+      const res = await referenceService.getWilayah(3, kabCode);
+      setKecamatans(res?.data || res || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleKecamatanChange = async (kecName: string, kecCode: string) => {
+    handlePengajuanInputChange("kecamatan", kecCode);
+    handlePengajuanInputChange("_kecamatan_name", kecName);
+    handlePengajuanInputChange("desa_kelurahan", "");
+    setDesas([]);
+    if (!kecCode) return;
+    try {
+      const res = await referenceService.getWilayah(4, kecCode);
+      setDesas(res?.data || res || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDesaChange = (desaName: string, desaCode: string) => {
+    handlePengajuanInputChange("desa_kelurahan", desaCode); // save code!
+    handlePengajuanInputChange("_desa_name", desaName);
+  };
+
+  const handleSubmitPengajuan = async () => {
+    setLoading(true);
+    try {
+      const perubahan: any = {};
+      selectedFields.forEach(fieldKey => {
+        if (fieldKey === "lintang_bujur") {
+          perubahan["lintang"] = {
+            sebelumnya: formData["lintang"] || null,
+            diajukan: pengajuanForm["lintang"] || null
+          };
+          perubahan["bujur"] = {
+            sebelumnya: formData["bujur"] || null,
+            diajukan: pengajuanForm["bujur"] || null
+          };
+        } else if (fieldKey === "wilayah") {
+          perubahan["provinsi"] = {
+            sebelumnya: formData["provinsi"] || null,
+            diajukan: pengajuanForm["provinsi"] || null
+          };
+          perubahan["kabupaten_kota"] = {
+            sebelumnya: formData["kabupaten"] || null,
+            diajukan: pengajuanForm["kabupaten_kota"] || null
+          };
+          const rawKecName = pengajuanForm["_kecamatan_name"] || "";
+          const kecPart = rawKecName.startsWith("Kec.") ? rawKecName : `Kec. ${rawKecName}`;
+          const rawKabName = pengajuanForm["kabupaten_kota"] || "";
+          const kabPart = rawKabName.startsWith("Kab.") ? rawKabName : `Kab. ${rawKabName}`;
+          perubahan["kecamatan"] = {
+            sebelumnya: formData["kecamatan"] || null,
+            diajukan: pengajuanForm["kecamatan"] || null,
+            diajukan_nama: rawKecName ? `${kecPart} - ${kabPart}` : ""
+          };
+          perubahan["desa_kelurahan"] = {
+            sebelumnya: formData["desaKelurahan"] || null,
+            diajukan: pengajuanForm["desa_kelurahan"] || null,
+            diajukan_nama: pengajuanForm["_desa_name"] || ""
+          };
+        } else if (fieldKey === "jarak_sekolah") {
+          perubahan["jarak_rumah_ke_sekolah"] = {
+            sebelumnya: formData["jarakRumah"] || null,
+            diajukan: pengajuanForm["jarak_rumah_ke_sekolah"] || null
+          };
+          perubahan["jarak_rumah_ke_sekolah_km"] = {
+            sebelumnya: formData["jarakRumahKm"] || null,
+            diajukan: pengajuanForm["jarak_rumah_ke_sekolah_km"] || null
+          };
+        } else if (fieldKey === "waktu_tempuh") {
+          perubahan["waktu_tempuh_ke_sekolah"] = {
+            sebelumnya: formData["waktuTempuh"] || null,
+            diajukan: pengajuanForm["waktu_tempuh_ke_sekolah"] || null
+          };
+          perubahan["menit_tempuh_ke_sekolah"] = {
+            sebelumnya: formData["menitTempuh"] || null,
+            diajukan: pengajuanForm["menit_tempuh_ke_sekolah"] || null
+          };
+        } else if (fieldKey === "data_orang_tua") {
+          // Ayah
+          perubahan["nama_ayah"] = { sebelumnya: formData["namaAyah"] || null, diajukan: pengajuanForm["nama_ayah"] || null };
+          perubahan["nik_ayah"] = { sebelumnya: formData["nikAyah"] || null, diajukan: pengajuanForm["nik_ayah"] || null };
+          perubahan["pekerjaan_id_ayah"] = { sebelumnya: formData["pekerjaan_id_ayah"] || null, diajukan: pengajuanForm["pekerjaan_id_ayah"] || null };
+          perubahan["tahun_lahir_ayah"] = { sebelumnya: formData["tahunLahirAyah"] || null, diajukan: pengajuanForm["tahun_lahir_ayah"] || null };
+          perubahan["jenjang_pendidikan_ayah"] = { sebelumnya: formData["jenjang_pendidikan_ayah"] || null, diajukan: pengajuanForm["jenjang_pendidikan_ayah"] || null };
+          perubahan["penghasilan_id_ayah"] = { sebelumnya: formData["penghasilan_id_ayah"] || null, diajukan: pengajuanForm["penghasilan_id_ayah"] || null };
+          // Ibu
+          perubahan["nama_ibu_kandung"] = { sebelumnya: formData["namaIbu"] || null, diajukan: pengajuanForm["nama_ibu_kandung"] || null };
+          perubahan["nik_ibu"] = { sebelumnya: formData["nikIbu"] || null, diajukan: pengajuanForm["nik_ibu"] || null };
+          perubahan["pekerjaan_id_ibu"] = { sebelumnya: formData["pekerjaan_id_ibu"] || null, diajukan: pengajuanForm["pekerjaan_id_ibu"] || null };
+          perubahan["tahun_lahir_ibu"] = { sebelumnya: formData["tahunLahirIbu"] || null, diajukan: pengajuanForm["tahun_lahir_ibu"] || null };
+          perubahan["jenjang_pendidikan_ibu"] = { sebelumnya: formData["jenjang_pendidikan_ibu"] || null, diajukan: pengajuanForm["jenjang_pendidikan_ibu"] || null };
+          perubahan["penghasilan_id_ibu"] = { sebelumnya: formData["penghasilan_id_ibu"] || null, diajukan: pengajuanForm["penghasilan_id_ibu"] || null };
+        } else if (fieldKey === "data_wali") {
+          perubahan["is_wali"] = { sebelumnya: formData["isWali"] || false, diajukan: pengajuanForm["is_wali"] || false };
+          perubahan["nama_wali"] = { sebelumnya: formData["namaWali"] || null, diajukan: pengajuanForm["nama_wali"] || null };
+          perubahan["nik_wali"] = { sebelumnya: formData["nikWali"] || null, diajukan: pengajuanForm["nik_wali"] || null };
+          perubahan["pekerjaan_id_wali"] = { sebelumnya: formData["pekerjaan_id_wali"] || null, diajukan: pengajuanForm["pekerjaan_id_wali"] || null };
+          perubahan["tahun_lahir_wali"] = { sebelumnya: formData["tahunLahirWali"] || null, diajukan: pengajuanForm["tahun_lahir_wali"] || null };
+          perubahan["jenjang_pendidikan_wali"] = { sebelumnya: formData["jenjang_pendidikan_wali"] || null, diajukan: pengajuanForm["jenjang_pendidikan_wali"] || null };
+          perubahan["penghasilan_id_wali"] = { sebelumnya: formData["penghasilan_id_wali"] || null, diajukan: pengajuanForm["penghasilan_id_wali"] || null };
+        } else {
+          const mapping = FIELD_MAP_SISWA[fieldKey];
+          if (mapping) {
+            perubahan[mapping.dbKey] = {
+              sebelumnya: formData[mapping.localKey] || null,
+              diajukan: pengajuanForm[fieldKey] || null
+            };
+          }
+        }
+      });
+
+      await dapodikService.buatPengajuanPerbaikan({
+        peserta_didik_id: id,
+        tipe: 'SISWA',
+        perubahan: perubahan
+      });
+
+      Swal.fire({
+        title: "Berhasil",
+        text: "Pengajuan perbaikan data berhasil dikirim dan menunggu persetujuan.",
+        icon: "success",
+        confirmButtonColor: "#465FFF"
+      });
+      setIsFormPengajuanOpen(false);
+      setSelectedFields([]);
+    } catch (err: any) {
+      Swal.fire("Error", err.response?.data?.message || "Gagal mengirim pengajuan perbaikan data", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Fetch Data from Backend
   useEffect(() => {
     const fetchData = async () => {
@@ -76,7 +376,7 @@ const EditStudentPage: React.FC = () => {
               nipd: data.nipd || "",
               nik: data.nik || "",
               noKK: data.no_kk || "",
-              noAkte: data.no_registrasi_akta_lahir || "",
+              noAkte: data.reg_akta_lahir || "",
               kebutuhanKhusus: data.kebutuhan_khusus_nama || "",
               agama: data.agama_nama || "",
               anakKe: data.anak_keberapa !== null && data.anak_keberapa !== undefined ? String(data.anak_keberapa) : "",
@@ -90,7 +390,9 @@ const EditStudentPage: React.FC = () => {
               desaKelurahan: data.desa_kelurahan || "",
               kodePos: data.kode_pos || "",
               jenisTinggal: data.jenis_tinggal_nama || "",
+              jenisTinggalId: data.jenis_tinggal_id || "",
               alatTransportasi: data.alat_transportasi_nama || "",
+              alatTransportasiId: data.alat_transportasi_id || "",
               lintang: data.lintang ? String(data.lintang) : "",
               bujur: data.bujur ? String(data.bujur) : "",
               penerimaKIP: data.penerima_kip === "1" || data.penerima_kip === 1 || data.penerima_kip === true ? "Ya" : "Tidak",
@@ -115,30 +417,41 @@ const EditStudentPage: React.FC = () => {
               waktuTempuh: data.waktu_tempuh_ke_sekolah !== null && data.waktu_tempuh_ke_sekolah !== undefined ? String(data.waktu_tempuh_ke_sekolah) : "",
               menitTempuh: data.menit_tempuh_ke_sekolah !== null && data.menit_tempuh_ke_sekolah !== undefined ? String(data.menit_tempuh_ke_sekolah) : "",
               jumlahSaudara: data.jumlah_saudara_kandung !== null && data.jumlah_saudara_kandung !== undefined ? String(data.jumlah_saudara_kandung) : "",
-              
+              agama_id: data.agama_id || "",
+
               // Ayah
               namaAyah: data.nama_ayah || "",
               nikAyah: data.nik_ayah || "",
               pekerjaanAyah: data.pekerjaan_ayah_nama || "",
+              pekerjaan_id_ayah: data.pekerjaan_id_ayah || "",
               tahunLahirAyah: data.tahun_lahir_ayah !== null && data.tahun_lahir_ayah !== undefined ? String(data.tahun_lahir_ayah) : "",
               jenjangPendidikanAyah: data.jenjang_pendidikan_ayah_nama || "",
+              jenjang_pendidikan_ayah: data.jenjang_pendidikan_ayah || "",
               penghasilanAyah: data.penghasilan_ayah_nama || "",
-              
+              penghasilan_id_ayah: data.penghasilan_id_ayah || "",
+
               // Ibu
               namaIbu: data.nama_ibu_kandung || data.nama_ibu || "",
               nikIbu: data.nik_ibu || "",
               pekerjaanIbu: data.pekerjaan_ibu_nama || "",
+              pekerjaan_id_ibu: data.pekerjaan_id_ibu || "",
               tahunLahirIbu: data.tahun_lahir_ibu !== null && data.tahun_lahir_ibu !== undefined ? String(data.tahun_lahir_ibu) : "",
               jenjangPendidikanIbu: data.jenjang_pendidikan_ibu_nama || "",
+              jenjang_pendidikan_ibu: data.jenjang_pendidikan_ibu || "",
               penghasilanIbu: data.penghasilan_ibu_nama || "",
-              
+              penghasilan_id_ibu: data.penghasilan_id_ibu || "",
+
               // Wali
+              isWali: data.is_wali === true || data.is_wali === 1 || data.is_wali === "1" || !!(data.nama_wali || data.nik_wali),
               namaWali: data.nama_wali || "",
               nikWali: data.nik_wali || "",
               pekerjaanWali: data.pekerjaan_wali_nama || "",
+              pekerjaan_id_wali: data.pekerjaan_id_wali || "",
               tahunLahirWali: data.tahun_lahir_wali !== null && data.tahun_lahir_wali !== undefined ? String(data.tahun_lahir_wali) : "",
               jenjangPendidikanWali: data.jenjang_pendidikan_wali_nama || "",
+              jenjang_pendidikan_wali: data.jenjang_pendidikan_wali || "",
               penghasilanWali: data.penghasilan_wali_nama || "",
+              penghasilan_id_wali: data.penghasilan_id_wali || "",
             });
 
             // Regional data is directly populated to formData above and rendered as disabled Input. No mapping needed.
@@ -271,7 +584,7 @@ const EditStudentPage: React.FC = () => {
         nipd: formData.nipd,
         nik: formData.nik,
         no_kk: formData.noKK,
-        no_registrasi_akta_lahir: formData.noAkte,
+        reg_akta_lahir: formData.noAkte,
         kebutuhan_khusus_id: formData.kebutuhan_khusus_id || null,
         agama_id: formData.agama_id || null,
         anak_keberapa: formData.anakKe ? String(formData.anakKe) : null,
@@ -329,12 +642,13 @@ const EditStudentPage: React.FC = () => {
         penghasilan_id_ibu: formData.penghasilan_id_ibu || null,
         
         // Wali
-        nama_wali: formData.namaWali,
-        nik_wali: formData.nikWali,
-        pekerjaan_id_wali: formData.pekerjaan_id_wali || null,
-        tahun_lahir_wali: formData.tahunLahirWali ? String(formData.tahunLahirWali) : null,
-        jenjang_pendidikan_wali: formData.jenjang_pendidikan_wali || null,
-        penghasilan_id_wali: formData.penghasilan_id_wali || null,
+        is_wali: formData.isWali || false,
+        nama_wali: formData.isWali ? (formData.namaWali || null) : null,
+        nik_wali: formData.isWali ? (formData.nikWali || null) : null,
+        pekerjaan_id_wali: formData.isWali ? (formData.pekerjaan_id_wali || null) : null,
+        tahun_lahir_wali: formData.isWali ? (formData.tahunLahirWali ? String(formData.tahunLahirWali) : null) : null,
+        jenjang_pendidikan_wali: formData.isWali ? (formData.jenjang_pendidikan_wali || null) : null,
+        penghasilan_id_wali: formData.isWali ? (formData.penghasilan_id_wali || null) : null,
       };
 
       await dapodikService.updatePesertaDidik(id, updatePayload);
@@ -402,6 +716,12 @@ const EditStudentPage: React.FC = () => {
               className="px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] transition-colors"
             >
               Batal
+            </button>
+            <button
+              onClick={() => setIsPengajuanModalOpen(true)}
+              className="px-4 py-2.5 rounded-lg border border-brand-500 text-sm font-semibold text-brand-500 hover:bg-brand-50/50 dark:hover:bg-brand-500/10 transition-colors"
+            >
+              Pengajuan Perbaikan
             </button>
             <Button variant="primary-outline" onClick={handleSave} disabled={loading}>
               Simpan Perubahan
@@ -686,32 +1006,64 @@ const EditStudentPage: React.FC = () => {
               </div>
             </div>
  
-            {/* Data Wali */}
-            <div className="space-y-4 border-t border-gray-100 dark:border-white/[0.05] pt-6">
-              <h5 className="flex items-center gap-2 font-semibold text-gray-800 dark:text-white/90 border-b pb-2 border-gray-100 dark:border-white/[0.05]">
-                <svg className="w-5 h-5 text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                Data Wali
-              </h5>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>Nama Lengkap</Label><Input value={formData.namaWali || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                <div className="space-y-2"><Label>NIK</Label><Input value={formData.nikWali || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                <div className="space-y-2">
-                   <Label>Pekerjaan</Label>
-                   <Input value={formData.pekerjaanWali || ""} disabled placeholder="Data kosong dari Dapodik" />
+             {/* Data Wali */}
+             <div className="space-y-4 border-t border-gray-100 dark:border-white/[0.05] pt-6">
+               <h5 className="flex items-center gap-2 font-semibold text-gray-800 dark:text-white/90 border-b pb-2 border-gray-100 dark:border-white/[0.05]">
+                 <svg className="w-5 h-5 text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                 </svg>
+                 Data Wali
+               </h5>
+               
+               <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50/50 dark:bg-white/[0.01] border border-gray-200 dark:border-gray-800 mb-4 shadow-sm">
+                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Apakah mempunyai wali?</span>
+                 <Switch
+                   label="Apakah mempunyai wali?"
+                   checked={formData.isWali || false}
+                   onChange={(checked) => {
+                     setFormData((prev: any) => ({
+                       ...prev,
+                       isWali: checked,
+                       ...(checked ? {} : {
+                         namaWali: "",
+                         nikWali: "",
+                         pekerjaanWali: "",
+                         pekerjaan_id_wali: null,
+                         tahunLahirWali: "",
+                         jenjangPendidikanWali: "",
+                         jenjang_pendidikan_wali: null,
+                         penghasilanWali: "",
+                         penghasilan_id_wali: null,
+                       })
+                     }));
+                   }}
+                 />
+               </div>
+
+               {formData.isWali ? (
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                   <div className="space-y-2"><Label>Nama Lengkap</Label><Input value={formData.namaWali || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                   <div className="space-y-2"><Label>NIK</Label><Input value={formData.nikWali || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                   <div className="space-y-2">
+                      <Label>Pekerjaan</Label>
+                      <Input value={formData.pekerjaanWali || ""} disabled placeholder="Data kosong dari Dapodik" />
+                    </div>
+                    <div className="space-y-2"><Label>Tahun Lahir</Label><Input type="number" value={formData.tahunLahirWali || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                    <div className="space-y-2">
+                      <Label>Pendidikan</Label>
+                      <Input value={formData.jenjangPendidikanWali || ""} disabled placeholder="Data kosong dari Dapodik" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Penghasilan</Label>
+                      <Input value={formData.penghasilanWali || ""} disabled placeholder="Data kosong dari Dapodik" />
+                    </div>
                  </div>
-                 <div className="space-y-2"><Label>Tahun Lahir</Label><Input type="number" value={formData.tahunLahirWali || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                 <div className="space-y-2">
-                   <Label>Pendidikan</Label>
-                   <Input value={formData.jenjangPendidikanWali || ""} disabled placeholder="Data kosong dari Dapodik" />
+               ) : (
+                 <div className="p-4 text-center rounded-xl bg-gray-50/50 dark:bg-white/[0.01] border border-dashed border-gray-200 dark:border-gray-800 text-sm text-gray-500 italic">
+                   Peserta didik tidak punya wali
                  </div>
-                 <div className="space-y-2">
-                   <Label>Penghasilan</Label>
-                   <Input value={formData.penghasilanWali || ""} disabled placeholder="Data kosong dari Dapodik" />
-                 </div>
-              </div>
-            </div>
+               )}
+             </div>
           </div>
           </div>
 
@@ -782,6 +1134,514 @@ const EditStudentPage: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      {/* Modal Checklist Pengajuan Perbaikan */}
+      <Modal isOpen={isPengajuanModalOpen} onClose={() => setIsPengajuanModalOpen(false)} className="max-w-[600px] p-6 overflow-hidden">
+        <div className="flex justify-between items-center mb-4 border-b border-gray-100 dark:border-white/[0.05] pb-3">
+          <h3 className="text-lg font-bold text-gray-800 dark:text-white/90">Pilih Data Siswa yang Ingin Diperbaiki</h3>
+          <button onClick={() => setIsPengajuanModalOpen(false)} className="text-gray-500 hover:text-gray-700 dark:hover:text-white">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-3 max-h-[400px] overflow-y-auto custom-scrollbar p-1">
+          {Object.keys(FIELD_MAP_SISWA).map((key) => {
+            const field = FIELD_MAP_SISWA[key];
+            const isChecked = selectedFields.includes(key);
+            return (
+              <label key={key} className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-white/[0.02] cursor-pointer transition-colors">
+                <input
+                  type="checkbox"
+                  checked={isChecked}
+                  onChange={() => handleFieldToggle(key)}
+                  className="rounded border-gray-300 text-brand-500 focus:ring-brand-500 size-4"
+                />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{field.label}</span>
+              </label>
+            );
+          })}
+        </div>
+        <div className="flex justify-end gap-3 mt-6 border-t border-gray-100 dark:border-white/[0.05] pt-4">
+          <button
+            onClick={() => setIsPengajuanModalOpen(false)}
+            className="px-4 py-2 text-sm font-semibold text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+          >
+            Batal
+          </button>
+          <Button variant="primary" onClick={handleStartPerbaikan}>
+            Mulai Perbaikan
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Modal Form Pengajuan Perbaikan Side-by-Side */}
+      <Modal isOpen={isFormPengajuanOpen} onClose={() => setIsFormPengajuanOpen(false)} className="max-w-[800px] p-6 overflow-hidden">
+        <div className="flex justify-between items-center mb-4 border-b border-gray-100 dark:border-white/[0.05] pb-3">
+          <h3 className="text-lg font-bold text-gray-800 dark:text-white/90">Formulir Pengajuan Perbaikan Data Siswa</h3>
+          <button onClick={() => setIsFormPengajuanOpen(false)} className="text-gray-500 hover:text-gray-700 dark:hover:text-white">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+        <div className="space-y-4 max-h-[450px] overflow-y-auto custom-scrollbar pr-2 p-1">
+          <div className="grid grid-cols-2 gap-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 border-b pb-2">
+            <div>Data Sebelumnya</div>
+            <div>Data yang Diajukan</div>
+          </div>
+          {selectedFields.map((fieldKey) => {
+            const field = FIELD_MAP_SISWA[fieldKey];
+            if (!field) return null;
+
+            let oldVal = "";
+            if (fieldKey === "lintang_bujur") {
+              oldVal = `Lintang: ${formData.lintang || "-"}, Bujur: ${formData.bujur || "-"}`;
+            } else if (fieldKey === "wilayah") {
+              oldVal = `${formData.provinsi || "-"} / ${formData.kabupaten || "-"} / ${formData.kecamatan || "-"} / ${formData.desaKelurahan || "-"}`;
+            } else if (fieldKey === "jarak_sekolah") {
+              oldVal = `Jarak: ${formData.jarakRumah || "-"} m / ${formData.jarakRumahKm || "-"} km`;
+            } else if (fieldKey === "waktu_tempuh") {
+              oldVal = `Waktu Tempuh: ${formData.waktuTempuh || "-"} jam ${formData.menitTempuh || "-"} menit`;
+            } else if (fieldKey === "data_orang_tua") {
+              oldVal = `Ayah: ${formData.namaAyah || "-"} (NIK: ${formData.nikAyah || "-"}), Ibu: ${formData.namaIbu || "-"} (NIK: ${formData.nikIbu || "-"})`;
+            } else if (fieldKey === "data_wali") {
+              oldVal = formData.isWali 
+                ? `Wali: ${formData.namaWali || "-"} (NIK: ${formData.nikWali || "-"})` 
+                : "Tidak ada wali";
+            } else {
+              oldVal = formData[field.localKey] || "-";
+              if (fieldKey === "jenis_kelamin") {
+                oldVal = formData.jk === "L" ? "Laki-laki" : formData.jk === "P" ? "Perempuan" : formData.jk || "-";
+              } else if (fieldKey === "agama_id") {
+                oldVal = formData.agama || "-";
+              } else if (fieldKey === "tempat_tinggal") {
+                oldVal = formData.jenisTinggal || "-";
+              } else if (fieldKey === "transportasi") {
+                oldVal = formData.alatTransportasi || "-";
+              }
+            }
+
+            return (
+              <div key={fieldKey} className="grid grid-cols-2 gap-4 items-start border-b border-gray-50 dark:border-white/[0.01] pb-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">{field.label}</label>
+                  <div className="p-3 bg-gray-50 dark:bg-white/[0.02] border border-gray-200 dark:border-gray-800 rounded-xl text-sm text-gray-600 dark:text-gray-400 min-h-[45px] flex items-center">
+                    {oldVal}
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">{field.label} Baru</label>
+                  {fieldKey === "jenis_kelamin" ? (
+                    <select
+                      value={pengajuanForm[fieldKey] || ""}
+                      onChange={(e) => handlePengajuanInputChange(fieldKey, e.target.value)}
+                      className="w-full px-3 py-2.5 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl text-sm text-gray-800 dark:text-white/90 outline-none"
+                    >
+                      <option value="">Pilih Jenis Kelamin</option>
+                      <option value="L">Laki-laki</option>
+                      <option value="P">Perempuan</option>
+                    </select>
+                  ) : fieldKey === "agama_id" ? (
+                    <select
+                      value={pengajuanForm[fieldKey] || ""}
+                      onChange={(e) => handlePengajuanInputChange(fieldKey, e.target.value)}
+                      className="w-full px-3 py-2.5 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl text-sm text-gray-800 dark:text-white/90 outline-none"
+                    >
+                      <option value="">Pilih Agama</option>
+                      {(refOptions?.agama || refOptions?.mst_agama || [
+                        { agama_id: 1, nama: "Islam" },
+                        { agama_id: 2, nama: "Kristen" },
+                        { agama_id: 3, nama: "Katolik" },
+                        { agama_id: 4, nama: "Hindu" },
+                        { agama_id: 5, nama: "Buddha" },
+                        { agama_id: 6, nama: "Khonghucu" }
+                      ]).map((r: any) => (
+                        <option key={r.agama_id || r.id} value={r.agama_id || r.id}>
+                          {r.nama || r.nama_agama || r.agama_nama}
+                        </option>
+                      ))}
+                    </select>
+                  ) : fieldKey === "tempat_tinggal" ? (
+                    <select
+                      value={pengajuanForm[fieldKey] || ""}
+                      onChange={(e) => handlePengajuanInputChange(fieldKey, e.target.value)}
+                      className="w-full px-3 py-2.5 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl text-sm text-gray-800 dark:text-white/90 outline-none"
+                    >
+                      <option value="">Pilih Tempat Tinggal</option>
+                      {(refOptions?.jenis_tinggal || refOptions?.mst_jenis_tinggal || []).map((t: any) => (
+                        <option key={t.jenis_tinggal_id || t.id} value={t.jenis_tinggal_id || t.id}>
+                          {t.nama || t.jenis_tinggal_nama || t.nama_jenis_tinggal}
+                        </option>
+                      ))}
+                    </select>
+                  ) : fieldKey === "transportasi" ? (
+                    <select
+                      value={pengajuanForm[fieldKey] || ""}
+                      onChange={(e) => handlePengajuanInputChange(fieldKey, e.target.value)}
+                      className="w-full px-3 py-2.5 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl text-sm text-gray-800 dark:text-white/90 outline-none"
+                    >
+                      <option value="">Pilih Alat Transportasi</option>
+                      {(refOptions?.alat_transportasi || refOptions?.mst_alat_transportasi || []).map((t: any) => (
+                        <option key={t.alat_transportasi_id || t.id} value={t.alat_transportasi_id || t.id}>
+                          {t.nama || t.alat_transportasi_nama || t.nama_alat_transportasi}
+                        </option>
+                      ))}
+                    </select>
+                  ) : fieldKey === "wilayah" ? (
+                    <div className="space-y-2">
+                      <select
+                        value={pengajuanForm._provinsi_code || ""}
+                        onChange={(e) => {
+                          const code = e.target.value;
+                          const name = provinces.find((p: any) => p.kode_wilayah === code)?.nama || "";
+                          handleProvinceChange(name, code);
+                        }}
+                        className="w-full px-3 py-2.5 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl text-sm text-gray-800 dark:text-white/90 outline-none"
+                      >
+                        <option value="">Pilih Provinsi</option>
+                        {provinces.map((p: any) => (
+                          <option key={p.kode_wilayah} value={p.kode_wilayah}>
+                            {p.nama}
+                          </option>
+                        ))}
+                      </select>
+
+                      <select
+                        value={pengajuanForm._kabupaten_code || ""}
+                        onChange={(e) => {
+                          const code = e.target.value;
+                          const name = kabupatens.find((k: any) => k.kode_wilayah === code)?.nama || "";
+                          handleKabupatenChange(name, code);
+                        }}
+                        disabled={!pengajuanForm.provinsi}
+                        className="w-full px-3 py-2.5 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl text-sm text-gray-800 dark:text-white/90 outline-none disabled:opacity-50"
+                      >
+                        <option value="">Pilih Kabupaten/Kota</option>
+                        {kabupatens.map((k: any) => (
+                          <option key={k.kode_wilayah} value={k.kode_wilayah}>
+                            {k.nama}
+                          </option>
+                        ))}
+                      </select>
+
+                      <select
+                        value={pengajuanForm.kecamatan || ""}
+                        onChange={(e) => {
+                          const code = e.target.value;
+                          const name = kecamatans.find((kec: any) => kec.kode_wilayah === code)?.nama || "";
+                          handleKecamatanChange(name, code);
+                        }}
+                        disabled={!pengajuanForm.kabupaten_kota}
+                        className="w-full px-3 py-2.5 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl text-sm text-gray-800 dark:text-white/90 outline-none disabled:opacity-50"
+                      >
+                        <option value="">Pilih Kecamatan</option>
+                        {kecamatans.map((kec: any) => (
+                          <option key={kec.kode_wilayah} value={kec.kode_wilayah}>
+                            {kec.nama}
+                          </option>
+                        ))}
+                      </select>
+
+                      <select
+                        value={pengajuanForm.desa_kelurahan || ""}
+                        onChange={(e) => {
+                          const code = e.target.value;
+                          const opt = e.target.options[e.target.selectedIndex];
+                          const name = opt.text || "";
+                          handleDesaChange(name, code);
+                        }}
+                        disabled={!pengajuanForm.kecamatan}
+                        className="w-full px-3 py-2.5 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl text-sm text-gray-800 dark:text-white/90 outline-none disabled:opacity-50"
+                      >
+                        <option value="">Pilih Desa/Kelurahan</option>
+                        {desas.map((d: any) => (
+                          <option key={d.kode_wilayah} value={d.kode_wilayah}>
+                            {d.nama}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : fieldKey === "lintang_bujur" ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        value={pengajuanForm.lintang || ""}
+                        onChange={(e) => handlePengajuanInputChange("lintang", e.target.value)}
+                        className="w-full px-3 py-2.5 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl text-sm text-gray-800 dark:text-white/90 outline-none"
+                        placeholder="Lintang"
+                      />
+                      <input
+                        type="text"
+                        value={pengajuanForm.bujur || ""}
+                        onChange={(e) => handlePengajuanInputChange("bujur", e.target.value)}
+                        className="w-full px-3 py-2.5 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl text-sm text-gray-800 dark:text-white/90 outline-none"
+                        placeholder="Bujur"
+                      />
+                    </div>
+                  ) : fieldKey === "jarak_sekolah" ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <span className="text-[10px] text-gray-400">Jarak (meter)</span>
+                        <input
+                          type="number"
+                          value={pengajuanForm.jarak_rumah_ke_sekolah || ""}
+                          onChange={(e) => handlePengajuanInputChange("jarak_rumah_ke_sekolah", e.target.value)}
+                          className="w-full px-3 py-2.5 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl text-sm text-gray-800 dark:text-white/90 outline-none"
+                          placeholder="Jarak dalam meter"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-[10px] text-gray-400">Jarak (km)</span>
+                        <input
+                          type="number"
+                          value={pengajuanForm.jarak_rumah_ke_sekolah_km || ""}
+                          onChange={(e) => handlePengajuanInputChange("jarak_rumah_ke_sekolah_km", e.target.value)}
+                          className="w-full px-3 py-2.5 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl text-sm text-gray-800 dark:text-white/90 outline-none"
+                          placeholder="Jarak dalam KM"
+                        />
+                      </div>
+                    </div>
+                  ) : fieldKey === "waktu_tempuh" ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <span className="text-[10px] text-gray-400">Waktu Tempuh (jam)</span>
+                        <input
+                          type="number"
+                          value={pengajuanForm.waktu_tempuh_ke_sekolah || ""}
+                          onChange={(e) => handlePengajuanInputChange("waktu_tempuh_ke_sekolah", e.target.value)}
+                          className="w-full px-3 py-2.5 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl text-sm text-gray-800 dark:text-white/90 outline-none"
+                          placeholder="Jam"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-[10px] text-gray-400">Waktu Tempuh (menit)</span>
+                        <input
+                          type="number"
+                          value={pengajuanForm.menit_tempuh_ke_sekolah || ""}
+                          onChange={(e) => handlePengajuanInputChange("menit_tempuh_ke_sekolah", e.target.value)}
+                          className="w-full px-3 py-2.5 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl text-sm text-gray-800 dark:text-white/90 outline-none"
+                          placeholder="Menit"
+                        />
+                      </div>
+                    </div>
+                  ) : fieldKey === "data_orang_tua" ? (
+                    <div className="space-y-4 border p-3 rounded-xl dark:border-gray-800 bg-gray-50/10 dark:bg-white/[0.01]">
+                      {/* Data Ayah */}
+                      <div className="space-y-2">
+                        <h6 className="text-xs font-bold text-gray-700 dark:text-white/80 border-b pb-1">Data Ayah</h6>
+                        <input
+                          type="text"
+                          value={pengajuanForm.nama_ayah || ""}
+                          onChange={(e) => handlePengajuanInputChange("nama_ayah", e.target.value)}
+                          className="w-full px-3 py-2 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 rounded-lg text-xs"
+                          placeholder="Nama Ayah"
+                        />
+                        <input
+                          type="text"
+                          value={pengajuanForm.nik_ayah || ""}
+                          onChange={(e) => handlePengajuanInputChange("nik_ayah", e.target.value)}
+                          className="w-full px-3 py-2 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 rounded-lg text-xs"
+                          placeholder="NIK Ayah"
+                        />
+                        <select
+                          value={pengajuanForm.pekerjaan_id_ayah || ""}
+                          onChange={(e) => handlePengajuanInputChange("pekerjaan_id_ayah", e.target.value)}
+                          className="w-full px-3 py-2 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 rounded-lg text-xs"
+                        >
+                          <option value="">Pilih Pekerjaan Ayah</option>
+                          {(refOptions?.pekerjaan || refOptions?.mst_pekerjaan || []).map((o: any) => (
+                            <option key={o.pekerjaan_id || o.id} value={o.pekerjaan_id || o.id}>{o.nama || o.pekerjaan_nama}</option>
+                          ))}
+                        </select>
+                        <input
+                          type="number"
+                          value={pengajuanForm.tahun_lahir_ayah || ""}
+                          onChange={(e) => handlePengajuanInputChange("tahun_lahir_ayah", e.target.value)}
+                          className="w-full px-3 py-2 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 rounded-lg text-xs"
+                          placeholder="Tahun Lahir Ayah"
+                        />
+                        <select
+                          value={pengajuanForm.jenjang_pendidikan_ayah || ""}
+                          onChange={(e) => handlePengajuanInputChange("jenjang_pendidikan_ayah", e.target.value)}
+                          className="w-full px-3 py-2 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 rounded-lg text-xs"
+                        >
+                          <option value="">Pilih Pendidikan Ayah</option>
+                          {(refOptions?.jenjang_pendidikan || refOptions?.mst_jenjang_pendidikan || []).map((o: any) => (
+                            <option key={o.jenjang_pendidikan_id || o.id} value={o.jenjang_pendidikan_id || o.id}>{o.nama || o.jenjang_pendidikan_nama}</option>
+                          ))}
+                        </select>
+                        <select
+                          value={pengajuanForm.penghasilan_id_ayah || ""}
+                          onChange={(e) => handlePengajuanInputChange("penghasilan_id_ayah", e.target.value)}
+                          className="w-full px-3 py-2 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 rounded-lg text-xs"
+                        >
+                          <option value="">Pilih Penghasilan Ayah</option>
+                          {(refOptions?.penghasilan || refOptions?.mst_penghasilan || []).map((o: any) => (
+                            <option key={o.penghasilan_id || o.id} value={o.penghasilan_id || o.id}>{o.nama || o.penghasilan_nama}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Data Ibu */}
+                      <div className="space-y-2 mt-4 pt-2 border-t dark:border-gray-800">
+                        <h6 className="text-xs font-bold text-gray-700 dark:text-white/80 border-b pb-1">Data Ibu Kandung</h6>
+                        <input
+                          type="text"
+                          value={pengajuanForm.nama_ibu_kandung || ""}
+                          onChange={(e) => handlePengajuanInputChange("nama_ibu_kandung", e.target.value)}
+                          className="w-full px-3 py-2 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 rounded-lg text-xs"
+                          placeholder="Nama Ibu Kandung"
+                        />
+                        <input
+                          type="text"
+                          value={pengajuanForm.nik_ibu || ""}
+                          onChange={(e) => handlePengajuanInputChange("nik_ibu", e.target.value)}
+                          className="w-full px-3 py-2 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 rounded-lg text-xs"
+                          placeholder="NIK Ibu"
+                        />
+                        <select
+                          value={pengajuanForm.pekerjaan_id_ibu || ""}
+                          onChange={(e) => handlePengajuanInputChange("pekerjaan_id_ibu", e.target.value)}
+                          className="w-full px-3 py-2 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 rounded-lg text-xs"
+                        >
+                          <option value="">Pilih Pekerjaan Ibu</option>
+                          {(refOptions?.pekerjaan || refOptions?.mst_pekerjaan || []).map((o: any) => (
+                            <option key={o.pekerjaan_id || o.id} value={o.pekerjaan_id || o.id}>{o.nama || o.pekerjaan_nama}</option>
+                          ))}
+                        </select>
+                        <input
+                          type="number"
+                          value={pengajuanForm.tahun_lahir_ibu || ""}
+                          onChange={(e) => handlePengajuanInputChange("tahun_lahir_ibu", e.target.value)}
+                          className="w-full px-3 py-2 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 rounded-lg text-xs"
+                          placeholder="Tahun Lahir Ibu"
+                        />
+                        <select
+                          value={pengajuanForm.jenjang_pendidikan_ibu || ""}
+                          onChange={(e) => handlePengajuanInputChange("jenjang_pendidikan_ibu", e.target.value)}
+                          className="w-full px-3 py-2 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 rounded-lg text-xs"
+                        >
+                          <option value="">Pilih Pendidikan Ibu</option>
+                          {(refOptions?.jenjang_pendidikan || refOptions?.mst_jenjang_pendidikan || []).map((o: any) => (
+                            <option key={o.jenjang_pendidikan_id || o.id} value={o.jenjang_pendidikan_id || o.id}>{o.nama || o.jenjang_pendidikan_nama}</option>
+                          ))}
+                        </select>
+                        <select
+                          value={pengajuanForm.penghasilan_id_ibu || ""}
+                          onChange={(e) => handlePengajuanInputChange("penghasilan_id_ibu", e.target.value)}
+                          className="w-full px-3 py-2 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 rounded-lg text-xs"
+                        >
+                          <option value="">Pilih Penghasilan Ibu</option>
+                          {(refOptions?.penghasilan || refOptions?.mst_penghasilan || []).map((o: any) => (
+                            <option key={o.penghasilan_id || o.id} value={o.penghasilan_id || o.id}>{o.nama || o.penghasilan_nama}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  ) : fieldKey === "data_wali" ? (
+                    <div className="space-y-4 border p-3 rounded-xl dark:border-gray-800 bg-gray-50/10 dark:bg-white/[0.01]">
+                      <div className="flex items-center justify-between border-b pb-2 mb-2">
+                        <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Punya Wali?</span>
+                        <Switch
+                          label="Punya Wali?"
+                          checked={pengajuanForm.is_wali || false}
+                          onChange={(checked) => {
+                            handlePengajuanInputChange("is_wali", checked);
+                            if (!checked) {
+                              handlePengajuanInputChange("nama_wali", "");
+                              handlePengajuanInputChange("nik_wali", "");
+                              handlePengajuanInputChange("pekerjaan_id_wali", "");
+                              handlePengajuanInputChange("tahun_lahir_wali", "");
+                              handlePengajuanInputChange("jenjang_pendidikan_wali", "");
+                              handlePengajuanInputChange("penghasilan_id_wali", "");
+                            }
+                          }}
+                        />
+                      </div>
+                      {pengajuanForm.is_wali ? (
+                        <div className="space-y-2">
+                          <input
+                            type="text"
+                            value={pengajuanForm.nama_wali || ""}
+                            onChange={(e) => handlePengajuanInputChange("nama_wali", e.target.value)}
+                            className="w-full px-3 py-2 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 rounded-lg text-xs"
+                            placeholder="Nama Wali"
+                          />
+                          <input
+                            type="text"
+                            value={pengajuanForm.nik_wali || ""}
+                            onChange={(e) => handlePengajuanInputChange("nik_wali", e.target.value)}
+                            className="w-full px-3 py-2 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 rounded-lg text-xs"
+                            placeholder="NIK Wali"
+                          />
+                          <select
+                            value={pengajuanForm.pekerjaan_id_wali || ""}
+                            onChange={(e) => handlePengajuanInputChange("pekerjaan_id_wali", e.target.value)}
+                            className="w-full px-3 py-2 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 rounded-lg text-xs"
+                          >
+                            <option value="">Pilih Pekerjaan Wali</option>
+                            {(refOptions?.pekerjaan || refOptions?.mst_pekerjaan || []).map((o: any) => (
+                              <option key={o.pekerjaan_id || o.id} value={o.pekerjaan_id || o.id}>{o.nama || o.pekerjaan_nama}</option>
+                            ))}
+                          </select>
+                          <input
+                            type="number"
+                            value={pengajuanForm.tahun_lahir_wali || ""}
+                            onChange={(e) => handlePengajuanInputChange("tahun_lahir_wali", e.target.value)}
+                            className="w-full px-3 py-2 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 rounded-lg text-xs"
+                            placeholder="Tahun Lahir Wali"
+                          />
+                          <select
+                            value={pengajuanForm.jenjang_pendidikan_wali || ""}
+                            onChange={(e) => handlePengajuanInputChange("jenjang_pendidikan_wali", e.target.value)}
+                            className="w-full px-3 py-2 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 rounded-lg text-xs"
+                          >
+                            <option value="">Pilih Pendidikan Wali</option>
+                            {(refOptions?.jenjang_pendidikan || refOptions?.mst_jenjang_pendidikan || []).map((o: any) => (
+                              <option key={o.jenjang_pendidikan_id || o.id} value={o.jenjang_pendidikan_id || o.id}>{o.nama || o.jenjang_pendidikan_nama}</option>
+                            ))}
+                          </select>
+                          <select
+                            value={pengajuanForm.penghasilan_id_wali || ""}
+                            onChange={(e) => handlePengajuanInputChange("penghasilan_id_wali", e.target.value)}
+                            className="w-full px-3 py-2 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 rounded-lg text-xs"
+                          >
+                            <option value="">Pilih Penghasilan Wali</option>
+                            {(refOptions?.penghasilan || refOptions?.mst_penghasilan || []).map((o: any) => (
+                              <option key={o.penghasilan_id || o.id} value={o.penghasilan_id || o.id}>{o.nama || o.penghasilan_nama}</option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : (
+                        <div className="p-2 text-center text-xs text-gray-500 italic">Peserta didik tidak punya wali</div>
+                      )}
+                    </div>
+                  ) : (
+                    <input
+                      type={fieldKey === 'tanggal_lahir' ? 'date' : fieldKey === 'rt' || fieldKey === 'rw' || fieldKey === 'anak_keberapa' || fieldKey === 'tinggi_badan' || fieldKey === 'berat_badan' || fieldKey === 'lingkar_kepala' || fieldKey === 'jumlah_saudara_kandung' ? 'number' : 'text'}
+                      value={pengajuanForm[fieldKey] || ""}
+                      onChange={(e) => handlePengajuanInputChange(fieldKey, e.target.value)}
+                      className="w-full px-3 py-2.5 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl text-sm text-gray-800 dark:text-white/90 outline-none"
+                      placeholder={`Masukkan ${field.label} baru...`}
+                    />
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex justify-end gap-3 mt-6 border-t border-gray-100 dark:border-white/[0.05] pt-4">
+          <button
+            onClick={() => {
+              setIsFormPengajuanOpen(false);
+              setIsPengajuanModalOpen(true);
+            }}
+            className="px-4 py-2 text-sm font-semibold text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+          >
+            Kembali
+          </button>
+          <Button variant="primary" onClick={handleSubmitPengajuan} disabled={loading}>
+            {loading ? "Mengirim..." : "Kirim Pengajuan"}
+          </Button>
+        </div>
+      </Modal>
     </>
   );
 };
