@@ -69,6 +69,124 @@ const EditStudentPage: React.FC = () => {
   const [kecamatans, setKecamatans] = useState<any[]>([]);
   const [desas, setDesas] = useState<any[]>([]);
 
+  const [addrProvinces, setAddrProvinces] = useState<any[]>([]);
+  const [addrKabupatens, setAddrKabupatens] = useState<any[]>([]);
+  const [addrKecamatans, setAddrKecamatans] = useState<any[]>([]);
+  const [addrDesas, setAddrDesas] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (provinces.length > 0) {
+      setAddrProvinces(provinces);
+    }
+  }, [provinces]);
+
+  useEffect(() => {
+    const loadReferences = async () => {
+      try {
+        const [optionsRes, provsRes] = await Promise.allSettled([
+          referenceService.getOptions(),
+          referenceService.getWilayah(1)
+        ]);
+
+        if (optionsRes.status === "fulfilled") {
+          const val = optionsRes.value;
+          setRefOptions(val?.data || val || null);
+        }
+        if (provsRes.status === "fulfilled") {
+          const val = provsRes.value;
+          setProvinces(val?.data || val || []);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    loadReferences();
+  }, []);
+
+  const handleAddrProvinceChange = async (provCode: string, provName: string) => {
+    handleInputChange("provinsi", provName);
+    handleInputChange("kabupaten", "");
+    handleInputChange("kecamatan", "");
+    handleInputChange("desaKelurahan", "");
+    handleInputChange("desaKelurahanCode", "");
+    setAddrKabupatens([]);
+    setAddrKecamatans([]);
+    setAddrDesas([]);
+    if (!provCode) return;
+    try {
+      const res = await referenceService.getWilayah(2, provCode);
+      setAddrKabupatens(res?.data || res || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleAddrKabupatenChange = async (kabCode: string, kabName: string) => {
+    handleInputChange("kabupaten", kabName);
+    handleInputChange("kecamatan", "");
+    handleInputChange("desaKelurahan", "");
+    handleInputChange("desaKelurahanCode", "");
+    setAddrKecamatans([]);
+    setAddrDesas([]);
+    if (!kabCode) return;
+    try {
+      const res = await referenceService.getWilayah(3, kabCode);
+      setAddrKecamatans(res?.data || res || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleAddrKecamatanChange = async (kecCode: string) => {
+    handleInputChange("kecamatan", kecCode);
+    handleInputChange("desaKelurahan", "");
+    handleInputChange("desaKelurahanCode", "");
+    setAddrDesas([]);
+    if (!kecCode) return;
+    try {
+      const res = await referenceService.getWilayah(4, kecCode);
+      setAddrDesas(res?.data || res || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleAddrDesaChange = (desaCode: string, desaName: string) => {
+    handleInputChange("desaKelurahan", desaName);
+    handleInputChange("desaKelurahanCode", desaCode);
+  };
+
+  // Pre-load address hierarchy when student data is fetched
+  useEffect(() => {
+    const loadAddressHierarchy = async () => {
+      const desaCode = formData.desaKelurahanCode; // e.g. "0207152003"
+      if (desaCode && desaCode.length >= 6) {
+        try {
+          const provCode = desaCode.substring(0, 2) + "0000";
+          const kabCode = desaCode.substring(0, 4) + "00";
+          const kecCode = desaCode.substring(0, 6);
+
+          // Fetch kabupatens for this province
+          const kabRes = await referenceService.getWilayah(2, provCode);
+          setAddrKabupatens(kabRes?.data || kabRes || []);
+
+          // Fetch kecamatans for this kabupaten
+          const kecRes = await referenceService.getWilayah(3, kabCode);
+          setAddrKecamatans(kecRes?.data || kecRes || []);
+
+          // Fetch desas for this kecamatan
+          const desaRes = await referenceService.getWilayah(4, kecCode);
+          setAddrDesas(desaRes?.data || desaRes || []);
+        } catch (e) {
+          console.error("Gagal load address hierarchy on mount:", e);
+        }
+      }
+    };
+    if (formData.desaKelurahanCode && addrProvinces.length > 0 && addrKabupatens.length === 0) {
+      loadAddressHierarchy();
+    }
+  }, [formData.desaKelurahanCode, addrProvinces.length, addrKabupatens.length]);
+
   useEffect(() => {
     if (isFormPengajuanOpen) {
       const loadDataOnOpen = async () => {
@@ -380,14 +498,18 @@ const EditStudentPage: React.FC = () => {
               kebutuhanKhusus: data.kebutuhan_khusus_nama || "",
               agama: data.agama_nama || "",
               anakKe: data.anak_keberapa !== null && data.anak_keberapa !== undefined ? String(data.anak_keberapa) : "",
+              idHobby: data.id_hobby !== null && data.id_hobby !== undefined ? String(data.id_hobby) : "",
+              idCita: data.id_cita !== null && data.id_cita !== undefined ? String(data.id_cita) : "",
               avatar: data.foto || "",
               jalan: data.alamat_jalan || "",
               rt: format3Digits(data.rt),
               rw: format3Digits(data.rw),
               provinsi: data.provinsi || "",
               kabupaten: data.kabupaten || data.kabupaten_kota || "",
-              kecamatan: data.kecamatan || "",
+              kecamatan: data.kode_wilayah ? data.kode_wilayah.trim().substring(0, 6) : "",
+              kecamatanName: data.kecamatan || "",
               desaKelurahan: data.desa_kelurahan || "",
+              desaKelurahanCode: data.kode_wilayah ? data.kode_wilayah.trim() : "",
               kodePos: data.kode_pos || "",
               jenisTinggal: data.jenis_tinggal_nama || "",
               jenisTinggalId: data.jenis_tinggal_id || "",
@@ -406,8 +528,8 @@ const EditStudentPage: React.FC = () => {
 
               noTelpRumah: data.nomor_telepon_rumah || "",
               noHp: data.nomor_telepon_seluler || "",
-              noWa: data.no_wa || "",
-              emailAktif: data.email || "",
+              noWa: data.no_whatsapp || data.no_wa || "",
+              emailAktif: data.email_aktif || data.email || "",
               emailAkun: data.penggunas?.[0]?.email || "",
               tinggiBadan: data.tinggi_badan !== null && data.tinggi_badan !== undefined ? String(data.tinggi_badan) : "",
               beratBadan: data.berat_badan !== null && data.berat_badan !== undefined ? String(data.berat_badan) : "",
@@ -594,7 +716,7 @@ const EditStudentPage: React.FC = () => {
         rw: sanitizeRtRw(formData.rw),
         provinsi: formData.provinsi,
         kabupaten_kota: formData.kabupaten,
-        kecamatan: formData.kecamatan,
+        kecamatan: formData.desaKelurahanCode || formData.kecamatan,
         desa_kelurahan: formData.desaKelurahan,
         kode_pos: formData.kodePos,
         jenis_tinggal_id: formData.jenis_tinggal_id || null,
@@ -604,6 +726,8 @@ const EditStudentPage: React.FC = () => {
         penerima_kip: formData.penerimaKIP,
         layak_pip: formData.layakKIP,
         penerima_kps: formData.penerimaKPS,
+        id_hobby: formData.idHobby || null,
+        id_cita: formData.idCita || null,
         
         id_bank: formData.idBank,
         rekening_bank: formData.rekeningBank,
@@ -806,17 +930,56 @@ const EditStudentPage: React.FC = () => {
                     <div className="space-y-2"><Label>NISN</Label><Input value={formData.nisn || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                     <div className="space-y-2"><Label>NIPD</Label><Input value={formData.nipd || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                     <div className="space-y-2"><Label>NIK</Label><Input value={formData.nik || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                    <div className="space-y-2"><Label>No. Kartu Keluarga</Label><Input value={formData.noKK || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                    <div className="space-y-2"><Label>No. Register Akte Lahir</Label><Input value={formData.noAkte || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                     <div className="space-y-2">
+                       <Label>No. Kartu Keluarga</Label>
+                       <Input 
+                         value={formData.noKK || ""} 
+                         maxLength={16}
+                         placeholder="Masukkan No. Kartu Keluarga" 
+                         onChange={(e) => handleInputChange("noKK", e.target.value.replace(/\D/g, ''))} 
+                       />
+                     </div>
+                     <div className="space-y-2">
+                       <Label>No. Register Akte Lahir</Label>
+                       <Input 
+                         value={formData.noAkte || ""} 
+                         placeholder="Masukkan No. Register Akte Lahir" 
+                         onChange={(e) => handleInputChange("noAkte", e.target.value)} 
+                       />
+                     </div>
                      <div className="space-y-2">
                         <Label>Berkebutuhan Khusus</Label>
                         <Input value={formData.kebutuhanKhusus || ""} disabled placeholder="Data kosong dari Dapodik" />
                       </div>
                       <div className="space-y-2">
                         <Label>Agama</Label>
-                        <Input value={formData.agama || ""} disabled placeholder="Data kosong dari Dapodik" />
+                        <select
+                          value={formData.agama_id || ""}
+                          onChange={(e) => {
+                            const opt = (refOptions?.agama || []).find((a: any) => String(a.agama_id || a.id) === e.target.value);
+                            setFormData((prev: any) => ({
+                              ...prev,
+                              agama_id: e.target.value,
+                              agama: opt?.nama || opt?.agama || ""
+                            }));
+                          }}
+                          className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                        >
+                          <option value="">Pilih Agama</option>
+                          {(refOptions?.agama || []).map((a: any) => (
+                            <option key={a.agama_id || a.id} value={a.agama_id || a.id}>{a.nama || a.agama}</option>
+                          ))}
+                        </select>
                       </div>
-                     <div className="space-y-2"><Label>Anak ke-</Label><Input type="number" value={formData.anakKe || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                     <div className="space-y-2">
+                       <Label>Anak ke-</Label>
+                       <Input 
+                         type="number" 
+                         value={formData.anakKe || ""} 
+                         placeholder="Masukkan Anak ke- (angka)" 
+                         onChange={(e) => handleInputChange("anakKe", e.target.value)} 
+                       />
+                     </div>
                   </div>
                 </div>
  
@@ -830,31 +993,169 @@ const EditStudentPage: React.FC = () => {
                     Alamat dan Tempat Tinggal
                   </h5>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2"><Label>Jalan atau Kampung</Label><Input value={formData.jalan || ""} placeholder="Masukkan jalan atau kampung" disabled /></div>
+                    <div className="space-y-2">
+                      <Label>Jalan atau Kampung</Label>
+                      <Input 
+                        value={formData.jalan || ""} 
+                        placeholder="Masukkan jalan atau kampung" 
+                        onChange={(e) => handleInputChange("jalan", e.target.value)} 
+                      />
+                    </div>
                     <div className="space-y-2">
                       <Label>RT</Label>
-                      <Input value={formData.rt || ""} disabled placeholder="Data kosong dari Dapodik" />
+                      <Input 
+                        value={formData.rt || ""} 
+                        placeholder="Masukkan RT (contoh: 001)" 
+                        onChange={(e) => handleInputChange("rt", e.target.value)} 
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label>RW</Label>
-                      <Input value={formData.rw || ""} disabled placeholder="Data kosong dari Dapodik" />
+                      <Input 
+                        value={formData.rw || ""} 
+                        placeholder="Masukkan RW (contoh: 002)" 
+                        onChange={(e) => handleInputChange("rw", e.target.value)} 
+                      />
                     </div>
-                    <div className="space-y-2"><Label>Provinsi</Label><Input value={formData.provinsi || ""} disabled placeholder="Data kosong dari Dapodik" /></div>
-                    <div className="space-y-2"><Label>Kab./Kota</Label><Input value={formData.kabupaten || ""} disabled placeholder="Data kosong dari Dapodik" /></div>
-                    <div className="space-y-2"><Label>Kecamatan</Label><Input value={formData.kecamatan || ""} disabled placeholder="Data kosong dari Dapodik" /></div>
-                    <div className="space-y-2"><Label>Desa/Kelurahan</Label><Input value={formData.desaKelurahan || ""} disabled placeholder="Data kosong dari Dapodik" /></div>
-                    <div className="space-y-2"><Label>Kode Pos</Label><Input value={formData.kodePos || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                     <div className="space-y-2">
-                       <Label>Tempat Tinggal</Label>
-                       <Input value={formData.jenisTinggal || ""} disabled placeholder="Data kosong dari Dapodik" />
-                     </div>
-                     <div className="space-y-2">
-                       <Label>Transportasi</Label>
-                       <Input value={formData.alatTransportasi || ""} disabled placeholder="Data kosong dari Dapodik" />
-                     </div>
-                     <div className="col-span-full grid grid-cols-2 gap-4">
-                      <div className="space-y-2"><Label>Lintang</Label><Input value={formData.lintang || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                      <div className="space-y-2"><Label>Bujur</Label><Input value={formData.bujur || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                    <div className="space-y-2">
+                      <Label>Provinsi</Label>
+                      <select
+                        value={addrProvinces.find(p => p.nama?.trim().toLowerCase() === formData.provinsi?.trim().toLowerCase())?.kode_wilayah?.trim() || ""}
+                        onChange={(e) => {
+                          const code = e.target.value?.trim();
+                          const name = addrProvinces.find(p => p.kode_wilayah?.trim() === code)?.nama || "";
+                          handleAddrProvinceChange(code, name);
+                        }}
+                        className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                      >
+                        <option value="">{formData.provinsi || "Pilih Provinsi"}</option>
+                        {addrProvinces.map((p) => (
+                          <option key={p.kode_wilayah?.trim()} value={p.kode_wilayah?.trim()}>{p.nama}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Kab./Kota</Label>
+                      <select
+                        value={addrKabupatens.find(k => k.nama?.trim().toLowerCase() === formData.kabupaten?.trim().toLowerCase())?.kode_wilayah?.trim() || ""}
+                        onChange={(e) => {
+                          const code = e.target.value?.trim();
+                          const name = addrKabupatens.find(k => k.kode_wilayah?.trim() === code)?.nama || "";
+                          handleAddrKabupatenChange(code, name);
+                        }}
+                        className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                        disabled={!formData.provinsi}
+                      >
+                        <option value="">{formData.kabupaten || "Pilih Kab./Kota"}</option>
+                        {addrKabupatens.map((k) => (
+                          <option key={k.kode_wilayah?.trim()} value={k.kode_wilayah?.trim()}>{k.nama}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Kecamatan</Label>
+                      <select
+                        value={formData.kecamatan?.trim() || ""}
+                        onChange={(e) => {
+                          const code = e.target.value?.trim();
+                          const name = addrKecamatans.find(k => k.kode_wilayah?.trim() === code)?.nama || "";
+                          handleInputChange("kecamatanName", name);
+                          handleAddrKecamatanChange(code);
+                        }}
+                        className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                        disabled={!formData.kabupaten}
+                      >
+                        <option value="">{formData.kecamatanName || "Pilih Kecamatan"}</option>
+                        {addrKecamatans.map((k) => (
+                          <option key={k.kode_wilayah?.trim()} value={k.kode_wilayah?.trim()}>{k.nama}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Desa/Kelurahan</Label>
+                      <select
+                        value={formData.desaKelurahanCode?.trim() || ""}
+                        onChange={(e) => {
+                          const code = e.target.value?.trim();
+                          const name = addrDesas.find(d => d.kode_wilayah?.trim() === code)?.nama || "";
+                          handleAddrDesaChange(code, name);
+                        }}
+                        className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                        disabled={!formData.kecamatan}
+                      >
+                        <option value="">{formData.desaKelurahan || "Pilih Desa/Kelurahan"}</option>
+                        {addrDesas.map((d) => (
+                          <option key={d.kode_wilayah?.trim()} value={d.kode_wilayah?.trim()}>{d.nama}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Kode Pos</Label>
+                      <Input 
+                        value={formData.kodePos || ""} 
+                        placeholder="Masukkan Kode Pos" 
+                        onChange={(e) => handleInputChange("kodePos", e.target.value.replace(/\D/g, ''))} 
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Tempat Tinggal</Label>
+                      <select
+                        value={formData.jenis_tinggal_id || formData.jenisTinggalId || ""}
+                        onChange={(e) => {
+                          const opt = (refOptions?.jenis_tinggal || []).find((t: any) => String(t.jenis_tinggal_id || t.id) === e.target.value);
+                          setFormData((prev: any) => ({
+                            ...prev,
+                            jenis_tinggal_id: e.target.value,
+                            jenisTinggalId: e.target.value,
+                            jenisTinggal: opt?.nama || opt?.jenis_tinggal || ""
+                          }));
+                        }}
+                        className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                      >
+                        <option value="">Pilih Tempat Tinggal</option>
+                        {(refOptions?.jenis_tinggal || []).map((t: any) => (
+                          <option key={t.jenis_tinggal_id || t.id} value={t.jenis_tinggal_id || t.id}>{t.nama || t.jenis_tinggal}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Transportasi</Label>
+                      <select
+                        value={formData.alat_transportasi_id || formData.alatTransportasiId || ""}
+                        onChange={(e) => {
+                          const opt = (refOptions?.alat_transportasi || []).find((t: any) => String(t.alat_transportasi_id || t.id) === e.target.value);
+                          setFormData((prev: any) => ({
+                            ...prev,
+                            alat_transportasi_id: e.target.value,
+                            alatTransportasiId: e.target.value,
+                            alatTransportasi: opt?.nama || opt?.alat_transportasi || ""
+                          }));
+                        }}
+                        className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                      >
+                        <option value="">Pilih Alat Transportasi</option>
+                        {(refOptions?.alat_transportasi || []).map((t: any) => (
+                          <option key={t.alat_transportasi_id || t.id} value={t.alat_transportasi_id || t.id}>{t.nama || t.alat_transportasi}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="col-span-full grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Lintang</Label>
+                        <Input 
+                          value={formData.lintang || ""} 
+                          placeholder="Contoh: -6.200000" 
+                          onChange={(e) => handleInputChange("lintang", e.target.value)} 
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Bujur</Label>
+                        <Input 
+                          value={formData.bujur || ""} 
+                          placeholder="Contoh: 106.816666" 
+                          onChange={(e) => handleInputChange("bujur", e.target.value)} 
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -868,8 +1169,22 @@ const EditStudentPage: React.FC = () => {
                     Kontak
                   </h5>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2"><Label>No. Telp. Rumah</Label><Input value={formData.noTelpRumah || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                    <div className="space-y-2"><Label>No. Handphone</Label><Input value={formData.noHp || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                    <div className="space-y-2">
+                      <Label>No. Telp. Rumah</Label>
+                      <Input 
+                        value={formData.noTelpRumah || ""} 
+                        placeholder="Masukkan No. Telepon Rumah" 
+                        onChange={(e) => handleInputChange("noTelpRumah", e.target.value.replace(/\D/g, ''))} 
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>No. Handphone</Label>
+                      <Input 
+                        value={formData.noHp || ""} 
+                        placeholder="Masukkan No. Handphone" 
+                        onChange={(e) => handleInputChange("noHp", e.target.value.replace(/\D/g, ''))} 
+                      />
+                    </div>
                     <div className="space-y-2"><Label>No. Whatsapp <span className="text-red-500">*</span></Label><Input value={formData.noWa || ""} placeholder="0812XXXXXXXX" onChange={(e) => handleInputChange("noWa", e.target.value)} /></div>
                     <div className="space-y-2"><Label>Email Aktif <span className="text-red-500">*</span></Label><Input type="email" value={formData.emailAktif || ""} placeholder="nama@email.com" onChange={(e) => handleInputChange("emailAktif", e.target.value)} /></div>
                     <div className="space-y-2"><Label>Email Akun</Label><Input type="email" value={formData.emailAkun || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
@@ -929,14 +1244,104 @@ const EditStudentPage: React.FC = () => {
                   Data Fisik
                 </h5>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2"><Label>Tinggi Badan (cm)</Label><Input type="number" value={formData.tinggiBadan || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                  <div className="space-y-2"><Label>Berat Badan (kg)</Label><Input type="number" value={formData.beratBadan || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                  <div className="space-y-2"><Label>Lingkar Kepala (cm)</Label><Input type="number" value={formData.lingkarKepala || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                  <div className="space-y-2"><Label>Jarak Rumah ke Sekolah (m)</Label><Input type="number" value={formData.jarakRumah || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                  <div className="space-y-2"><Label>Jarak Rumah ke Sekolah (km)</Label><Input type="number" value={formData.jarakRumahKm || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                  <div className="space-y-2"><Label>Waktu Tempuh (jam/menit)</Label><Input type="number" value={formData.waktuTempuh || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                  <div className="space-y-2"><Label>Menit Tempuh (menit)</Label><Input type="number" value={formData.menitTempuh || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                  <div className="space-y-2"><Label>Jumlah Saudara Kandung</Label><Input type="number" value={formData.jumlahSaudara || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                  <div className="space-y-2">
+                    <Label>Tinggi Badan (cm)</Label>
+                    <Input 
+                      type="number" 
+                      value={formData.tinggiBadan || ""} 
+                      placeholder="Masukkan Tinggi Badan" 
+                      onChange={(e) => handleInputChange("tinggiBadan", e.target.value)} 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Berat Badan (kg)</Label>
+                    <Input 
+                      type="number" 
+                      value={formData.beratBadan || ""} 
+                      placeholder="Masukkan Berat Badan" 
+                      onChange={(e) => handleInputChange("beratBadan", e.target.value)} 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Lingkar Kepala (cm)</Label>
+                    <Input 
+                      type="number" 
+                      value={formData.lingkarKepala || ""} 
+                      placeholder="Masukkan Lingkar Kepala" 
+                      onChange={(e) => handleInputChange("lingkarKepala", e.target.value)} 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Jarak Rumah ke Sekolah (m)</Label>
+                    <Input 
+                      type="number" 
+                      value={formData.jarakRumah || ""} 
+                      placeholder="Masukkan Jarak Rumah" 
+                      onChange={(e) => handleInputChange("jarakRumah", e.target.value)} 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Jarak Rumah ke Sekolah (km)</Label>
+                    <Input 
+                      type="number" 
+                      value={formData.jarakRumahKm || ""} 
+                      placeholder="Masukkan Jarak Rumah (KM)" 
+                      onChange={(e) => handleInputChange("jarakRumahKm", e.target.value)} 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Waktu Tempuh (jam/menit)</Label>
+                    <Input 
+                      type="number" 
+                      value={formData.waktuTempuh || ""} 
+                      placeholder="Masukkan Waktu Tempuh (jam)" 
+                      onChange={(e) => handleInputChange("waktuTempuh", e.target.value)} 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Menit Tempuh (menit)</Label>
+                    <Input 
+                      type="number" 
+                      value={formData.menitTempuh || ""} 
+                      placeholder="Masukkan Waktu Tempuh (menit)" 
+                      onChange={(e) => handleInputChange("menitTempuh", e.target.value)} 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Jumlah Saudara Kandung</Label>
+                    <Input 
+                      type="number" 
+                      value={formData.jumlahSaudara || ""} 
+                      placeholder="Masukkan Jumlah Saudara Kandung" 
+                      onChange={(e) => handleInputChange("jumlahSaudara", e.target.value)} 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Hobi</Label>
+                    <select
+                      value={formData.idHobby || ""}
+                      onChange={(e) => handleInputChange("idHobby", e.target.value)}
+                      className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                    >
+                      <option value="">Pilih Hobi</option>
+                      {(refOptions?.jenis_hobby || []).map((h: any) => (
+                        <option key={h.id_hobby || h.id} value={h.id_hobby || h.id}>{h.nm_hobby || h.nama}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Cita-Cita</Label>
+                    <select
+                      value={formData.idCita || ""}
+                      onChange={(e) => handleInputChange("idCita", e.target.value)}
+                      className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                    >
+                      <option value="">Pilih Cita-Cita</option>
+                      {(refOptions?.jenis_cita || []).map((c: any) => (
+                        <option key={c.id_cita || c.id} value={c.id_cita || c.id}>{c.nm_cita || c.nama}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
             </div>
@@ -961,20 +1366,91 @@ const EditStudentPage: React.FC = () => {
                 Data Ayah
               </h5>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>Nama Lengkap</Label><Input value={formData.namaAyah || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                <div className="space-y-2"><Label>NIK</Label><Input value={formData.nikAyah || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                <div className="space-y-2">
+                  <Label>Nama Lengkap</Label>
+                  <Input 
+                    value={formData.namaAyah || ""} 
+                    placeholder="Masukkan Nama Lengkap Ayah" 
+                    onChange={(e) => handleInputChange("namaAyah", e.target.value)} 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>NIK</Label>
+                  <Input 
+                    value={formData.nikAyah || ""} 
+                    maxLength={16}
+                    placeholder="Masukkan NIK Ayah" 
+                    onChange={(e) => handleInputChange("nikAyah", e.target.value.replace(/\D/g, ''))} 
+                  />
+                </div>
                 <div className="space-y-2">
                    <Label>Pekerjaan</Label>
-                   <Input value={formData.pekerjaanAyah || ""} disabled placeholder="Data kosong dari Dapodik" />
+                   <select
+                     value={formData.pekerjaan_id_ayah || ""}
+                     onChange={(e) => {
+                       const opt = (refOptions?.pekerjaan || []).find((p: any) => String(p.pekerjaan_id || p.id) === e.target.value);
+                       setFormData((prev: any) => ({
+                         ...prev,
+                         pekerjaan_id_ayah: e.target.value,
+                         pekerjaanAyah: opt?.nama || opt?.pekerjaan || ""
+                       }));
+                     }}
+                     className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                   >
+                     <option value="">Pilih Pekerjaan</option>
+                     {(refOptions?.pekerjaan || []).map((p: any) => (
+                       <option key={p.pekerjaan_id || p.id} value={p.pekerjaan_id || p.id}>{p.nama || p.pekerjaan}</option>
+                     ))}
+                   </select>
                  </div>
-                 <div className="space-y-2"><Label>Tahun Lahir</Label><Input type="number" value={formData.tahunLahirAyah || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                 <div className="space-y-2">
+                   <Label>Tahun Lahir</Label>
+                   <Input 
+                     type="number" 
+                     value={formData.tahunLahirAyah || ""} 
+                     placeholder="Masukkan Tahun Lahir Ayah" 
+                     onChange={(e) => handleInputChange("tahunLahirAyah", e.target.value)} 
+                   />
+                 </div>
                  <div className="space-y-2">
                    <Label>Pendidikan</Label>
-                   <Input value={formData.jenjangPendidikanAyah || ""} disabled placeholder="Data kosong dari Dapodik" />
+                   <select
+                     value={formData.jenjang_pendidikan_ayah || ""}
+                     onChange={(e) => {
+                       const opt = (refOptions?.jenjang_pendidikan || []).find((p: any) => String(p.jenjang_pendidikan_id || p.id) === e.target.value);
+                       setFormData((prev: any) => ({
+                         ...prev,
+                         jenjang_pendidikan_ayah: e.target.value,
+                         jenjangPendidikanAyah: opt?.nama || opt?.jenjang_pendidikan || ""
+                       }));
+                     }}
+                     className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                   >
+                     <option value="">Pilih Pendidikan</option>
+                     {(refOptions?.jenjang_pendidikan || []).map((p: any) => (
+                       <option key={p.jenjang_pendidikan_id || p.id} value={p.jenjang_pendidikan_id || p.id}>{p.nama || p.jenjang_pendidikan}</option>
+                     ))}
+                   </select>
                  </div>
                  <div className="space-y-2">
                    <Label>Penghasilan</Label>
-                   <Input value={formData.penghasilanAyah || ""} disabled placeholder="Data kosong dari Dapodik" />
+                   <select
+                     value={formData.penghasilan_id_ayah || ""}
+                     onChange={(e) => {
+                       const opt = (refOptions?.penghasilan || []).find((p: any) => String(p.penghasilan_id || p.id) === e.target.value);
+                       setFormData((prev: any) => ({
+                         ...prev,
+                         penghasilan_id_ayah: e.target.value,
+                         penghasilanAyah: opt?.nama || opt?.penghasilan || ""
+                       }));
+                     }}
+                     className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                   >
+                     <option value="">Pilih Penghasilan</option>
+                     {(refOptions?.penghasilan || []).map((p: any) => (
+                       <option key={p.penghasilan_id || p.id} value={p.penghasilan_id || p.id}>{p.nama || p.penghasilan}</option>
+                     ))}
+                   </select>
                  </div>
               </div>
             </div>
@@ -988,20 +1464,87 @@ const EditStudentPage: React.FC = () => {
                 Data Ibu
               </h5>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>Nama Lengkap</Label><Input value={formData.namaIbu || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                <div className="space-y-2"><Label>NIK</Label><Input value={formData.nikIbu || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                <div className="space-y-2">
+                  <Label>Nama Lengkap</Label>
+                  <Input value={formData.namaIbu || ""} placeholder="Data kosong dari Dapodik" disabled />
+                </div>
+                <div className="space-y-2">
+                  <Label>NIK</Label>
+                  <Input 
+                    value={formData.nikIbu || ""} 
+                    maxLength={16}
+                    placeholder="Masukkan NIK Ibu" 
+                    onChange={(e) => handleInputChange("nikIbu", e.target.value.replace(/\D/g, ''))} 
+                  />
+                </div>
                 <div className="space-y-2">
                    <Label>Pekerjaan</Label>
-                   <Input value={formData.pekerjaanIbu || ""} disabled placeholder="Data kosong dari Dapodik" />
+                   <select
+                     value={formData.pekerjaan_id_ibu || ""}
+                     onChange={(e) => {
+                       const opt = (refOptions?.pekerjaan || []).find((p: any) => String(p.pekerjaan_id || p.id) === e.target.value);
+                       setFormData((prev: any) => ({
+                         ...prev,
+                         pekerjaan_id_ibu: e.target.value,
+                         pekerjaanIbu: opt?.nama || opt?.pekerjaan || ""
+                       }));
+                     }}
+                     className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                   >
+                     <option value="">Pilih Pekerjaan</option>
+                     {(refOptions?.pekerjaan || []).map((p: any) => (
+                       <option key={p.pekerjaan_id || p.id} value={p.pekerjaan_id || p.id}>{p.nama || p.pekerjaan}</option>
+                     ))}
+                   </select>
                  </div>
-                 <div className="space-y-2"><Label>Tahun Lahir</Label><Input type="number" value={formData.tahunLahirIbu || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                 <div className="space-y-2">
+                   <Label>Tahun Lahir</Label>
+                   <Input 
+                     type="number" 
+                     value={formData.tahunLahirIbu || ""} 
+                     placeholder="Masukkan Tahun Lahir Ibu" 
+                     onChange={(e) => handleInputChange("tahunLahirIbu", e.target.value)} 
+                   />
+                 </div>
                  <div className="space-y-2">
                    <Label>Pendidikan</Label>
-                   <Input value={formData.jenjangPendidikanIbu || ""} disabled placeholder="Data kosong dari Dapodik" />
+                   <select
+                     value={formData.jenjang_pendidikan_ibu || ""}
+                     onChange={(e) => {
+                       const opt = (refOptions?.jenjang_pendidikan || []).find((p: any) => String(p.jenjang_pendidikan_id || p.id) === e.target.value);
+                       setFormData((prev: any) => ({
+                         ...prev,
+                         jenjang_pendidikan_ibu: e.target.value,
+                         jenjangPendidikanIbu: opt?.nama || opt?.jenjang_pendidikan || ""
+                       }));
+                     }}
+                     className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                   >
+                     <option value="">Pilih Pendidikan</option>
+                     {(refOptions?.jenjang_pendidikan || []).map((p: any) => (
+                       <option key={p.jenjang_pendidikan_id || p.id} value={p.jenjang_pendidikan_id || p.id}>{p.nama || p.jenjang_pendidikan}</option>
+                     ))}
+                   </select>
                  </div>
                  <div className="space-y-2">
                    <Label>Penghasilan</Label>
-                   <Input value={formData.penghasilanIbu || ""} disabled placeholder="Data kosong dari Dapodik" />
+                   <select
+                     value={formData.penghasilan_id_ibu || ""}
+                     onChange={(e) => {
+                       const opt = (refOptions?.penghasilan || []).find((p: any) => String(p.penghasilan_id || p.id) === e.target.value);
+                       setFormData((prev: any) => ({
+                         ...prev,
+                         penghasilan_id_ibu: e.target.value,
+                         penghasilanIbu: opt?.nama || opt?.penghasilan || ""
+                       }));
+                     }}
+                     className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                   >
+                     <option value="">Pilih Penghasilan</option>
+                     {(refOptions?.penghasilan || []).map((p: any) => (
+                       <option key={p.penghasilan_id || p.id} value={p.penghasilan_id || p.id}>{p.nama || p.penghasilan}</option>
+                     ))}
+                   </select>
                  </div>
               </div>
             </div>
@@ -1042,21 +1585,92 @@ const EditStudentPage: React.FC = () => {
 
                {formData.isWali ? (
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                   <div className="space-y-2"><Label>Nama Lengkap</Label><Input value={formData.namaWali || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                   <div className="space-y-2"><Label>NIK</Label><Input value={formData.nikWali || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                    <div className="space-y-2">
-                      <Label>Pekerjaan</Label>
-                      <Input value={formData.pekerjaanWali || ""} disabled placeholder="Data kosong dari Dapodik" />
-                    </div>
-                    <div className="space-y-2"><Label>Tahun Lahir</Label><Input type="number" value={formData.tahunLahirWali || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                    <div className="space-y-2">
-                      <Label>Pendidikan</Label>
-                      <Input value={formData.jenjangPendidikanWali || ""} disabled placeholder="Data kosong dari Dapodik" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Penghasilan</Label>
-                      <Input value={formData.penghasilanWali || ""} disabled placeholder="Data kosong dari Dapodik" />
-                    </div>
+                     <Label>Nama Lengkap</Label>
+                     <Input 
+                       value={formData.namaWali || ""} 
+                       placeholder="Masukkan Nama Lengkap Wali" 
+                       onChange={(e) => handleInputChange("namaWali", e.target.value)} 
+                     />
+                   </div>
+                   <div className="space-y-2">
+                     <Label>NIK</Label>
+                     <Input 
+                       value={formData.nikWali || ""} 
+                       maxLength={16}
+                       placeholder="Masukkan NIK Wali" 
+                       onChange={(e) => handleInputChange("nikWali", e.target.value.replace(/\D/g, ''))} 
+                     />
+                   </div>
+                   <div className="space-y-2">
+                     <Label>Pekerjaan</Label>
+                     <select
+                       value={formData.pekerjaan_id_wali || ""}
+                       onChange={(e) => {
+                         const opt = (refOptions?.pekerjaan || []).find((p: any) => String(p.pekerjaan_id || p.id) === e.target.value);
+                         setFormData((prev: any) => ({
+                           ...prev,
+                           pekerjaan_id_wali: e.target.value,
+                           pekerjaanWali: opt?.nama || opt?.pekerjaan || ""
+                         }));
+                       }}
+                       className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                     >
+                       <option value="">Pilih Pekerjaan</option>
+                       {(refOptions?.pekerjaan || []).map((p: any) => (
+                         <option key={p.pekerjaan_id || p.id} value={p.pekerjaan_id || p.id}>{p.nama || p.pekerjaan}</option>
+                       ))}
+                     </select>
+                   </div>
+                   <div className="space-y-2">
+                     <Label>Tahun Lahir</Label>
+                     <Input 
+                       type="number" 
+                       value={formData.tahunLahirWali || ""} 
+                       placeholder="Masukkan Tahun Lahir Wali" 
+                       onChange={(e) => handleInputChange("tahunLahirWali", e.target.value)} 
+                     />
+                   </div>
+                   <div className="space-y-2">
+                     <Label>Pendidikan</Label>
+                     <select
+                       value={formData.jenjang_pendidikan_wali || ""}
+                       onChange={(e) => {
+                         const opt = (refOptions?.jenjang_pendidikan || []).find((p: any) => String(p.jenjang_pendidikan_id || p.id) === e.target.value);
+                         setFormData((prev: any) => ({
+                           ...prev,
+                           jenjang_pendidikan_wali: e.target.value,
+                           jenjangPendidikanWali: opt?.nama || opt?.jenjang_pendidikan || ""
+                         }));
+                       }}
+                       className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                     >
+                       <option value="">Pilih Pendidikan</option>
+                       {(refOptions?.jenjang_pendidikan || []).map((p: any) => (
+                         <option key={p.jenjang_pendidikan_id || p.id} value={p.jenjang_pendidikan_id || p.id}>{p.nama || p.jenjang_pendidikan}</option>
+                       ))}
+                     </select>
+                   </div>
+                   <div className="space-y-2">
+                     <Label>Penghasilan</Label>
+                     <select
+                       value={formData.penghasilan_id_wali || ""}
+                       onChange={(e) => {
+                         const opt = (refOptions?.penghasilan || []).find((p: any) => String(p.penghasilan_id || p.id) === e.target.value);
+                         setFormData((prev: any) => ({
+                           ...prev,
+                           penghasilan_id_wali: e.target.value,
+                           penghasilanWali: opt?.nama || opt?.penghasilan || ""
+                         }));
+                       }}
+                       className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                     >
+                       <option value="">Pilih Penghasilan</option>
+                       {(refOptions?.penghasilan || []).map((p: any) => (
+                         <option key={p.penghasilan_id || p.id} value={p.penghasilan_id || p.id}>{p.nama || p.penghasilan}</option>
+                       ))}
+                     </select>
+                   </div>
                  </div>
                ) : (
                  <div className="p-4 text-center rounded-xl bg-gray-50/50 dark:bg-white/[0.01] border border-dashed border-gray-200 dark:border-gray-800 text-sm text-gray-500 italic">
@@ -1144,21 +1758,29 @@ const EditStudentPage: React.FC = () => {
           </button>
         </div>
         <div className="grid grid-cols-2 gap-3 max-h-[400px] overflow-y-auto custom-scrollbar p-1">
-          {Object.keys(FIELD_MAP_SISWA).map((key) => {
-            const field = FIELD_MAP_SISWA[key];
-            const isChecked = selectedFields.includes(key);
-            return (
-              <label key={key} className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-white/[0.02] cursor-pointer transition-colors">
-                <input
-                  type="checkbox"
-                  checked={isChecked}
-                  onChange={() => handleFieldToggle(key)}
-                  className="rounded border-gray-300 text-brand-500 focus:ring-brand-500 size-4"
-                />
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{field.label}</span>
-              </label>
-            );
-          })}
+          {Object.keys(FIELD_MAP_SISWA)
+            .filter((key) => {
+              const excludedKeys = [
+                "nama", "tempat_lahir", "tanggal_lahir", "jenis_kelamin", "nik", "nisn", "nipd",
+                "no_wa", "no_whatsapp", "email", "email_aktif"
+              ];
+              return !excludedKeys.includes(key);
+            })
+            .map((key) => {
+              const field = FIELD_MAP_SISWA[key];
+              const isChecked = selectedFields.includes(key);
+              return (
+                <label key={key} className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-white/[0.02] cursor-pointer transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={() => handleFieldToggle(key)}
+                    className="rounded border-gray-300 text-brand-500 focus:ring-brand-500 size-4"
+                  />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{field.label}</span>
+                </label>
+              );
+            })}
         </div>
         <div className="flex justify-end gap-3 mt-6 border-t border-gray-100 dark:border-white/[0.05] pt-4">
           <button

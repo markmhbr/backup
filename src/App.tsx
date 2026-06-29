@@ -49,6 +49,8 @@ import SuratData from "./pages/Surat/SuratData";
 import LayananMandala from "./pages/Layanan/LayananMandala";
 import PelaporanSekolahPage from "./pages/Pelaporan/index";
 import DetailPelaporanSekolahPage from "./pages/Pelaporan/detail";
+import MenuSettings from "./pages/Pengaturan/Menu";
+import BackupPage from "./pages/Pengaturan/Backup";
 
 function HomeRedirect() {
   const { user, isAuthenticated } = useAuth();
@@ -120,6 +122,11 @@ export default function App() {
             <Route path="layanan" element={<LayananMandala />} />
             <Route path="pelaporan" element={<PelaporanSekolahPage />} />
             <Route path="pelaporan/detail" element={<DetailPelaporanSekolahPage />} />
+
+            {/* Pengaturan */}
+            <Route path="pengaturan/menu" element={<MenuSettings />} />
+            <Route path="pengaturan/backup" element={<BackupPage />} />
+            <Route path="pengaturan/umum" element={<Blank />} />
 
             {/* Other */}
             

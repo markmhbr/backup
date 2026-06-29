@@ -16,6 +16,7 @@ import SidebarWidget from "./SidebarWidget";
 import { useSekolah } from "../context/SekolahContext";
 import { useAuth } from "../context/AuthContext";
 import { getRoleSlug } from "../services/roleUtils";
+import api from "../services/api";
 
 type NavItem = {
   name: string;
@@ -25,6 +26,7 @@ type NavItem = {
   subItems?: NavItem[];
   pro?: boolean;
   new?: boolean;
+  id?: string;
 };
 
 const navItems: NavItem[] = [
@@ -32,128 +34,153 @@ const navItems: NavItem[] = [
     icon: <GridIcon />,
     name: "Dashboard",
     path: "/",
+    id: "dashboard",
   },
   {
     icon: <BoxIcon />,
     name: "Data Master",
+    id: "data-master",
     subItems: [
       {
         name: "Profil Sekolah",
         path: "/school-profile",
         icon: <DotIcon />,
+        id: "profil-sekolah",
       },
       {
         name: "GTK",
         icon: <DotIcon />,
+        id: "gtk",
         subItems: [
           {
             name: "Guru",
             path: "/gtk-data?tab=guru",
             icon: <DotIcon />,
+            id: "gtk-guru",
           },
           {
             name: "Tendik",
             path: "/gtk-data?tab=tendik",
             icon: <DotIcon />,
+            id: "gtk-tendik",
           },
           {
             name: "Rekap GTK",
             path: "/gtk-data?tab=rekap",
             icon: <DotIcon />,
+            id: "gtk-rekap",
           },
           {
             name: "Kartu ID GTK",
             path: "/gtk-card",
             icon: <DotIcon />,
+            id: "gtk-kartu",
           },
           {
             name: "Pengajuan Perbaikan",
             path: "/gtk-perbaikan",
             icon: <DotIcon />,
+            id: "gtk-perbaikan",
           },
           {
             name: "GTK Non Aktif",
             path: "/gtk-data?tab=nonaktif",
             icon: <DotIcon />,
+            id: "gtk-nonaktif",
             color: "text-red-500 dark:text-red-400",
           },
           {
             name: "Buku Induk",
             path: "/gtk-buku-induk",
             icon: <DotIcon />,
+            id: "gtk-buku-induk",
           },
         ],
       },
       {
         name: "Peserta Didik",
         icon: <DotIcon />,
+        id: "peserta-didik",
         subItems: [
           {
             name: "Peserta Didik",
             path: "/student-data?tab=aktif",
             icon: <DotIcon />,
+            id: "pd-aktif",
           },
           {
             name: "Rekap PD",
             path: "/student-data?tab=rekap",
             icon: <DotIcon />,
+            id: "pd-rekap",
           },
           {
             name: "Kartu ID PD",
             path: "/student-card",
             icon: <DotIcon />,
+            id: "pd-kartu",
           },
           {
             name: "Pengajuan Perbaikan",
             path: "/student-perbaikan",
             icon: <DotIcon />,
+            id: "pd-perbaikan",
           },
           {
             name: "PD Keluar",
             path: "/student-data?tab=keluar",
             icon: <DotIcon />,
+            id: "pd-keluar",
             color: "text-red-500 dark:text-red-400",
           },
           {
             name: "Buku Induk",
             path: "/student-buku-induk",
             icon: <DotIcon />,
+            id: "pd-buku-induk",
           },
         ],
       },
       {
         name: "Rombongan Belajar",
         icon: <DotIcon />,
+        id: "rombongan-belajar",
         subItems: [
           {
             name: "Reguler",
             path: "/class-data?tab=reguler",
             icon: <DotIcon />,
+            id: "rombel-reguler",
           },
           {
             name: "Praktik",
             path: "/class-data?tab=praktik",
             icon: <DotIcon />,
+            id: "rombel-praktik",
           },
           {
             name: "Ekskul",
             path: "/class-data?tab=ekskul",
             icon: <DotIcon />,
+            id: "rombel-ekskul",
           },
           {
             name: "Matpel Pilihan",
             path: "/class-data?tab=pilihan",
             icon: <DotIcon />,
+            id: "rombel-pilihan",
           },
           {
             name: "Wali",
             path: "/class-data?tab=wali",
             icon: <DotIcon />,
+            id: "rombel-wali",
           },
           {
             name: "Rekap Rombel",
             path: "/class-data?tab=rekap",
             icon: <DotIcon />,
+            id: "rombel-rekap",
           },
         ],
       },
@@ -161,77 +188,92 @@ const navItems: NavItem[] = [
         name: "Mata Pelajaran",
         path: "/subject-data",
         icon: <DotIcon />,
+        id: "mata-pelajaran",
       },
       {
         name: "Sarpras",
         path: "/sarpras-data",
         icon: <DotIcon />,
+        id: "sarpras",
       },
     ],
   },
   {
     icon: <DocsIcon />,
     name: "Akademik",
+    id: "akademik",
     subItems: [
       {
         name: "Tahun Pelajaran",
         path: "/academic/year",
         icon: <DotIcon />,
+        id: "akademik-tahun-pelajaran",
       },
       {
         name: "Kompetensi Keahlian",
         path: "/academic/competency",
         icon: <DotIcon />,
+        id: "akademik-kompetensi",
       },
     ],
   },
   {
     icon: <TableIcon />,
     name: "Kurikulum",
+    id: "kurikulum",
     subItems: [
       {
         name: "Pengaturan Jam",
         path: "/kurikulum/pengaturan-jam",
         icon: <DotIcon />,
+        id: "kurikulum-pengaturan-jam",
       },
       {
         name: "Jadwal Pelajaran",
         path: "/kurikulum/jadwal-pelajaran",
         icon: <DotIcon />,
+        id: "kurikulum-jadwal-pelajaran",
       },
       {
         name: "Presensi",
         icon: <DotIcon />,
+        id: "kurikulum-presensi",
         subItems: [
           {
             name: "Scanner QR",
             path: "/kurikulum/presensi/scanner",
             icon: <DotIcon />,
+            id: "presensi-scanner",
           },
           {
             name: "Presensi Peserta Didik",
             path: "/kurikulum/presensi/pesertadidik",
             icon: <DotIcon />,
+            id: "presensi-pd",
           },
           {
             name: "Presensi GTK",
             path: "/kurikulum/presensi/gtk",
             icon: <DotIcon />,
+            id: "presensi-gtk",
           },
           {
             name: "Presensi Mapel",
             path: "/kurikulum/presensi/mapel",
             icon: <DotIcon />,
+            id: "presensi-mapel",
           },
           {
             name: "Izin",
             path: "/kurikulum/presensi/izin",
             icon: <DotIcon />,
+            id: "presensi-izin",
           },
           {
             name: "Hari Libur",
             path: "/kurikulum/presensi/hari-libur",
             icon: <DotIcon />,
+            id: "presensi-hari-libur",
           },
         ],
       },
@@ -240,89 +282,131 @@ const navItems: NavItem[] = [
   {
     icon: <GroupIcon />,
     name: "Indisipliner",
+    id: "indisipliner",
     subItems: [
       {
         name: "Peserta Didik",
         path: "/indisipliner?tab=peserta-didik",
         icon: <DotIcon />,
+        id: "indisipliner-pd",
       },
       {
         name: "GTK",
         path: "/indisipliner?tab=gtk",
         icon: <DotIcon />,
+        id: "indisipliner-gtk",
       },
     ],
   },
   {
     icon: <TableIcon />,
     name: "Keuangan",
+    id: "keuangan",
     subItems: [
       {
         name: "Pengaturan Tagihan",
         path: "/keuangan?tab=pengaturan",
         icon: <DotIcon />,
+        id: "keuangan-pengaturan",
       },
       {
         name: "Tagihan SPP",
         path: "/keuangan?tab=tagihan",
         icon: <DotIcon />,
+        id: "keuangan-tagihan",
       },
       {
         name: "Laporan & Rekap",
         path: "/keuangan?tab=laporan",
         icon: <DotIcon />,
+        id: "keuangan-laporan",
       },
     ],
   },
   {
     icon: <DocsIcon />,
     name: "Administrasi Surat",
+    id: "administrasi-surat",
     subItems: [
       {
         name: "Pengaturan Nomor",
         path: "/surat?tab=pengaturan",
         icon: <DotIcon />,
+        id: "surat-pengaturan-nomor",
       },
       {
         name: "Template Surat",
         path: "/surat?tab=template",
         icon: <DotIcon />,
+        id: "surat-template",
       },
       {
         name: "Surat Masuk",
         path: "/surat?tab=masuk",
         icon: <DotIcon />,
+        id: "surat-masuk",
       },
       {
         name: "Surat Keluar",
         path: "/surat?tab=keluar",
         icon: <DotIcon />,
+        id: "surat-keluar",
       },
       {
         name: "Arsip Surat",
         path: "/surat?tab=arsip",
         icon: <DotIcon />,
+        id: "surat-arsip",
       },
     ],
   },
   {
     icon: <PlugInIcon />,
     name: "Layanan Mandala",
+    id: "layanan-mandala",
     subItems: [
       {
         name: "GTK",
         path: "/layanan?tab=gtk",
         icon: <DotIcon />,
+        id: "layanan-gtk",
       },
       {
         name: "Peserta Didik",
         path: "/layanan?tab=pesertadidik",
         icon: <DotIcon />,
+        id: "layanan-pd",
       },
       {
         name: "Pelaporan Dokumen",
         path: "/pelaporan",
         icon: <DotIcon />,
+        id: "layanan-pelaporan",
+      },
+    ],
+  },
+  {
+    icon: <BoxIcon />,
+    name: "Pengaturan",
+    id: "pengaturan",
+    subItems: [
+      {
+        name: "Menu",
+        path: "/pengaturan/menu",
+        icon: <DotIcon />,
+        id: "pengaturan-menu",
+      },
+      {
+        name: "Backup",
+        path: "/pengaturan/backup",
+        icon: <DotIcon />,
+        id: "pengaturan-backup",
+      },
+      {
+        name: "Umum",
+        path: "/pengaturan/umum",
+        icon: <DotIcon />,
+        id: "pengaturan-umum",
       },
     ],
   },
@@ -345,7 +429,51 @@ const AppSidebar: React.FC = () => {
     return `${rolePrefix}${path}`;
   };
 
-  const filteredNavItems = navItems;
+  const [allowedMenus, setAllowedMenus] = useState<string[]>([]);
+
+  useEffect(() => {
+    const fetchAllowedMenus = async () => {
+      if (!user) return;
+      const isOperator = user.role.toLowerCase().includes("operator") || user.role.toLowerCase().includes("admin");
+      if (isOperator) return;
+
+      try {
+        const res = await api.get("/dapodik/menu-roles/my-menus");
+        if (res.data && res.data.data) {
+          setAllowedMenus(res.data.data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch allowed menus:", err);
+      }
+    };
+    fetchAllowedMenus();
+  }, [user]);
+
+  const isOperator = user?.role.toLowerCase().includes("operator") || user?.role.toLowerCase().includes("admin");
+
+  const filterNavItems = (items: NavItem[]): NavItem[] => {
+    if (isOperator) return items;
+    return items
+      .map((item) => {
+        if (item.subItems) {
+          const filteredSubs = filterNavItems(item.subItems);
+          if (filteredSubs.length > 0) {
+            return { ...item, subItems: filteredSubs };
+          }
+          if (item.id && allowedMenus.includes(item.id)) {
+            return { ...item, subItems: [] };
+          }
+          return null;
+        }
+        if (!item.id || allowedMenus.includes(item.id)) {
+          return item;
+        }
+        return null;
+      })
+      .filter((item): item is NavItem => item !== null);
+  };
+
+  const filteredNavItems = filterNavItems(navItems);
 
   const [openSubmenus, setOpenSubmenus] = useState<string[]>([]);
   const subMenuRefs = useRef<Record<string, HTMLDivElement | null>>({});

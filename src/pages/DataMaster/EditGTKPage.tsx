@@ -86,6 +86,17 @@ const EditGTKPage: React.FC = () => {
   const [kecamatans, setKecamatans] = useState<any[]>([]);
   const [desas, setDesas] = useState<any[]>([]);
 
+  const [addrProvinces, setAddrProvinces] = useState<any[]>([]);
+  const [addrKabupatens, setAddrKabupatens] = useState<any[]>([]);
+  const [addrKecamatans, setAddrKecamatans] = useState<any[]>([]);
+  const [addrDesas, setAddrDesas] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (provinces.length > 0) {
+      setAddrProvinces(provinces);
+    }
+  }, [provinces]);
+
   useEffect(() => {
     const loadReferences = async () => {
       try {
@@ -260,6 +271,55 @@ const EditGTKPage: React.FC = () => {
     handlePengajuanInputChange("_desa_name", desaName);
   };
 
+  const handleAddrProvinceChange = async (provCode: string, provName: string) => {
+    handleInputChange("provinsi", provName);
+    handleInputChange("kotaKabupaten", "");
+    handleInputChange("kecamatan", "");
+    handleInputChange("desaKelurahan", "");
+    setAddrKabupatens([]);
+    setAddrKecamatans([]);
+    setAddrDesas([]);
+    if (!provCode) return;
+    try {
+      const res = await referenceService.getWilayah(2, provCode);
+      setAddrKabupatens(res?.data || res || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleAddrKabupatenChange = async (kabCode: string, kabName: string) => {
+    handleInputChange("kotaKabupaten", kabName);
+    handleInputChange("kecamatan", "");
+    handleInputChange("desaKelurahan", "");
+    setAddrKecamatans([]);
+    setAddrDesas([]);
+    if (!kabCode) return;
+    try {
+      const res = await referenceService.getWilayah(3, kabCode);
+      setAddrKecamatans(res?.data || res || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleAddrKecamatanChange = async (kecCode: string) => {
+    handleInputChange("kecamatan", kecCode);
+    handleInputChange("desaKelurahan", "");
+    setAddrDesas([]);
+    if (!kecCode) return;
+    try {
+      const res = await referenceService.getWilayah(4, kecCode);
+      setAddrDesas(res?.data || res || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleAddrDesaChange = (desaName: string) => {
+    handleInputChange("desaKelurahan", desaName);
+  };
+
   const handleSubmitPengajuan = async () => {
     setLoading(true);
     try {
@@ -368,7 +428,7 @@ const EditGTKPage: React.FC = () => {
               statusPerkawinan: data.status_perkawinan !== null && data.status_perkawinan !== undefined ? String(data.status_perkawinan) : "",
               namaPasangan: data.nama_suami_istri || "",
               pekerjaanPasangan: data.pekerjaan_suami_istri !== null && data.pekerjaan_suami_istri !== undefined ? String(data.pekerjaan_suami_istri) : "",
-              namaWajibPajak: data.nama_wajib_pajak || "",
+              namaWajibPajak: data.nm_wp || data.nama_wajib_pajak || "",
               npwp: data.npwp || "",
               
               kampungJalan: data.alamat_jalan || "",
@@ -394,6 +454,7 @@ const EditGTKPage: React.FC = () => {
               tmtPns: data.tmt_pns ? data.tmt_pns.split('T')[0] : "",
               pangkatTerakhir: data.pangkat_golongan_nama || "",
               sumberGaji: data.sumber_gaji_nama || "",
+              sumber_gaji_id: data.sumber_gaji_id || "",
               
               riwayatKepangkatan: data.rwy_kepangkatan ? data.rwy_kepangkatan.map((k: any) => ({
                 gol: k.pangkat_golongan_nama || k.pangkat || "-",
@@ -417,9 +478,9 @@ const EditGTKPage: React.FC = () => {
               
               noTelpRumah: data.no_telepon_rumah || "",
               noHp: data.no_hp || "",
-              noWa: data.no_wa || "",
+              noWa: data.no_whatsapp || data.no_wa || "",
               email: data.penggunas?.[0]?.email || "",
-              idTelegram: data.qr_token || "",
+              idTelegram: data.id_telegram || "",
               
               riwayatSertifikasi: data.rwy_sertifikasi ? data.rwy_sertifikasi.map((s: any) => ({
                 lembagaSertifikasi: s.lembaga_sertifikasi_nama || s.kode_lemb_sert || "",
@@ -436,7 +497,7 @@ const EditGTKPage: React.FC = () => {
               avatar: data.foto || "",
               
               idBank: data.id_bank || "",
-              namaBank: data.bank_nama || "",
+              namaBank: data.id_bank || "",
               cabangBank: data.nama_kcp || "",
               noRekening: data.rekening_bank || "",
               atasNamaRekening: data.rekening_atas_nama || "",
@@ -739,8 +800,9 @@ const EditGTKPage: React.FC = () => {
         kewarganegaraan: formData.kewarganegaraan,
         status_perkawinan: formData.statusPerkawinan,
         nama_suami_istri: formData.namaPasangan,
-        pekerjaan_suami_istri: formData.pekerjaan_suami_istri || null,
+        pekerjaan_suami_istri: formData.pekerjaanPasangan || null,
         nama_wajib_pajak: formData.namaWajibPajak,
+        nm_wp: formData.namaWajibPajak,
         npwp: formData.npwp,
         
         alamat_jalan: formData.kampungJalan,
@@ -779,9 +841,10 @@ const EditGTKPage: React.FC = () => {
 
         no_telepon_rumah: formData.noTelpRumah,
         no_hp: formData.noHp,
+        no_whatsapp: formData.noWa,
         no_wa: formData.noWa,
         email_akun: formData.email,
-        qr_token: formData.idTelegram,
+        id_telegram: formData.idTelegram,
         foto: formData.avatar,
 
         id_bank: formData.namaBank,
@@ -946,46 +1009,93 @@ const EditGTKPage: React.FC = () => {
               <div className="w-full lg:w-2/3 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2"><Label>Nama Lengkap</Label><Input value={formData.nama || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                   <div className="space-y-2"><Label>NIK</Label><Input value={formData.nik || ""} maxLength={16} placeholder="Data kosong dari Dapodik" disabled /></div>
-                  <div className="space-y-2"><Label>Nomor KK</Label><Input value={formData.kk || ""} maxLength={16} placeholder="Data kosong dari Dapodik" disabled /></div>
+                  <div className="space-y-2">
+                    <Label>Nomor KK</Label>
+                    <Input 
+                      value={formData.kk || ""} 
+                      maxLength={16} 
+                      placeholder="Masukkan Nomor KK" 
+                      onChange={(e) => handleInputChange("kk", e.target.value.replace(/\D/g, ''))}
+                    />
+                  </div>
                   <div className="space-y-2"><Label>NUPTK</Label><Input value={formData.nuptk || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                   <div className="space-y-2"><Label>NIP/NIY/NIGB</Label><Input value={formData.nipNiyNigb || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                   <div className="space-y-2"><Label>Jenis Kelamin</Label><Input value={formData.jk === "L" ? "Laki-laki" : formData.jk === "P" ? "Perempuan" : formData.jk || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                   <div className="space-y-2"><Label>Tempat Lahir</Label><Input value={formData.tempatLahir || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                   <div className="space-y-2"><Label>Tanggal Lahir</Label><Input type="date" value={formData.tanggalLahir || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                     <div className="space-y-2">
-                       <Label>Agama</Label>
-                       <Input value={formData.agama || ""} disabled placeholder="Data kosong dari Dapodik" />
-                     </div>
-                     <div className="space-y-2"><Label>Kewarganegaraan</Label><Input value={formData.kewarganegaraan || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                      <div className="space-y-2">
-                        <Label>Status Perkawinan</Label>
-                        <Input value={formData.statusPerkawinan === "1" || formData.statusPerkawinan === 1 ? "Kawin" : formData.statusPerkawinan === "2" || formData.statusPerkawinan === 2 ? "Belum Kawin" : formData.statusPerkawinan === "3" || formData.statusPerkawinan === 3 ? "Janda/Duda" : formData.statusPerkawinan || ""} disabled placeholder="Data kosong dari Dapodik" />
-                      </div>
-                      <div className="space-y-2"><Label>Nama Pasangan</Label><Input value={formData.namaPasangan || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                      <div className="space-y-2">
-                        <Label>Pekerjaan Pasangan</Label>
-                        <Input value={(refOptions?.pekerjaan || refOptions?.mst_pekerjaan || []).find((o: any) => String(o.pekerjaan_id || o.id) === String(formData.pekerjaanPasangan))?.nama || formData.pekerjaanPasangan || ""} disabled placeholder="Data kosong dari Dapodik" />
-                      </div>
-                   <div className="space-y-2">
-                      <Label>Nama Wajib Pajak</Label>
-                      <Input 
-                        error={errors.namaWajibPajak} 
-                        value={formData.namaWajibPajak || ""} 
-                        placeholder="Masukkan nama wajib pajak"
-                        onChange={(e) => handleInputChange("namaWajibPajak", e.target.value)} 
-                        disabled
-                      />
-                   </div>
-                   <div className="space-y-2">
-                      <Label>NPWP</Label>
-                      <Input 
-                        error={errors.npwp} 
-                        value={formData.npwp || ""} 
-                        placeholder="Masukkan NPWP"
-                        onChange={(e) => handleInputChange("npwp", e.target.value)} 
-                        disabled
-                      />
-                   </div>
+                  <div className="space-y-2">
+                    <Label>Agama</Label>
+                    <select
+                      value={formData.agama_id || ""}
+                      onChange={(e) => {
+                        const opt = (refOptions?.agama || []).find((a: any) => String(a.agama_id || a.id) === e.target.value);
+                        setFormData((prev: any) => ({
+                          ...prev,
+                          agama_id: e.target.value,
+                          agama: opt?.nama || opt?.agama || ""
+                        }));
+                      }}
+                      className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                    >
+                      <option value="">Pilih Agama</option>
+                      {(refOptions?.agama || []).map((a: any) => (
+                        <option key={a.agama_id || a.id} value={a.agama_id || a.id}>{a.nama || a.agama}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2"><Label>Kewarganegaraan</Label><Input value={formData.kewarganegaraan || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                  <div className="space-y-2">
+                    <Label>Status Perkawinan</Label>
+                    <select
+                      value={formData.statusPerkawinan || ""}
+                      onChange={(e) => handleInputChange("statusPerkawinan", e.target.value)}
+                      className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                    >
+                      <option value="">Pilih Status Perkawinan</option>
+                      <option value="1">Kawin</option>
+                      <option value="2">Belum Kawin</option>
+                      <option value="3">Janda/Duda</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Nama Pasangan</Label>
+                    <Input 
+                      value={formData.namaPasangan || ""} 
+                      placeholder="Masukkan nama pasangan" 
+                      onChange={(e) => handleInputChange("namaPasangan", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Pekerjaan Pasangan</Label>
+                    <select
+                      value={formData.pekerjaanPasangan || ""}
+                      onChange={(e) => handleInputChange("pekerjaanPasangan", e.target.value)}
+                      className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                    >
+                      <option value="">Pilih Pekerjaan Pasangan</option>
+                      {(refOptions?.pekerjaan || refOptions?.mst_pekerjaan || []).map((o: any) => (
+                        <option key={o.pekerjaan_id || o.id} value={o.pekerjaan_id || o.id}>{o.nama || o.pekerjaan}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Nama Wajib Pajak</Label>
+                    <Input 
+                      error={errors.namaWajibPajak} 
+                      value={formData.namaWajibPajak || ""} 
+                      placeholder="Masukkan nama wajib pajak"
+                      onChange={(e) => handleInputChange("namaWajibPajak", e.target.value)} 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>NPWP</Label>
+                    <Input 
+                      error={errors.npwp} 
+                      value={formData.npwp || ""} 
+                      placeholder="Masukkan NPWP"
+                      onChange={(e) => handleInputChange("npwp", e.target.value)} 
+                    />
+                  </div>
               </div>
             </div>
           </div>
@@ -1000,71 +1110,124 @@ const EditGTKPage: React.FC = () => {
               </h4>
             </div>
 
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-               <div className="space-y-2"><Label>Kampung/Jalan</Label><Input value={formData.kampungJalan || ""} placeholder="Masukkan kampung atau jalan" onChange={(e) => handleInputChange("kampungJalan", e.target.value)} disabled /></div>
-               <div className="grid grid-cols-2 gap-4">
-                 <div className="space-y-2">
-                   <Label>RT</Label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2"><Label>Kampung/Jalan</Label><Input value={formData.kampungJalan || ""} placeholder="Masukkan kampung atau jalan" onChange={(e) => handleInputChange("kampungJalan", e.target.value)} /></div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>RT</Label>
+                    <Input 
+                      value={formData.rt || ""} 
+                      placeholder="000"
+                      onChange={(e) => handleInputChange("rt", e.target.value.replace(/\D/g, ''))} 
+                      onBlur={() => handleInputChange("rt", format3Digits(formData.rt))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>RW</Label>
+                    <Input 
+                      value={formData.rw || ""} 
+                      placeholder="000"
+                      onChange={(e) => handleInputChange("rw", e.target.value.replace(/\D/g, ''))} 
+                      onBlur={() => handleInputChange("rw", format3Digits(formData.rw))}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2"><Label>Dusun</Label><Input value={formData.dusun || ""} placeholder="Masukkan dusun" onChange={(e) => handleInputChange("dusun", e.target.value)} /></div>
+                <div className="space-y-2">
+                  <Label>Provinsi</Label>
+                  <select
+                    value={addrProvinces.find(p => p.nama === formData.provinsi)?.kode_wilayah || ""}
+                    onChange={(e) => {
+                      const selectedOpt = addrProvinces.find(p => String(p.kode_wilayah) === e.target.value);
+                      handleAddrProvinceChange(e.target.value, selectedOpt?.nama || "");
+                    }}
+                    className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                  >
+                    <option value="">{formData.provinsi || "Pilih Provinsi"}</option>
+                    {addrProvinces.map((prov) => (
+                      <option key={prov.kode_wilayah} value={prov.kode_wilayah}>{prov.nama}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Kab./Kota</Label>
+                  <select
+                    value={addrKabupatens.find(k => k.nama === formData.kotaKabupaten)?.kode_wilayah || ""}
+                    onChange={(e) => {
+                      const selectedOpt = addrKabupatens.find(k => String(k.kode_wilayah) === e.target.value);
+                      handleAddrKabupatenChange(e.target.value, selectedOpt?.nama || "");
+                    }}
+                    className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                  >
+                    <option value="">{formData.kotaKabupaten || "Pilih Kabupaten/Kota"}</option>
+                    {addrKabupatens.map((kab) => (
+                      <option key={kab.kode_wilayah} value={kab.kode_wilayah}>{kab.nama}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Kecamatan</Label>
+                  <select
+                    value={formData.kecamatan || ""}
+                    onChange={(e) => {
+                      handleAddrKecamatanChange(e.target.value);
+                    }}
+                    className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                  >
+                    <option value="">{formData.kecamatan || "Pilih Kecamatan"}</option>
+                    {addrKecamatans.map((kec) => (
+                      <option key={kec.kode_wilayah} value={kec.kode_wilayah}>{kec.nama}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Desa/Kelurahan</Label>
+                  <select
+                    value={formData.desaKelurahan || ""}
+                    onChange={(e) => {
+                      handleAddrDesaChange(e.target.value);
+                    }}
+                    className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                  >
+                    <option value="">{formData.desaKelurahan || "Pilih Desa/Kelurahan"}</option>
+                    {addrDesas.map((desa) => (
+                      <option key={desa.nama} value={desa.nama}>{desa.nama}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2"><Label>Kode Pos</Label><Input value={formData.kodePos || ""} placeholder="Masukkan kode pos" onChange={(e) => handleInputChange("kodePos", e.target.value)} /></div>
+                <div className="space-y-2">
+                   <Label>Lintang</Label>
                    <Input 
-                     value={formData.rt || ""} 
-                     placeholder="000"
-                     onChange={(e) => handleInputChange("rt", e.target.value.replace(/\D/g, ''))} 
-                     onBlur={() => handleInputChange("rt", format3Digits(formData.rt))}
-                     disabled
+                     error={errors.lintang}
+                     value={formData.lintang || ""} 
+                     placeholder="Contoh: -6.200000"
+                     onChange={(e) => handleInputChange("lintang", e.target.value)} 
                    />
-                 </div>
-                 <div className="space-y-2">
-                   <Label>RW</Label>
+                </div>
+                <div className="space-y-2">
+                   <Label>Bujur</Label>
                    <Input 
-                     value={formData.rw || ""} 
-                     placeholder="000"
-                     onChange={(e) => handleInputChange("rw", e.target.value.replace(/\D/g, ''))} 
-                     onBlur={() => handleInputChange("rw", format3Digits(formData.rw))}
-                     disabled
+                     error={errors.bujur}
+                     value={formData.bujur || ""} 
+                     placeholder="Contoh: 106.816666"
+                     onChange={(e) => handleInputChange("bujur", e.target.value)} 
                    />
-                 </div>
-               </div>
-               <div className="space-y-2"><Label>Dusun</Label><Input value={formData.dusun || ""} placeholder="Masukkan dusun" onChange={(e) => handleInputChange("dusun", e.target.value)} disabled /></div>
-               <div className="space-y-2"><Label>Provinsi</Label><Input value={formData.provinsi || ""} disabled placeholder="Data kosong dari Dapodik" /></div>
-               <div className="space-y-2"><Label>Kab./Kota</Label><Input value={formData.kotaKabupaten || ""} disabled placeholder="Data kosong dari Dapodik" /></div>
-               <div className="space-y-2"><Label>Kecamatan</Label><Input value={formData.kecamatan || ""} disabled placeholder="Data kosong dari Dapodik" /></div>
-               <div className="space-y-2"><Label>Desa/Kelurahan</Label><Input value={formData.desaKelurahan || ""} disabled placeholder="Data kosong dari Dapodik" /></div>
-               <div className="space-y-2"><Label>Kode Pos</Label><Input value={formData.kodePos || ""} placeholder="Masukkan kode pos" onChange={(e) => handleInputChange("kodePos", e.target.value)} disabled /></div>
-               <div className="space-y-2">
-                  <Label>Lintang</Label>
-                  <Input 
-                    error={errors.lintang}
-                    value={formData.lintang || ""} 
-                    placeholder="Contoh: -6.200000"
-                    onChange={(e) => handleInputChange("lintang", e.target.value)} 
-                    disabled
-                  />
-               </div>
-               <div className="space-y-2">
-                  <Label>Bujur</Label>
-                  <Input 
-                    error={errors.bujur}
-                    value={formData.bujur || ""} 
-                    placeholder="Contoh: 106.816666"
-                    onChange={(e) => handleInputChange("bujur", e.target.value)} 
-                    disabled
-                  />
-               </div>
-               <div className="col-span-full pt-2">
-                 <Button 
-                   variant="outline" 
-                   size="sm" 
-                   className="border-gray-200 text-gray-400 cursor-not-allowed opacity-60" 
-                   onClick={handleCheckCoordinates}
-                   disabled
-                 >
-                   <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.4 2.4a1 1 0 01-1.4-1.1V6a1 1 0 01.6-1L9 3l6 2.4 5.4-2.4a1 1 0 011.4 1.1V18a1 1 0 01-.6 1L15 21l-6-2.4zM9 3v17m6-17v17" />
-                   </svg>
-                   Cek Koordinat / Cari Alamat
-                 </Button>
-               </div>
-             </div>
+                </div>
+                <div className="col-span-full pt-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="border-gray-200 text-gray-700 hover:bg-gray-50" 
+                    onClick={handleCheckCoordinates}
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.4 2.4a1 1 0 01-1.4-1.1V6a1 1 0 01.6-1L9 3l6 2.4 5.4-2.4a1 1 0 011.4 1.1V18a1 1 0 01-.6 1L15 21l-6-2.4zM9 3v17m6-17v17" />
+                    </svg>
+                    Cek Koordinat / Cari Alamat
+                  </Button>
+                </div>
+              </div>
           </div>
           )}
 
@@ -1106,7 +1269,23 @@ const EditGTKPage: React.FC = () => {
                   </div>
                   <div className="space-y-2 md:col-span-2">
                     <Label>Sumber Gaji</Label>
-                    <Input value={formData.sumberGaji || ""} disabled placeholder="Data kosong dari Dapodik" />
+                    <select
+                      value={formData.sumber_gaji_id || ""}
+                      onChange={(e) => {
+                        const opt = (refOptions?.sumber_gaji || refOptions?.sumber_gaji_id || []).find((o: any) => String(o.sumber_gaji_id || o.id) === e.target.value);
+                        setFormData((prev: any) => ({
+                          ...prev,
+                          sumber_gaji_id: e.target.value,
+                          sumberGaji: opt?.nama || opt?.sumber_gaji || ""
+                        }));
+                      }}
+                      className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                    >
+                      <option value="">Pilih Sumber Gaji</option>
+                      {(refOptions?.sumber_gaji || refOptions?.sumber_gaji_id || []).map((o: any) => (
+                        <option key={o.sumber_gaji_id || o.id} value={o.sumber_gaji_id || o.id}>{o.nama || o.sumber_gaji}</option>
+                      ))}
+                    </select>
                   </div>
               </div>
               
@@ -1244,7 +1423,7 @@ const EditGTKPage: React.FC = () => {
             </div>
           </>
           )}
-
+ 
           {/* Card 6: Kontak */}
           {activeTab === "kontak" && (
             <div className={`rounded-2xl border ${errors.noTelpRumah || errors.noHp || errors.noWa || errors.idTelegram ? "border-red-500" : "border-gray-200"} bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6`}>
@@ -1253,7 +1432,7 @@ const EditGTKPage: React.FC = () => {
                 Kontak
               </h4>
             </div>
-
+ 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>No. Telp Rumah</Label>
@@ -1262,7 +1441,6 @@ const EditGTKPage: React.FC = () => {
                   value={formData.noTelpRumah || ""} 
                   onChange={(e) => handleInputChange("noTelpRumah", e.target.value)}
                   placeholder="Contoh: 022-123456" 
-                  disabled
                 />
               </div>
               <div className="space-y-2">
@@ -1272,7 +1450,6 @@ const EditGTKPage: React.FC = () => {
                   value={formData.noHp || ""} 
                   onChange={(e) => handleInputChange("noHp", e.target.value)}
                   placeholder="0812XXXXXXXX" 
-                  disabled
                 />
               </div>
               <div className="space-y-2">
@@ -1375,14 +1552,24 @@ const EditGTKPage: React.FC = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Nama Bank</Label>
-                        <Input value={formData.namaBank || ""} disabled placeholder="Data kosong dari Dapodik" />
+                        <select
+                          value={formData.namaBank || ""}
+                          onChange={(e) => handleInputChange("namaBank", e.target.value)}
+                          className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                        >
+                          <option value="">Pilih Bank</option>
+                          {bankList.map((b: any) => (
+                            <option key={b.id_bank || b.id} value={b.id_bank || b.id}>
+                              {b.nm_bank || b.nama_bank || b.nama}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                        <div className="space-y-2">
                         <Label>Cabang Bank</Label>
                         <Input 
                           error={errors.cabangBank}
                           value={formData.cabangBank || ""} 
-                          disabled={true}
                           onChange={(e) => handleInputChange("cabangBank", e.target.value)}
                           placeholder="Nama cabang" 
                         />
@@ -1392,7 +1579,6 @@ const EditGTKPage: React.FC = () => {
                         <Input 
                           error={errors.noRekening}
                           value={formData.noRekening || ""} 
-                          disabled={true}
                           onChange={(e) => handleInputChange("noRekening", e.target.value)}
                           placeholder="Nomor rekening" 
                         />
@@ -1402,7 +1588,6 @@ const EditGTKPage: React.FC = () => {
                         <Input 
                           error={errors.atasNamaRekening}
                           value={formData.atasNamaRekening || ""} 
-                          disabled={true}
                           onChange={(e) => handleInputChange("atasNamaRekening", e.target.value)}
                           placeholder="Nama pemilik rekening" 
                         />
@@ -1517,13 +1702,15 @@ const EditGTKPage: React.FC = () => {
         <div className="grid grid-cols-2 gap-3 max-h-[400px] overflow-y-auto custom-scrollbar p-1">
           {Object.keys(FIELD_MAP_GTK)
             .filter((key) => {
-              if ((key === "nama_suami_istri" || key === "pekerjaan_suami_istri") && formData.statusPerkawinan !== "1") {
+              const excludedKeys = [
+                "nama", "nik", "jenis_kelamin", "tempat_lahir", "tanggal_lahir",
+                "id_bank", "nama_kcp", "rekening_bank", "rekening_atas_nama",
+                "no_whatsapp", "id_telegram"
+              ];
+              if (excludedKeys.includes(key)) {
                 return false;
               }
-              if (
-                (key === "id_bank" || key === "nama_kcp" || key === "rekening_bank" || key === "rekening_atas_nama") &&
-                formData.memilikiSertifikasi !== "Ya"
-              ) {
+              if ((key === "nama_suami_istri" || key === "pekerjaan_suami_istri") && formData.statusPerkawinan !== "1") {
                 return false;
               }
               return true;
