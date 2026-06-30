@@ -441,5 +441,25 @@ export const dapodikService = {
       console.error('Gagal menolak pengajuan:', error);
       throw error;
     }
+  },
+
+  getPengaturanUmum: async (sekolahId: string) => {
+    try {
+      const response = await api.get(`/pengaturan-umum/${sekolahId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Gagal mengambil pengaturan umum:', error);
+      throw error;
+    }
+  },
+
+  updatePengaturanUmum: async (sekolahId: string, data: any) => {
+    try {
+      const response = await api.post(`/pengaturan-umum/${sekolahId}`, data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Gagal menyimpan pengaturan umum:', error);
+      throw error;
+    }
   }
 };

@@ -3,22 +3,17 @@ import PageMeta from "../../components/common/PageMeta";
 import Button from "../../components/ui/button/Button";
 import Input from "../../components/form/input/InputField";
 import { PrinterIcon, SearchIcon } from "../../icons";
-import Swal from "sweetalert2";
 import GTKCardTable from "../../components/gtk/GTKCardTable";
+import PrintAllGTKCards from "../../components/gtk/PrintAllGTKCards";
+import { useModal } from "../../hooks/useModal";
 
 export default function GTKCardPage() {
   const [activeTab, setActiveTab] = useState<"guru" | "tendik">("guru");
   const [searchQuery, setSearchQuery] = useState("");
+  const { isOpen, openModal, closeModal } = useModal();
 
   const handlePrint = () => {
-    Swal.fire({
-      title: "Cetak Kartu ID?",
-      text: `Menyiapkan proses cetak kartu untuk kategori ${activeTab === "guru" ? "Guru" : "Tendik"}.`,
-      icon: "info",
-      showCancelButton: true,
-      confirmButtonColor: "#465fff",
-      confirmButtonText: "Ya, Cetak!",
-    });
+    openModal();
   };
 
   return (
@@ -99,6 +94,12 @@ export default function GTKCardPage() {
           />
         </div>
       </div>
+
+      <PrintAllGTKCards 
+        isOpen={isOpen}
+        onClose={closeModal}
+        type={activeTab}
+      />
     </>
   );
 }

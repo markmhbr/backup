@@ -5,6 +5,7 @@ import Button from "../../components/ui/button/Button";
 import OriginalInput from "../../components/form/input/InputField";
 import type { InputProps } from "../../components/form/input/InputField";
 import Label from "../../components/form/Label";
+import api from "../../services/api";
 
 const Input: React.FC<InputProps> = (props) => {
   return <OriginalInput {...props} showStatusIcon={true} />;
@@ -132,6 +133,7 @@ const EditGTKPage: React.FC = () => {
     jenis_kelamin: { label: 'Jenis Kelamin', dbKey: 'jenis_kelamin', localKey: 'jk' },
     tempat_lahir: { label: 'Tempat Lahir', dbKey: 'tempat_lahir', localKey: 'tempatLahir' },
     tanggal_lahir: { label: 'Tanggal Lahir', dbKey: 'tanggal_lahir', localKey: 'tanggalLahir' },
+    nama_ibu_kandung: { label: 'Nama Ibu Kandung', dbKey: 'nama_ibu_kandung', localKey: 'ibuKandung' },
     agama_id: { label: 'Agama', dbKey: 'agama_id', localKey: 'agama_id' },
     status_perkawinan: { label: 'Status Perkawinan', dbKey: 'status_perkawinan', localKey: 'statusPerkawinan' },
     nama_suami_istri: { label: 'Nama Pasangan', dbKey: 'nama_suami_istri', localKey: 'namaPasangan' },
@@ -215,6 +217,87 @@ const EditGTKPage: React.FC = () => {
       ...prev,
       [fieldKey]: val,
     }));
+  };
+
+  const handleCheckPengajuan = async () => {
+    try {
+      Swal.fire({
+        title: "Memeriksa...",
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        },
+      });
+
+      const sch = await dapodikService.getSekolah();
+      if (!sch?.data?.sekolah_id) {
+        Swal.close();
+        Swal.fire("Error", "Gagal mengidentifikasi sekolah Anda.", "error");
+        return;
+      }
+
+      const settings = await dapodikService.getPengaturanUmum(sch.data.sekolah_id);
+      Swal.close();
+
+      if (!settings?.data?.waktu_mulai_pengajuan || !settings?.data?.waktu_sampai_pengajuan) {
+        Swal.fire("Pengajuan Ditutup", "Pengajuan perbaikan belum dibuka oleh sekolah (waktu pengajuan belum diatur).", "info");
+        return;
+      }
+
+      const now = new Date();
+      const currentDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(now); // "YYYY-MM-DD"
+      
+      const start = settings.data.waktu_mulai_pengajuan;
+      const end = settings.data.waktu_sampai_pengajuan;
+
+      if (currentDateStr < start || currentDateStr > end) {
+        Swal.fire(
+          "Pengajuan Ditutup",
+          `Pengajuan perbaikan ditutup. Hanya diperbolehkan dari tanggal ${start} s.d ${end}. Saat ini tanggal ${currentDateStr}.`,
+          "warning"
+        );
+        return;
+      }
+
+      setIsPengajuanModalOpen(true);
+    } catch (err) {
+      console.error(err);
+      Swal.close();
+      Swal.fire("Error", "Gagal memeriksa waktu pengajuan.", "error");
+    }
+  };
+
+  const handleReset2FA = async () => {
+    const confirm = await Swal.fire({
+      title: "Set Ulang Authenticator?",
+      text: "Pengguna harus melakukan scan ulang QR code Google Authenticator saat login berikutnya.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Ya, Set Ulang!",
+      cancelButtonText: "Batal"
+    });
+
+    if (confirm.isConfirmed) {
+      try {
+        Swal.fire({
+          title: "Memproses...",
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading();
+          }
+        });
+
+        await api.post("/auth/reset-2fa", { ptk_id: id });
+        
+        Swal.fire("Berhasil", "Authenticator (2FA) berhasil diset ulang.", "success");
+      } catch (err: any) {
+        console.error(err);
+        const errMsg = err.response?.data?.message || "Gagal menyetel ulang authenticator.";
+        Swal.fire("Error", errMsg, "error");
+      }
+    }
   };
 
   const handleProvinceChange = async (provName: string, provCode: string) => {
@@ -911,7 +994,7 @@ const EditGTKPage: React.FC = () => {
               Batal
             </button>
             <button
-              onClick={() => setIsPengajuanModalOpen(true)}
+              onClick={handleCheckPengajuan}
               className="px-4 py-2.5 rounded-lg border border-brand-500 text-sm font-semibold text-brand-500 hover:bg-brand-50/50 dark:hover:bg-brand-500/10 transition-colors"
             >
               Pengajuan Perbaikan
@@ -1024,6 +1107,11 @@ const EditGTKPage: React.FC = () => {
                   <div className="space-y-2"><Label>Tempat Lahir</Label><Input value={formData.tempatLahir || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                   <div className="space-y-2"><Label>Tanggal Lahir</Label><Input type="date" value={formData.tanggalLahir || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                   <div className="space-y-2">
+                    <Label>Nama Ibu Kandung</Label>
+                    <Input value={formData.ibuKandung || ""} placeholder="Data kosong dari Dapodik" disabled />
+                  </div>
+                  <div className="space-y-2"><Label>Kewarganegaraan</Label><Input value={formData.kewarganegaraan || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                  <div className="space-y-2">
                     <Label>Agama</Label>
                     <select
                       value={formData.agama_id || ""}
@@ -1043,7 +1131,6 @@ const EditGTKPage: React.FC = () => {
                       ))}
                     </select>
                   </div>
-                  <div className="space-y-2"><Label>Kewarganegaraan</Label><Input value={formData.kewarganegaraan || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                   <div className="space-y-2">
                     <Label>Status Perkawinan</Label>
                     <select
@@ -1463,12 +1550,24 @@ const EditGTKPage: React.FC = () => {
               </div>
               <div className="space-y-2">
                 <Label>Email</Label>
-                <Input 
-                  type="email" 
-                  value={formData.email || ""} 
-                  disabled
-                  placeholder="nama@email.com" 
-                />
+                <div className="flex gap-2">
+                  <Input 
+                    type="email" 
+                    value={formData.email || ""} 
+                    disabled
+                    placeholder="nama@email.com" 
+                    className="flex-grow"
+                  />
+                  {formData.email && (
+                    <button
+                      type="button"
+                      onClick={handleReset2FA}
+                      className="px-3 py-2 text-xs font-semibold text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors whitespace-nowrap"
+                    >
+                      Reset 2FA
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>Id. Telegram <span className="text-red-500">*</span></Label>
@@ -1702,18 +1801,10 @@ const EditGTKPage: React.FC = () => {
         <div className="grid grid-cols-2 gap-3 max-h-[400px] overflow-y-auto custom-scrollbar p-1">
           {Object.keys(FIELD_MAP_GTK)
             .filter((key) => {
-              const excludedKeys = [
-                "nama", "nik", "jenis_kelamin", "tempat_lahir", "tanggal_lahir",
-                "id_bank", "nama_kcp", "rekening_bank", "rekening_atas_nama",
-                "no_whatsapp", "id_telegram"
+              const allowedKeys = [
+                "nama", "nik", "jenis_kelamin", "tempat_lahir", "tanggal_lahir", "nama_ibu_kandung"
               ];
-              if (excludedKeys.includes(key)) {
-                return false;
-              }
-              if ((key === "nama_suami_istri" || key === "pekerjaan_suami_istri") && formData.statusPerkawinan !== "1") {
-                return false;
-              }
-              return true;
+              return allowedKeys.includes(key);
             })
             .map((key) => {
               const field = FIELD_MAP_GTK[key];

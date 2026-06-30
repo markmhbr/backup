@@ -65,6 +65,12 @@ const navItems: NavItem[] = [
             id: "gtk-tendik",
           },
           {
+            name: "Buku Induk",
+            path: "/gtk-buku-induk",
+            icon: <DotIcon />,
+            id: "gtk-buku-induk",
+          },
+          {
             name: "Rekap GTK",
             path: "/gtk-data?tab=rekap",
             icon: <DotIcon />,
@@ -89,12 +95,6 @@ const navItems: NavItem[] = [
             id: "gtk-nonaktif",
             color: "text-red-500 dark:text-red-400",
           },
-          {
-            name: "Buku Induk",
-            path: "/gtk-buku-induk",
-            icon: <DotIcon />,
-            id: "gtk-buku-induk",
-          },
         ],
       },
       {
@@ -107,6 +107,12 @@ const navItems: NavItem[] = [
             path: "/student-data?tab=aktif",
             icon: <DotIcon />,
             id: "pd-aktif",
+          },
+          {
+            name: "Buku Induk",
+            path: "/student-buku-induk",
+            icon: <DotIcon />,
+            id: "pd-buku-induk",
           },
           {
             name: "Rekap PD",
@@ -132,12 +138,6 @@ const navItems: NavItem[] = [
             icon: <DotIcon />,
             id: "pd-keluar",
             color: "text-red-500 dark:text-red-400",
-          },
-          {
-            name: "Buku Induk",
-            path: "/student-buku-induk",
-            icon: <DotIcon />,
-            id: "pd-buku-induk",
           },
         ],
       },

@@ -15,6 +15,7 @@ import { Modal } from "../../components/ui/modal";
 import { dapodikService } from "../../services/dapodikService";
 import { getFotoUrl } from "../../utils/image";
 import { referenceService } from "../../services/referenceService";
+import api from "../../services/api";
 
 
 const format3Digits = (value: string | number | null | undefined): string => {
@@ -44,6 +45,7 @@ const EditStudentPage: React.FC = () => {
 
   const tabs = [
     { id: "profil", label: "Profil & Identitas" },
+    { id: "alamat", label: "Alamat & Tempat Tinggal" },
     { id: "periodik", label: "Data Periodik" },
     { id: "orangtua", label: "Orang Tua & Wali" },
     { id: "dokumen", label: "Berkas Dokumen" },
@@ -59,6 +61,9 @@ const EditStudentPage: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [isPengajuanModalOpen, setIsPengajuanModalOpen] = useState(false);
+  const [isKkDropdownOpen, setIsKkDropdownOpen] = useState(false);
+  const [isKkAyahDropdownOpen, setIsKkAyahDropdownOpen] = useState(false);
+  const [isKkIbuDropdownOpen, setIsKkIbuDropdownOpen] = useState(false);
   const [isFormPengajuanOpen, setIsFormPengajuanOpen] = useState(false);
   const [selectedFields, setSelectedFields] = useState<string[]>([]);
   const [pengajuanForm, setPengajuanForm] = useState<any>({});
@@ -213,6 +218,7 @@ const EditStudentPage: React.FC = () => {
     tanggal_lahir: { label: 'Tanggal Lahir', dbKey: 'tanggal_lahir', localKey: 'tanggalLahir' },
     jenis_kelamin: { label: 'Jenis Kelamin', dbKey: 'jenis_kelamin', localKey: 'jk' },
     nik: { label: 'NIK', dbKey: 'nik', localKey: 'nik' },
+    nama_ibu_kandung: { label: 'Nama Ibu Kandung', dbKey: 'nama_ibu_kandung', localKey: 'namaIbu' },
     no_kk: { label: 'No. Kartu Keluarga', dbKey: 'no_kk', localKey: 'noKK' },
     reg_akta_lahir: { label: 'No. Register Akte Lahir', dbKey: 'reg_akta_lahir', localKey: 'noAkte' },
     agama_id: { label: 'Agama', dbKey: 'agama_id', localKey: 'agama_id' },
@@ -235,6 +241,51 @@ const EditStudentPage: React.FC = () => {
     jumlah_saudara_kandung: { label: 'Jumlah Saudara Kandung', dbKey: 'jumlah_saudara_kandung', localKey: 'jumlahSaudara' },
     data_orang_tua: { label: 'Data Orang Tua (Ayah & Ibu)', dbKey: 'data_orang_tua', localKey: 'data_orang_tua' },
     data_wali: { label: 'Data Wali', dbKey: 'data_wali', localKey: 'data_wali' }
+  };
+
+  const handleToggleKebutuhanKhusus = (id: number, type: "siswa" | "ayah" | "ibu" = "siswa") => {
+    setFormData((prev: any) => {
+      const idKey = type === "siswa" 
+        ? "kebutuhan_khusus_id" 
+        : type === "ayah" 
+          ? "kebutuhan_khusus_id_ayah" 
+          : "kebutuhan_khusus_id_ibu";
+          
+      const strKey = type === "siswa" 
+        ? "kebutuhanKhusus" 
+        : type === "ayah" 
+          ? "kebutuhanKhususAyah" 
+          : "kebutuhanKhususIbu";
+
+      let currentMask = prev[idKey] || 0;
+      if (id === 0) {
+        currentMask = 0;
+      } else {
+        if ((currentMask & id) === id) {
+          // Uncheck
+          currentMask = currentMask & ~id;
+        } else {
+          // Check
+          currentMask = currentMask | id;
+        }
+      }
+      
+      const selectedIds = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768]
+        .filter(x => (currentMask & x) === x);
+      const options = refOptions?.kebutuhan_khusus || [];
+      const names = selectedIds.map(x => {
+        const opt = options.find((o: any) => (o.kebutuhan_khusus_id || o.id) === x);
+        return opt ? (opt.kebutuhan_khusus || opt.nama) : "";
+      }).filter(Boolean);
+      
+      const kebutuhanKhususStr = names.length === 0 ? "Tidak ada" : names.join(", ");
+
+      return {
+        ...prev,
+        [idKey]: currentMask,
+        [strKey]: kebutuhanKhususStr
+      };
+    });
   };
 
   const handleFieldToggle = (fieldKey: string) => {
@@ -307,6 +358,87 @@ const EditStudentPage: React.FC = () => {
       ...prev,
       [fieldKey]: val,
     }));
+  };
+
+  const handleCheckPengajuan = async () => {
+    try {
+      Swal.fire({
+        title: "Memeriksa...",
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        },
+      });
+
+      const sch = await dapodikService.getSekolah();
+      if (!sch?.data?.sekolah_id) {
+        Swal.close();
+        Swal.fire("Error", "Gagal mengidentifikasi sekolah Anda.", "error");
+        return;
+      }
+
+      const settings = await dapodikService.getPengaturanUmum(sch.data.sekolah_id);
+      Swal.close();
+
+      if (!settings?.data?.waktu_mulai_pengajuan || !settings?.data?.waktu_sampai_pengajuan) {
+        Swal.fire("Pengajuan Ditutup", "Pengajuan perbaikan belum dibuka oleh sekolah (waktu pengajuan belum diatur).", "info");
+        return;
+      }
+
+      const now = new Date();
+      const currentDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(now); // "YYYY-MM-DD"
+      
+      const start = settings.data.waktu_mulai_pengajuan;
+      const end = settings.data.waktu_sampai_pengajuan;
+
+      if (currentDateStr < start || currentDateStr > end) {
+        Swal.fire(
+          "Pengajuan Ditutup",
+          `Pengajuan perbaikan ditutup. Hanya diperbolehkan dari tanggal ${start} s.d ${end}. Saat ini tanggal ${currentDateStr}.`,
+          "warning"
+        );
+        return;
+      }
+
+      setIsPengajuanModalOpen(true);
+    } catch (err) {
+      console.error(err);
+      Swal.close();
+      Swal.fire("Error", "Gagal memeriksa waktu pengajuan.", "error");
+    }
+  };
+
+  const handleReset2FA = async () => {
+    const confirm = await Swal.fire({
+      title: "Set Ulang Authenticator?",
+      text: "Pengguna harus melakukan scan ulang QR code Google Authenticator saat login berikutnya.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Ya, Set Ulang!",
+      cancelButtonText: "Batal"
+    });
+
+    if (confirm.isConfirmed) {
+      try {
+        Swal.fire({
+          title: "Memproses...",
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading();
+          }
+        });
+
+        await api.post("/auth/reset-2fa", { peserta_didik_id: id });
+        
+        Swal.fire("Berhasil", "Authenticator (2FA) berhasil diset ulang.", "success");
+      } catch (err: any) {
+        console.error(err);
+        const errMsg = err.response?.data?.message || "Gagal menyetel ulang authenticator.";
+        Swal.fire("Error", errMsg, "error");
+      }
+    }
   };
 
   const handleProvinceChange = async (provName: string, provCode: string) => {
@@ -496,6 +628,7 @@ const EditStudentPage: React.FC = () => {
               noKK: data.no_kk || "",
               noAkte: data.reg_akta_lahir || "",
               kebutuhanKhusus: data.kebutuhan_khusus_nama || "",
+              kebutuhan_khusus_id: data.kebutuhan_khusus_id || 0,
               agama: data.agama_nama || "",
               anakKe: data.anak_keberapa !== null && data.anak_keberapa !== undefined ? String(data.anak_keberapa) : "",
               idHobby: data.id_hobby !== null && data.id_hobby !== undefined ? String(data.id_hobby) : "",
@@ -551,6 +684,8 @@ const EditStudentPage: React.FC = () => {
               jenjang_pendidikan_ayah: data.jenjang_pendidikan_ayah || "",
               penghasilanAyah: data.penghasilan_ayah_nama || "",
               penghasilan_id_ayah: data.penghasilan_id_ayah || "",
+              kebutuhan_khusus_id_ayah: data.kebutuhan_khusus_id_ayah || 0,
+              kebutuhanKhususAyah: data.kebutuhan_khusus_ayah_nama || "",
 
               // Ibu
               namaIbu: data.nama_ibu_kandung || data.nama_ibu || "",
@@ -562,6 +697,8 @@ const EditStudentPage: React.FC = () => {
               jenjang_pendidikan_ibu: data.jenjang_pendidikan_ibu || "",
               penghasilanIbu: data.penghasilan_ibu_nama || "",
               penghasilan_id_ibu: data.penghasilan_id_ibu || "",
+              kebutuhan_khusus_id_ibu: data.kebutuhan_khusus_id_ibu || 0,
+              kebutuhanKhususIbu: data.kebutuhan_khusus_ibu_nama || "",
 
               // Wali
               isWali: data.is_wali === true || data.is_wali === 1 || data.is_wali === "1" || !!(data.nama_wali || data.nik_wali),
@@ -755,6 +892,7 @@ const EditStudentPage: React.FC = () => {
         tahun_lahir_ayah: formData.tahunLahirAyah ? String(formData.tahunLahirAyah) : null,
         jenjang_pendidikan_ayah: formData.jenjang_pendidikan_ayah || null,
         penghasilan_id_ayah: formData.penghasilan_id_ayah || null,
+        kebutuhan_khusus_id_ayah: formData.kebutuhan_khusus_id_ayah || null,
         
         // Ibu
         nama_ibu_kandung: formData.namaIbu,
@@ -764,6 +902,7 @@ const EditStudentPage: React.FC = () => {
         tahun_lahir_ibu: formData.tahunLahirIbu ? String(formData.tahunLahirIbu) : null,
         jenjang_pendidikan_ibu: formData.jenjang_pendidikan_ibu || null,
         penghasilan_id_ibu: formData.penghasilan_id_ibu || null,
+        kebutuhan_khusus_id_ibu: formData.kebutuhan_khusus_id_ibu || null,
         
         // Wali
         is_wali: formData.isWali || false,
@@ -842,7 +981,7 @@ const EditStudentPage: React.FC = () => {
               Batal
             </button>
             <button
-              onClick={() => setIsPengajuanModalOpen(true)}
+              onClick={handleCheckPengajuan}
               className="px-4 py-2.5 rounded-lg border border-brand-500 text-sm font-semibold text-brand-500 hover:bg-brand-50/50 dark:hover:bg-brand-500/10 transition-colors"
             >
               Pengajuan Perbaikan
@@ -947,9 +1086,52 @@ const EditStudentPage: React.FC = () => {
                          onChange={(e) => handleInputChange("noAkte", e.target.value)} 
                        />
                      </div>
-                     <div className="space-y-2">
+                      <div className="space-y-2 relative">
                         <Label>Berkebutuhan Khusus</Label>
-                        <Input value={formData.kebutuhanKhusus || ""} disabled placeholder="Data kosong dari Dapodik" />
+                        <button
+                          type="button"
+                          onClick={() => setIsKkDropdownOpen(!isKkDropdownOpen)}
+                          className="w-full flex items-center justify-between rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white bg-white text-left cursor-pointer"
+                        >
+                          <span className="truncate">
+                            {formData.kebutuhanKhusus || "Tidak ada"}
+                          </span>
+                          <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                        
+                        {isKkDropdownOpen && (
+                          <>
+                            <div 
+                              className="fixed inset-0 z-10" 
+                              onClick={() => setIsKkDropdownOpen(false)}
+                            />
+                            <div className="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2 shadow-lg dark:border-gray-800 dark:bg-gray-950 z-20 space-y-1">
+                              {(refOptions?.kebutuhan_khusus || []).map((o: any) => {
+                                const oid = o.kebutuhan_khusus_id || o.id;
+                                const currentMask = formData.kebutuhan_khusus_id || 0;
+                                const isChecked = oid === 0 ? currentMask === 0 : (currentMask & oid) === oid;
+                                return (
+                                  <label
+                                    key={oid}
+                                    className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-white/[0.02] cursor-pointer text-sm"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={isChecked}
+                                      onChange={() => handleToggleKebutuhanKhusus(oid)}
+                                      className="rounded border-gray-300 text-brand-500 focus:ring-brand-500 size-4"
+                                    />
+                                    <span className="text-gray-700 dark:text-gray-300">
+                                      {o.kebutuhan_khusus || o.nama}
+                                    </span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </>
+                        )}
                       </div>
                       <div className="space-y-2">
                         <Label>Agama</Label>
@@ -983,6 +1165,101 @@ const EditStudentPage: React.FC = () => {
                   </div>
                 </div>
  
+                {/* Kontak */}
+                <div>
+                  <h5 className="flex items-center gap-2 font-semibold text-gray-800 dark:text-white/90 mb-4 border-b pb-2 border-gray-100 dark:border-white/[0.05]">
+                    <svg className="w-5 h-5 text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    Kontak
+                  </h5>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>No. Telp. Rumah</Label>
+                      <Input 
+                        value={formData.noTelpRumah || ""} 
+                        placeholder="Masukkan No. Telepon Rumah" 
+                        onChange={(e) => handleInputChange("noTelpRumah", e.target.value.replace(/\D/g, ''))} 
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>No. Handphone</Label>
+                      <Input 
+                        value={formData.noHp || ""} 
+                        placeholder="Masukkan No. Handphone" 
+                        onChange={(e) => handleInputChange("noHp", e.target.value.replace(/\D/g, ''))} 
+                      />
+                    </div>
+                    <div className="space-y-2"><Label>No. Whatsapp <span className="text-red-500">*</span></Label><Input value={formData.noWa || ""} placeholder="0812XXXXXXXX" onChange={(e) => handleInputChange("noWa", e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Email Aktif <span className="text-red-500">*</span></Label><Input type="email" value={formData.emailAktif || ""} placeholder="nama@email.com" onChange={(e) => handleInputChange("emailAktif", e.target.value)} /></div>
+                    <div className="space-y-2">
+                      <Label>Email Akun</Label>
+                      <div className="flex gap-2">
+                        <Input 
+                          type="email" 
+                          value={formData.emailAkun || ""} 
+                          placeholder="Data kosong dari Dapodik" 
+                          disabled 
+                          className="flex-grow"
+                        />
+                        {formData.emailAkun && (
+                          <button
+                            type="button"
+                            onClick={handleReset2FA}
+                            className="px-3 py-2 text-xs font-semibold text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors whitespace-nowrap"
+                          >
+                            Reset 2FA
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+ 
+                {/* Kesejahteraan & Bank */}
+                <div>
+                  <h5 className="flex items-center gap-2 font-semibold text-gray-800 dark:text-white/90 mb-4 border-b pb-2 border-gray-100 dark:border-white/[0.05]">
+                    <svg className="w-5 h-5 text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Kesejahteraan & Bank
+                  </h5>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div className="space-y-2">
+                       <Label>Penerima KIP</Label>
+                       <Input value={formData.penerimaKIP || ""} disabled placeholder="Data kosong dari Dapodik" />
+                     </div>
+                     <div className="space-y-2">
+                       <Label>Layak PIP</Label>
+                       <Input value={formData.layakKIP || ""} disabled placeholder="Data kosong dari Dapodik" />
+                     </div>
+                     <div className="space-y-2">
+                       <Label>Penerima KPS/PKH</Label>
+                       <Input value={formData.penerimaKPS || ""} disabled placeholder="Data kosong dari Dapodik" />
+                     </div>
+                     <div className="space-y-2">
+                       <Label>Nama Bank</Label>
+                       <Input value={formData.idBank || ""} disabled placeholder="Data kosong dari Dapodik" />
+                     </div>
+                     <div className="space-y-2"><Label>No. Rekening Bank</Label><Input value={formData.rekeningBank || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                     <div className="space-y-2"><Label>Cabang Bank (KCP)</Label><Input value={formData.namaKCP || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                     <div className="space-y-2"><Label>Rekening Atas Nama</Label><Input value={formData.rekeningAtasNama || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          </div>
+
+          {/* Card 1.5: Alamat & Tempat Tinggal */}
+          <div style={{ display: activeTab === "alamat" ? "block" : "none" }}>
+            <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6">
+              <div className="border-b border-gray-100 dark:border-white/[0.05] pb-3">
+                <h4 className="text-lg font-bold text-gray-800 dark:text-white/90">
+                  Alamat & Tempat Tinggal
+                </h4>
+              </div>
+              <div className="space-y-8">
                 {/* Alamat dan Tempat Tinggal */}
                 <div>
                   <h5 className="flex items-center gap-2 font-semibold text-gray-800 dark:text-white/90 mb-4 border-b pb-2 border-gray-100 dark:border-white/[0.05]">
@@ -1159,71 +1436,8 @@ const EditStudentPage: React.FC = () => {
                     </div>
                   </div>
                 </div>
-
-                {/* Kontak */}
-                <div>
-                  <h5 className="flex items-center gap-2 font-semibold text-gray-800 dark:text-white/90 mb-4 border-b pb-2 border-gray-100 dark:border-white/[0.05]">
-                    <svg className="w-5 h-5 text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                    </svg>
-                    Kontak
-                  </h5>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>No. Telp. Rumah</Label>
-                      <Input 
-                        value={formData.noTelpRumah || ""} 
-                        placeholder="Masukkan No. Telepon Rumah" 
-                        onChange={(e) => handleInputChange("noTelpRumah", e.target.value.replace(/\D/g, ''))} 
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>No. Handphone</Label>
-                      <Input 
-                        value={formData.noHp || ""} 
-                        placeholder="Masukkan No. Handphone" 
-                        onChange={(e) => handleInputChange("noHp", e.target.value.replace(/\D/g, ''))} 
-                      />
-                    </div>
-                    <div className="space-y-2"><Label>No. Whatsapp <span className="text-red-500">*</span></Label><Input value={formData.noWa || ""} placeholder="0812XXXXXXXX" onChange={(e) => handleInputChange("noWa", e.target.value)} /></div>
-                    <div className="space-y-2"><Label>Email Aktif <span className="text-red-500">*</span></Label><Input type="email" value={formData.emailAktif || ""} placeholder="nama@email.com" onChange={(e) => handleInputChange("emailAktif", e.target.value)} /></div>
-                    <div className="space-y-2"><Label>Email Akun</Label><Input type="email" value={formData.emailAkun || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                  </div>
-                </div>
- 
-                {/* Kesejahteraan & Bank */}
-                <div>
-                  <h5 className="flex items-center gap-2 font-semibold text-gray-800 dark:text-white/90 mb-4 border-b pb-2 border-gray-100 dark:border-white/[0.05]">
-                    <svg className="w-5 h-5 text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Kesejahteraan & Bank
-                  </h5>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     <div className="space-y-2">
-                       <Label>Penerima KIP</Label>
-                       <Input value={formData.penerimaKIP || ""} disabled placeholder="Data kosong dari Dapodik" />
-                     </div>
-                     <div className="space-y-2">
-                       <Label>Layak PIP</Label>
-                       <Input value={formData.layakKIP || ""} disabled placeholder="Data kosong dari Dapodik" />
-                     </div>
-                     <div className="space-y-2">
-                       <Label>Penerima KPS/PKH</Label>
-                       <Input value={formData.penerimaKPS || ""} disabled placeholder="Data kosong dari Dapodik" />
-                     </div>
-                     <div className="space-y-2">
-                       <Label>Nama Bank</Label>
-                       <Input value={formData.idBank || ""} disabled placeholder="Data kosong dari Dapodik" />
-                     </div>
-                     <div className="space-y-2"><Label>No. Rekening Bank</Label><Input value={formData.rekeningBank || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                     <div className="space-y-2"><Label>Cabang Bank (KCP)</Label><Input value={formData.namaKCP || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                     <div className="space-y-2"><Label>Rekening Atas Nama</Label><Input value={formData.rekeningAtasNama || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                  </div>
-                </div>
               </div>
             </div>
-          </div>
           </div>
 
           {/* Card 2: Data Periodik */}
@@ -1342,6 +1556,7 @@ const EditStudentPage: React.FC = () => {
                       ))}
                     </select>
                   </div>
+
                 </div>
               </div>
             </div>
@@ -1452,6 +1667,53 @@ const EditStudentPage: React.FC = () => {
                      ))}
                    </select>
                  </div>
+                  <div className="space-y-2 relative">
+                    <Label>Berkebutuhan Khusus</Label>
+                    <button
+                      type="button"
+                      onClick={() => setIsKkAyahDropdownOpen(!isKkAyahDropdownOpen)}
+                      className="w-full flex items-center justify-between rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white bg-white text-left cursor-pointer"
+                    >
+                      <span className="truncate">
+                        {formData.kebutuhanKhususAyah || "Tidak ada"}
+                      </span>
+                      <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    
+                    {isKkAyahDropdownOpen && (
+                      <>
+                        <div 
+                          className="fixed inset-0 z-10" 
+                          onClick={() => setIsKkAyahDropdownOpen(false)}
+                        />
+                        <div className="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2 shadow-lg dark:border-gray-800 dark:bg-gray-950 z-20 space-y-1">
+                          {(refOptions?.kebutuhan_khusus || []).map((o: any) => {
+                            const oid = o.kebutuhan_khusus_id || o.id;
+                            const currentMask = formData.kebutuhan_khusus_id_ayah || 0;
+                            const isChecked = oid === 0 ? currentMask === 0 : (currentMask & oid) === oid;
+                            return (
+                              <label
+                                key={oid}
+                                className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-white/[0.02] cursor-pointer text-sm"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => handleToggleKebutuhanKhusus(oid, "ayah")}
+                                  className="rounded border-gray-300 text-brand-500 focus:ring-brand-500 size-4"
+                                />
+                                <span className="text-gray-700 dark:text-gray-300">
+                                  {o.kebutuhan_khusus || o.nama}
+                                </span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
+                  </div>
               </div>
             </div>
  
@@ -1546,6 +1808,53 @@ const EditStudentPage: React.FC = () => {
                      ))}
                    </select>
                  </div>
+                  <div className="space-y-2 relative">
+                    <Label>Berkebutuhan Khusus</Label>
+                    <button
+                      type="button"
+                      onClick={() => setIsKkIbuDropdownOpen(!isKkIbuDropdownOpen)}
+                      className="w-full flex items-center justify-between rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white bg-white text-left cursor-pointer"
+                    >
+                      <span className="truncate">
+                        {formData.kebutuhanKhususIbu || "Tidak ada"}
+                      </span>
+                      <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    
+                    {isKkIbuDropdownOpen && (
+                      <>
+                        <div 
+                          className="fixed inset-0 z-10" 
+                          onClick={() => setIsKkIbuDropdownOpen(false)}
+                        />
+                        <div className="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2 shadow-lg dark:border-gray-800 dark:bg-gray-950 z-20 space-y-1">
+                          {(refOptions?.kebutuhan_khusus || []).map((o: any) => {
+                            const oid = o.kebutuhan_khusus_id || o.id;
+                            const currentMask = formData.kebutuhan_khusus_id_ibu || 0;
+                            const isChecked = oid === 0 ? currentMask === 0 : (currentMask & oid) === oid;
+                            return (
+                              <label
+                                key={oid}
+                                className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-white/[0.02] cursor-pointer text-sm"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => handleToggleKebutuhanKhusus(oid, "ibu")}
+                                  className="rounded border-gray-300 text-brand-500 focus:ring-brand-500 size-4"
+                                />
+                                <span className="text-gray-700 dark:text-gray-300">
+                                  {o.kebutuhan_khusus || o.nama}
+                                </span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
+                  </div>
               </div>
             </div>
  
@@ -1760,11 +2069,10 @@ const EditStudentPage: React.FC = () => {
         <div className="grid grid-cols-2 gap-3 max-h-[400px] overflow-y-auto custom-scrollbar p-1">
           {Object.keys(FIELD_MAP_SISWA)
             .filter((key) => {
-              const excludedKeys = [
-                "nama", "tempat_lahir", "tanggal_lahir", "jenis_kelamin", "nik", "nisn", "nipd",
-                "no_wa", "no_whatsapp", "email", "email_aktif"
+              const allowedKeys = [
+                "nama", "jenis_kelamin", "nik", "tempat_lahir", "tanggal_lahir", "nama_ibu_kandung"
               ];
-              return !excludedKeys.includes(key);
+              return allowedKeys.includes(key);
             })
             .map((key) => {
               const field = FIELD_MAP_SISWA[key];

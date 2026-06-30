@@ -51,6 +51,7 @@ import PelaporanSekolahPage from "./pages/Pelaporan/index";
 import DetailPelaporanSekolahPage from "./pages/Pelaporan/detail";
 import MenuSettings from "./pages/Pengaturan/Menu";
 import BackupPage from "./pages/Pengaturan/Backup";
+import Umum from "./pages/Pengaturan/Umum";
 
 function HomeRedirect() {
   const { user, isAuthenticated } = useAuth();
@@ -126,7 +127,7 @@ export default function App() {
             {/* Pengaturan */}
             <Route path="pengaturan/menu" element={<MenuSettings />} />
             <Route path="pengaturan/backup" element={<BackupPage />} />
-            <Route path="pengaturan/umum" element={<Blank />} />
+            <Route path="pengaturan/umum" element={<Umum />} />
 
             {/* Other */}
             

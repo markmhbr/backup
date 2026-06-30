@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Modal } from "../ui/modal";
-import { PrinterIcon } from "../../icons";
+import { createPortal } from "react-dom";
 import { dapodikService } from "../../services/dapodikService";
 import { QRCodeSVG } from "qrcode.react";
 import { getFotoUrl } from "../../utils/image";
@@ -20,12 +19,32 @@ interface PrintPDCardPreviewProps {
   isOpen: boolean;
   onClose: () => void;
   rombelId: string;
-  rombelName: string;
+  rombelName?: string;
 }
 
-const PrintPDCardPreview: React.FC<PrintPDCardPreviewProps> = ({ isOpen, onClose, rombelId, rombelName }) => {
+const PrintPDCardPreview: React.FC<PrintPDCardPreviewProps> = ({ isOpen, onClose, rombelId }) => {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(false);
+  const [backgroundPd, setBackgroundPd] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      const fetchSettings = async () => {
+        try {
+          const sch = await dapodikService.getSekolah();
+          if (sch?.status === "success" && sch.data?.sekolah_id) {
+            const settings = await dapodikService.getPengaturanUmum(sch.data.sekolah_id);
+            if (settings?.status === "success" && settings.data?.background_pd) {
+              setBackgroundPd(settings.data.background_pd);
+            }
+          }
+        } catch (e) {
+          console.error("Gagal memuat background kartu PD:", e);
+        }
+      };
+      fetchSettings();
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen && rombelId) {
@@ -51,47 +70,22 @@ const PrintPDCardPreview: React.FC<PrintPDCardPreviewProps> = ({ isOpen, onClose
     }
   }, [isOpen, rombelId]);
 
-  const handlePrint = () => {
-    window.print();
-  };
+  useEffect(() => {
+    if (!loading && students.length > 0 && isOpen) {
+      const timer = setTimeout(() => {
+        window.print();
+        onClose();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, students, isOpen, onClose]);
 
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} className="max-w-[1000px] p-0 overflow-hidden">
-      {/* Header Modal - Hidden during print */}
-      <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-white/[0.05] print:hidden bg-white dark:bg-gray-900">
-        <div>
-          <h4 className="text-xl font-semibold text-gray-800 dark:text-white/90">
-            Print Preview Kartu ID PD - {rombelName}
-          </h4>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Ukuran Standar 5.5cm x 8.5cm (Vertikal)
-          </p>
-        </div>
-        <div className="flex gap-3">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700 dark:hover:bg-gray-700"
-          >
-            Batal
-          </button>
-          <button
-            onClick={handlePrint}
-            disabled={loading || students.length === 0}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-500 rounded-lg hover:bg-brand-600 disabled:opacity-50"
-          >
-            <PrinterIcon className="w-4 h-4" />
-            Cetak Sekarang
-          </button>
-        </div>
-      </div>
+  if (!isOpen) return null;
 
-      {/* Printable Content */}
-      <div className="id-card-preview-container id-card-print-area p-8 bg-gray-50 dark:bg-gray-900/50 max-h-[75vh] overflow-y-auto custom-scrollbar print:p-0 print:bg-white print:overflow-visible print:max-h-none">
-        {loading ? (
-            <div className="flex justify-center py-20">
-                <p className="text-gray-500 font-medium">Memuat data siswa...</p>
-            </div>
-        ) : students.length > 0 ? (
+  return createPortal(
+    <div className="modal fixed left-[-9999px] top-0 opacity-0 pointer-events-none print:opacity-100 print:left-0 print:relative print:w-full print:h-auto print:block">
+      <div className="id-card-preview-container id-card-print-area print:p-0 print:bg-white print:overflow-visible print:max-h-none">
+        {students.length > 0 && (
           <div className="flex flex-col gap-8 print:gap-0">
             {(() => {
               const chunks = [];
@@ -110,24 +104,26 @@ const PrintPDCardPreview: React.FC<PrintPDCardPreviewProps> = ({ isOpen, onClose
                       style={{ 
                         width: '5.5cm', 
                         height: '8.5cm',
-                        pageBreakInside: 'avoid'
+                        pageBreakInside: 'avoid',
+                        backgroundImage: backgroundPd ? `url(${backgroundPd})` : 'none',
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
                       }}
                     >
                       {/* Photo Area */}
-                      <div className="w-18 h-22 bg-gray-50 dark:bg-gray-800 p-0.5 rounded border border-gray-200 dark:border-gray-700 flex items-center justify-center overflow-hidden">
-                        <img 
-                          src={getFotoUrl(student.foto)} 
-                          alt={student.nama} 
-                          className="w-full h-full object-cover rounded" 
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = "/images/default/profile.jpg";
-                          }}
-                        />
-                      </div>
+                      <div 
+                        className="w-20 h-20 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full overflow-hidden print-avatar"
+                        style={{
+                          backgroundImage: `url(${getFotoUrl(student.foto)})`,
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                          backgroundRepeat: 'no-repeat'
+                        }}
+                      />
 
                       {/* Nama & NISN */}
                       <div className="text-center px-2 w-full">
-                        <p className="text-[11px] font-bold text-gray-900 dark:text-white uppercase leading-tight mb-1 truncate" title={student.nama}>
+                        <p className="text-[11px] font-bold text-gray-900 dark:text-white uppercase leading-tight mb-1 line-clamp-2" title={student.nama}>
                           {student.nama}
                         </p>
                         <p className="text-[12px] font-black text-gray-500 dark:text-gray-400 leading-none">
@@ -158,14 +154,10 @@ const PrintPDCardPreview: React.FC<PrintPDCardPreviewProps> = ({ isOpen, onClose
               ));
             })()}
           </div>
-        ) : (
-            <div className="flex justify-center py-20">
-                <p className="text-gray-500">Tidak ada data siswa dalam rombel ini.</p>
-            </div>
         )}
       </div>
-
-    </Modal>
+    </div>,
+    document.body
   );
 };
 

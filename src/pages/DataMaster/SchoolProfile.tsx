@@ -106,6 +106,10 @@ export default function SchoolProfile() {
         if (result.status === "success" && result.data) {
           const s = result.data;
           
+          
+          
+
+
           setProfileData(prev => ({
             ...prev,
             namaSekolah: s.nama || prev.namaSekolah,
@@ -1283,6 +1287,8 @@ export default function SchoolProfile() {
               </div>
             </div>
           )}
+
+
 
           {activeTab === "map" && (
             <div className="space-y-6 tab-content">
