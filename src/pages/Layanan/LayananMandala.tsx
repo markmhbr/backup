@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { formatDateDMY } from "../../utils/formatDate";
 import { useSearchParams } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import ComponentCard from "../../components/common/ComponentCard";
@@ -378,7 +379,7 @@ export default function LayananMandala() {
                   </div>
                   <div>
                     <span className="text-xs text-gray-400 font-semibold uppercase">Tanggal Pengajuan</span>
-                    <p className="text-sm font-medium">{new Date(selectedPermohonan.tanggal_pengajuan || selectedPermohonan.created_at || '').toLocaleDateString("id-ID")}</p>
+                    <p className="text-sm font-medium">{formatDateDMY(selectedPermohonan.tanggal_pengajuan || selectedPermohonan.created_at)}</p>
                   </div>
                   <div>
                     <span className="text-xs text-gray-400 font-semibold uppercase">Pemohon</span>
@@ -617,7 +618,7 @@ export default function LayananMandala() {
                           <TableCell className="px-5 py-3.5">
                             <div className="flex flex-col">
                               <span className="font-bold text-gray-800 dark:text-white/90">{item.nomor_permohonan}</span>
-                              <span className="text-xs text-gray-500">{new Date(item.tanggal_pengajuan || item.created_at || '').toLocaleDateString("id-ID")}</span>
+                              <span className="text-xs text-gray-500">{formatDateDMY(item.tanggal_pengajuan || item.created_at)}</span>
                             </div>
                           </TableCell>
                           <TableCell className="px-5 py-3.5">

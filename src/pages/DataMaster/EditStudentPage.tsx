@@ -15,8 +15,8 @@ import { Modal } from "../../components/ui/modal";
 import { dapodikService } from "../../services/dapodikService";
 import { getFotoUrl } from "../../utils/image";
 import { referenceService } from "../../services/referenceService";
-import api from "../../services/api";
-
+import { printStudentProfile } from "../../utils/printStudentProfile";
+import PrintPDCardPreview from "../../components/student/PrintPDCardPreview";
 
 const format3Digits = (value: string | number | null | undefined): string => {
   if (value === null || value === undefined || value === "") return "";
@@ -37,8 +37,23 @@ const sanitizeRtRw = (value: string | number | null | undefined): string => {
   return numStr;
 };
 
-const EditStudentPage: React.FC = () => {
-  const { role, id } = useParams<{ role: string; id: string }>();
+const formatDateToIndonesian = (dateStr: string | null | undefined): string => {
+  if (!dateStr) return "";
+  const cleanDate = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+  const parts = cleanDate.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  }
+  return cleanDate;
+};
+
+interface EditStudentPageProps {
+  profileId?: string;
+}
+
+const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
+  const { role, id: paramId } = useParams<{ role: string; id: string }>();
+  const id = profileId || paramId;
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState("profil");
@@ -56,7 +71,7 @@ const EditStudentPage: React.FC = () => {
     : "http://localhost:3000";
 
   const [formData, setFormData] = useState<any>({});
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(!!id);
   const [uploadedDocs, setUploadedDocs] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -67,6 +82,133 @@ const EditStudentPage: React.FC = () => {
   const [isFormPengajuanOpen, setIsFormPengajuanOpen] = useState(false);
   const [selectedFields, setSelectedFields] = useState<string[]>([]);
   const [pengajuanForm, setPengajuanForm] = useState<any>({});
+  const [isCardModalOpen, setIsCardModalOpen] = useState(false);
+  const [selectedStudentForCard, setSelectedStudentForCard] = useState<any | null>(null);
+
+  const [isCompletenessModalOpen, setIsCompletenessModalOpen] = useState(false);
+  const [hasShownCompletenessAlert, setHasShownCompletenessAlert] = useState(false);
+
+  const getEmptyFields = () => {
+    if (!formData || !formData.nama) return [];
+    
+    const requiredFields = [
+      { key: 'nama', label: 'Nama Lengkap' },
+      { key: 'jk', label: 'Jenis Kelamin' },
+      { key: 'nik', label: 'NIK' },
+      { key: 'tempatLahir', label: 'Tempat Lahir' },
+      { key: 'tanggalLahir', label: 'Tanggal Lahir' },
+      { key: 'agama_id', label: 'Agama' },
+      { key: 'kk', label: 'No. Kartu Keluarga' },
+      { key: 'reg_akta_lahir', label: 'Register Akta Lahir' },
+      { key: 'anak_keberapa', label: 'Anak ke-' },
+      { key: 'noHp', label: 'Nomor HP' },
+      { key: 'noWa', label: 'Nomor WhatsApp' },
+      { key: 'emailAktif', label: 'Email Aktif' },
+      { key: 'kampungJalan', label: 'Alamat Jalan' },
+      { key: 'rt', label: 'RT' },
+      { key: 'rw', label: 'RW' },
+      { key: 'dusun', label: 'Nama Dusun' },
+      { key: 'desaKelurahan', label: 'Desa/Kelurahan' },
+      { key: 'provinsi', label: 'Provinsi' },
+      { key: 'kabupatenKota', label: 'Kabupaten/Kota' },
+      { key: 'kecamatan', label: 'Kecamatan' },
+      { key: 'kodePos', label: 'Kode Pos' },
+      { key: 'jenisTinggalId', label: 'Jenis Tinggal' },
+      { key: 'alatTransportasiId', label: 'Alat Transportasi' },
+      { key: 'lintang', label: 'Lintang' },
+      { key: 'bujur', label: 'Bujur' },
+      { key: 'tinggiBadan', label: 'Tinggi Badan' },
+      { key: 'beratBadan', label: 'Berat Badan' },
+      { key: 'lingkarKepala', label: 'Lingkar Kepala' },
+      { key: 'jarakRumah', label: 'Jarak Rumah' },
+      { key: 'waktuTempuh', label: 'Waktu Tempuh' },
+      { key: 'menitTempuh', label: 'Menit Tempuh' },
+      { key: 'jumlahSaudara', label: 'Jumlah Saudara' },
+      { key: 'namaAyah', label: 'Nama Ayah' },
+      { key: 'nikAyah', label: 'NIK Ayah' },
+      { key: 'tahunLahirAyah', label: 'Tahun Lahir Ayah' },
+      { key: 'jenjang_pendidikan_ayah', label: 'Pendidikan Ayah' },
+      { key: 'pekerjaan_id_ayah', label: 'Pekerjaan Ayah' },
+      { key: 'penghasilan_id_ayah', label: 'Penghasilan Ayah' },
+      { key: 'namaIbu', label: 'Nama Ibu' },
+      { key: 'nikIbu', label: 'NIK Ibu' },
+      { key: 'tahunLahirIbu', label: 'Tahun Lahir Ibu' },
+      { key: 'jenjang_pendidikan_ibu', label: 'Pendidikan Ibu' },
+      { key: 'pekerjaan_id_ibu', label: 'Pekerjaan Ibu' },
+      { key: 'penghasilan_id_ibu', label: 'Penghasilan Ibu' },
+      { key: 'namaWali', label: 'Nama Wali' },
+      { key: 'nikWali', label: 'NIK Wali' },
+      { key: 'tahunLahirWali', label: 'Tahun Lahir Wali' },
+      { key: 'jenjang_pendidikan_wali', label: 'Pendidikan Wali' },
+      { key: 'pekerjaan_id_wali', label: 'Pekerjaan Wali' },
+      { key: 'penghasilan_id_wali', label: 'Penghasilan Wali' }
+    ];
+
+    const isWaliMode = formData.isWali === true || formData.isWali === 1 || formData.isWali === '1' || !!(formData.namaWali || formData.nikWali);
+
+    const checkFilled = (field: any) => {
+      if (field.key === 'provinsi' || field.key === 'kabupatenKota' || field.key === 'kecamatan') {
+        const desa = formData['desaKelurahan'] || formData['desaKelurahanCode'];
+        const prov = formData['provinsi'];
+        const kab = formData['kabupatenKota'] || formData['kabupatenKotaName'];
+        const kec = formData['kecamatan'] || formData['kecamatanName'];
+        return !!((desa && desa !== '-' && desa !== '') || (prov && prov !== '-' && prov !== '') || (kab && kab !== '-' && kab !== '') || (kec && kec !== '-' && kec !== ''));
+      }
+      
+      const val = formData[field.key];
+      if (val !== undefined && val !== null && val !== '' && val !== '-' && val !== 0 && val !== '0') {
+        return true;
+      }
+      return false;
+    };
+
+    return requiredFields.filter(field => {
+      if (field.key.endsWith('Wali') || field.key.endsWith('_wali')) {
+        return isWaliMode;
+      }
+      return true;
+    }).map(field => ({
+      ...field,
+      filled: checkFilled(field)
+    }));
+  };
+
+  const fieldStatus = getEmptyFields();
+  const emptyCount = fieldStatus.filter(f => !f.filled).length;
+  const totalCount = fieldStatus.length;
+  const completenessPercentage = totalCount > 0 ? Math.round(((totalCount - emptyCount) / totalCount) * 100) : 0;
+
+  useEffect(() => {
+    if (profileId && formData && formData.nama && !loading && !hasShownCompletenessAlert) {
+      const statusList = getEmptyFields();
+      const emptyFields = statusList.filter(f => !f.filled);
+      if (emptyFields.length > 0) {
+        setIsCompletenessModalOpen(true);
+        setHasShownCompletenessAlert(true);
+      }
+    }
+  }, [profileId, formData, loading, hasShownCompletenessAlert]);
+
+  const handlePrintBiodata = async () => {
+    if (id) {
+      await printStudentProfile([id]);
+    }
+  };
+
+  const handlePrintCard = () => {
+    if (!id || !formData) return;
+    setSelectedStudentForCard({
+      peserta_didik_id: id,
+      nama: formData.nama,
+      foto: formData.avatar,
+      nisn: formData.nisn,
+      nipd: formData.nipd,
+      jenis_kelamin: formData.jk,
+      avatar: getFotoUrl(formData.avatar, ""),
+      qr_token: formData.qrToken || "",
+    });
+    setIsCardModalOpen(true);
+  };
 
   const [refOptions, setRefOptions] = useState<any>(null);
   const [provinces, setProvinces] = useState<any[]>([]);
@@ -408,38 +550,7 @@ const EditStudentPage: React.FC = () => {
     }
   };
 
-  const handleReset2FA = async () => {
-    const confirm = await Swal.fire({
-      title: "Set Ulang Authenticator?",
-      text: "Pengguna harus melakukan scan ulang QR code Google Authenticator saat login berikutnya.",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#3085d6",
-      confirmButtonText: "Ya, Set Ulang!",
-      cancelButtonText: "Batal"
-    });
 
-    if (confirm.isConfirmed) {
-      try {
-        Swal.fire({
-          title: "Memproses...",
-          allowOutsideClick: false,
-          didOpen: () => {
-            Swal.showLoading();
-          }
-        });
-
-        await api.post("/auth/reset-2fa", { peserta_didik_id: id });
-        
-        Swal.fire("Berhasil", "Authenticator (2FA) berhasil diset ulang.", "success");
-      } catch (err: any) {
-        console.error(err);
-        const errMsg = err.response?.data?.message || "Gagal menyetel ulang authenticator.";
-        Swal.fire("Error", errMsg, "error");
-      }
-    }
-  };
 
   const handleProvinceChange = async (provName: string, provCode: string) => {
     handlePengajuanInputChange("provinsi", provName);
@@ -610,6 +721,7 @@ const EditStudentPage: React.FC = () => {
     const fetchData = async () => {
       if (id) {
         setLoading(true);
+        setFormData({});
         try {
           const result = await dapodikService.getPesertaDidikDetail(id);
           if (result.status === "success" && result.data) {
@@ -620,7 +732,7 @@ const EditStudentPage: React.FC = () => {
               sekolahId: data.sekolah_id || "",
               nama: data.nama,
               tempatLahir: data.tempat_lahir || "",
-              tanggalLahir: data.tanggal_lahir ? data.tanggal_lahir.split('T')[0] : "",
+              tanggalLahir: formatDateToIndonesian(data.tanggal_lahir),
               jk: data.jenis_kelamin || "",
               nisn: data.nisn || "",
               nipd: data.nipd || "",
@@ -711,6 +823,7 @@ const EditStudentPage: React.FC = () => {
               jenjang_pendidikan_wali: data.jenjang_pendidikan_wali || "",
               penghasilanWali: data.penghasilan_wali_nama || "",
               penghasilan_id_wali: data.penghasilan_id_wali || "",
+              qrToken: data.qr_token || "",
             });
 
             // Regional data is directly populated to formData above and rendered as disabled Input. No mapping needed.
@@ -939,6 +1052,14 @@ const EditStudentPage: React.FC = () => {
 
 
 
+  if (loading && !formData.id) {
+    return (
+      <div className="flex h-[70vh] items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-brand-500 border-t-transparent"></div>
+      </div>
+    );
+  }
+
   return (
     <>
       <PageMeta
@@ -957,28 +1078,50 @@ const EditStudentPage: React.FC = () => {
         {/* Header Section */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 no-print">
           <div>
-            <button
-              onClick={() => navigate(`/${role}/student-data`)}
-              className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white transition-colors mb-2"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-              Kembali ke Daftar
-            </button>
+            {!profileId && (
+              <button
+                onClick={() => navigate(`/${role}/student-data`)}
+                className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white transition-colors mb-2"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Kembali ke Daftar
+              </button>
+            )}
             <h3 className="text-xl font-bold text-gray-800 dark:text-white/90">
-              Ubah Data Peserta Didik
+              {profileId ? "Profil Saya" : "Ubah Data Peserta Didik"}
             </h3>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              Ubah rincian data untuk siswa: <span className="font-semibold text-brand-500">{formData.nama || "Memuat..."}</span>
+              {profileId ? "Rincian profil dan data identitas Anda" : <>Ubah rincian data untuk siswa: <span className="font-semibold text-brand-500">{formData.nama || "Memuat..."}</span></>}
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 md:gap-3">
+            {!profileId && (
+              <button
+                onClick={() => navigate(`/${role}/student-data`)}
+                className="px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] transition-colors"
+              >
+                Batal
+              </button>
+            )}
             <button
-              onClick={() => navigate(`/${role}/student-data`)}
-              className="px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] transition-colors"
+              onClick={handlePrintBiodata}
+              className="px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] transition-colors flex items-center gap-2"
             >
-              Batal
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Cetak Biodata
+            </button>
+            <button
+              onClick={handlePrintCard}
+              className="px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] transition-colors flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+              </svg>
+              Cetak Kartu ID
             </button>
             <button
               onClick={handleCheckPengajuan}
@@ -991,6 +1134,37 @@ const EditStudentPage: React.FC = () => {
             </Button>
           </div>
         </div>
+
+        {profileId && (
+          <div className="p-5 rounded-2xl border border-warning-200 bg-warning-50 dark:border-warning-900/30 dark:bg-warning-900/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print shadow-sm">
+            <div className="flex gap-4">
+              <div className="p-2.5 bg-warning-100 dark:bg-warning-900/30 rounded-xl text-warning-600 dark:text-warning-400 self-start">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div>
+                <h4 className="font-bold text-warning-800 dark:text-warning-300 text-base">
+                  Persentase Kelengkapan Profil Anda: {completenessPercentage}%
+                </h4>
+                <p className="text-sm text-warning-700 dark:text-warning-400 mt-1">
+                  {emptyCount > 0 
+                    ? `Terdapat ${emptyCount} kolom wajib yang masih belum terisi di profil Anda. Klik tombol di kanan untuk melihat kolom yang kosong.` 
+                    : "Selamat! Profil Anda telah terisi lengkap 100%."}
+                </p>
+              </div>
+            </div>
+            {emptyCount > 0 && (
+              <button 
+                type="button"
+                onClick={() => setIsCompletenessModalOpen(true)}
+                className="px-5 py-2.5 text-sm font-bold text-white bg-warning-600 hover:bg-warning-700 active:bg-warning-800 rounded-xl transition-colors shadow-sm whitespace-nowrap self-start sm:self-center"
+              >
+                Lihat Kolom Kosong
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Tab Navigation */}
         <div className="flex border-b border-gray-200 dark:border-gray-800 overflow-x-auto custom-scrollbar whitespace-nowrap no-print mb-6">
@@ -1064,7 +1238,7 @@ const EditStudentPage: React.FC = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2"><Label>Nama Lengkap</Label><Input value={formData.nama || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                     <div className="space-y-2"><Label>Tempat Lahir</Label><Input value={formData.tempatLahir || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                    <div className="space-y-2"><Label>Tanggal Lahir</Label><Input type="date" value={formData.tanggalLahir || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                    <div className="space-y-2"><Label>Tanggal Lahir</Label><Input value={formData.tanggalLahir || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                     <div className="space-y-2"><Label>Jenis Kelamin</Label><Input value={formData.jk === "L" ? "Laki-laki" : formData.jk === "P" ? "Perempuan" : formData.jk || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                     <div className="space-y-2"><Label>NISN</Label><Input value={formData.nisn || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                     <div className="space-y-2"><Label>NIPD</Label><Input value={formData.nipd || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
@@ -1194,24 +1368,12 @@ const EditStudentPage: React.FC = () => {
                     <div className="space-y-2"><Label>Email Aktif <span className="text-red-500">*</span></Label><Input type="email" value={formData.emailAktif || ""} placeholder="nama@email.com" onChange={(e) => handleInputChange("emailAktif", e.target.value)} /></div>
                     <div className="space-y-2">
                       <Label>Email Akun</Label>
-                      <div className="flex gap-2">
-                        <Input 
-                          type="email" 
-                          value={formData.emailAkun || ""} 
-                          placeholder="Data kosong dari Dapodik" 
-                          disabled 
-                          className="flex-grow"
-                        />
-                        {formData.emailAkun && (
-                          <button
-                            type="button"
-                            onClick={handleReset2FA}
-                            className="px-3 py-2 text-xs font-semibold text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors whitespace-nowrap"
-                          >
-                            Reset 2FA
-                          </button>
-                        )}
-                      </div>
+                      <Input 
+                        type="email" 
+                        value={formData.emailAkun || ""} 
+                        placeholder="Data kosong dari Dapodik" 
+                        disabled 
+                      />
                     </div>
                   </div>
                 </div>
@@ -2044,18 +2206,7 @@ const EditStudentPage: React.FC = () => {
 
         </div>
 
-        {/* Footer Actions */}
-        <div className="flex justify-end gap-3 rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 no-print">
-          <button
-            onClick={() => navigate(`/${role}/student-data`)}
-            className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
-          >
-            Batal
-          </button>
-          <Button variant="primary-outline" onClick={handleSave} disabled={loading}>
-            Simpan Perubahan
-          </Button>
-        </div>
+
       </div>
 
       {/* Modal Checklist Pengajuan Perbaikan */}
@@ -2572,6 +2723,76 @@ const EditStudentPage: React.FC = () => {
           </Button>
         </div>
       </Modal>
+
+      <Modal
+        isOpen={isCompletenessModalOpen}
+        onClose={() => setIsCompletenessModalOpen(false)}
+        className="max-w-md p-6"
+      >
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+              Kolom Profil yang Belum Terisi
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Silakan lengkapi data berikut agar profil Anda mencapai 100% lengkap.
+            </p>
+          </div>
+
+          <div className="space-y-2 bg-gray-50 dark:bg-gray-800/40 p-4 rounded-2xl border border-gray-100 dark:border-gray-800">
+            <div className="flex justify-between items-center text-sm font-semibold">
+              <span className="text-gray-600 dark:text-gray-400">Kelengkapan</span>
+              <span className={completenessPercentage === 100 ? 'text-success-500' : completenessPercentage < 50 ? 'text-error-500' : 'text-warning-500'}>
+                {completenessPercentage}%
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-2">
+              <div 
+                className={`h-2 rounded-full ${
+                  completenessPercentage === 100 ? 'bg-success-500' : completenessPercentage < 50 ? 'bg-error-500' : 'bg-warning-500'
+                }`} 
+                style={{ width: `${completenessPercentage}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="max-h-[300px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+            {getEmptyFields().map((field) => (
+              <div key={field.key} className="flex items-center justify-between text-sm py-1.5 border-b border-gray-50 dark:border-gray-800/40">
+                <span className="text-gray-600 dark:text-gray-400 font-medium">{field.label}</span>
+                <span className={`inline-flex items-center gap-1 font-semibold ${field.filled ? 'text-success-600 dark:text-success-400' : 'text-error-600 dark:text-error-400'}`}>
+                  {field.filled ? (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
+                      Terisi
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                      Kosong
+                    </>
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex gap-3 justify-end pt-2 border-t border-gray-100 dark:border-gray-800">
+            <button
+              onClick={() => setIsCompletenessModalOpen(false)}
+              className="px-4 py-2 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 dark:text-gray-300 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              Tutup
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <PrintPDCardPreview
+        isOpen={isCardModalOpen}
+        onClose={() => setIsCardModalOpen(false)}
+        student={selectedStudentForCard}
+      />
     </>
   );
 };

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { formatDateDMY } from "../../utils/formatDate";
 import { useSearchParams } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import Button from "../../components/ui/button/Button";
@@ -200,11 +201,11 @@ export default function DetailPelaporanSekolahPage() {
                     </TableRow>
                     <TableRow>
                       <TableCell className="px-5 py-3.5 font-semibold text-gray-500 dark:text-gray-400 w-1/3 bg-gray-50/50 dark:bg-white/[0.01]">Tanggal Mulai</TableCell>
-                      <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/90">{detail.tanggal_mulai ? new Date(detail.tanggal_mulai).toLocaleDateString("id-ID") : "-"}</TableCell>
+                      <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/90">{formatDateDMY(detail.tanggal_mulai)}</TableCell>
                     </TableRow>
                     <TableRow>
                       <TableCell className="px-5 py-3.5 font-semibold text-gray-500 dark:text-gray-400 w-1/3 bg-gray-50/50 dark:bg-white/[0.01]">Tanggal Selesai</TableCell>
-                      <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/90">{detail.tanggal_selesai ? new Date(detail.tanggal_selesai).toLocaleDateString("id-ID") : "-"}</TableCell>
+                      <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/90">{formatDateDMY(detail.tanggal_selesai)}</TableCell>
                     </TableRow>
                     <TableRow>
                       <TableCell className="px-5 py-3.5 font-semibold text-gray-500 dark:text-gray-400 w-1/3 bg-gray-50/50 dark:bg-white/[0.01]">Status</TableCell>

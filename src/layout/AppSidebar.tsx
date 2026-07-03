@@ -10,6 +10,7 @@ import {
   PlugInIcon,
   TableIcon,
   GroupIcon,
+  UserIcon,
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
 import SidebarWidget from "./SidebarWidget";
@@ -35,6 +36,12 @@ const navItems: NavItem[] = [
     name: "Dashboard",
     path: "/",
     id: "dashboard",
+  },
+  {
+    icon: <UserIcon />,
+    name: "Profil Saya",
+    path: "/profile",
+    id: "profile",
   },
   {
     icon: <BoxIcon />,
@@ -460,12 +467,12 @@ const AppSidebar: React.FC = () => {
           if (filteredSubs.length > 0) {
             return { ...item, subItems: filteredSubs };
           }
-          if (item.id && allowedMenus.includes(item.id)) {
+          if (item.id && (item.id === "profile" || allowedMenus.includes(item.id))) {
             return { ...item, subItems: [] };
           }
           return null;
         }
-        if (!item.id || allowedMenus.includes(item.id)) {
+        if (!item.id || item.id === "profile" || allowedMenus.includes(item.id)) {
           return item;
         }
         return null;

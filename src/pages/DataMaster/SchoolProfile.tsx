@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { formatDateDMY } from "../../utils/formatDate";
 import PageMeta from "../../components/common/PageMeta";
 import Input from "../../components/form/input/InputField";
 import Label from "../../components/form/Label";
@@ -983,7 +984,7 @@ export default function SchoolProfile() {
                       <Label>Tanggal SK Pendirian</Label>
                       <Input
                         name="tglSkPendirian"
-                        value={administrasiData.tglSkPendirian ? new Date(administrasiData.tglSkPendirian).toLocaleDateString('id-ID') : ""}
+                        value={formatDateDMY(administrasiData.tglSkPendirian)}
                         onChange={handleAdministrasiChange}
                         disabled
                       />
@@ -1001,7 +1002,7 @@ export default function SchoolProfile() {
                       <Label>Tanggal SK Izin Operasional</Label>
                       <Input
                         name="tglSkIzinOperasional"
-                        value={administrasiData.tglSkIzinOperasional ? new Date(administrasiData.tglSkIzinOperasional).toLocaleDateString('id-ID') : ""}
+                        value={formatDateDMY(administrasiData.tglSkIzinOperasional)}
                         onChange={handleAdministrasiChange}
                         disabled
                       />

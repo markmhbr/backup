@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { formatDateTimeDMY } from "../../utils/formatDate";
 import PageMeta from "../../components/common/PageMeta";
 import Button from "../../components/ui/button/Button";
 import { Modal } from "../../components/ui/modal";
@@ -167,7 +168,7 @@ export default function GTKPerbaikan() {
                         <TableCell className="px-5 py-4 text-start text-gray-500 text-theme-sm dark:text-gray-400 max-w-xs truncate">
                           <span title={fields}>{fields}</span>
                         </TableCell>
-                        <TableCell className="px-5 py-4 text-start text-gray-500 text-theme-sm dark:text-gray-400">{new Date(item.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}</TableCell>
+                        <TableCell className="px-5 py-4 text-start text-gray-500 text-theme-sm dark:text-gray-400">{formatDateTimeDMY(new Date(item.created_at))}</TableCell>
                         <TableCell className="px-5 py-4 text-start text-theme-sm">
                           <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-500/10 dark:text-yellow-400">
                             {item.status}

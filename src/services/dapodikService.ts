@@ -1,12 +1,13 @@
 import api from './api';
 
 export const dapodikService = {
-  getPesertaDidik: async (limit: number = 10, search: string = '', page: number = 1, rombelName?: string, status?: 'aktif' | 'non-aktif', tingkat?: string) => {
+  getPesertaDidik: async (limit: number = 10, search: string = '', page: number = 1, rombelName?: string, status?: 'aktif' | 'non-aktif', tingkat?: string, completeness?: string) => {
     try {
       let url = `/dapodik/peserta-didik?limit=${limit}&page=${page}&search=${search}`;
       if (rombelName) url += `&rombel=${rombelName}`;
       if (status) url += `&status=${status}`;
       if (tingkat) url += `&tingkat=${tingkat}`;
+      if (completeness) url += `&completeness=${completeness}`;
       
       const response = await api.get(url);
       return response.data;
@@ -78,11 +79,12 @@ export const dapodikService = {
     }
   },
 
-  getGTK: async (limit: number = 10, search: string = '', page: number = 1, type?: 'guru' | 'tendik', status?: 'aktif' | 'non-aktif') => {
+  getGTK: async (limit: number = 10, search: string = '', page: number = 1, type?: 'guru' | 'tendik', status?: 'aktif' | 'non-aktif', completeness?: string) => {
     try {
       let url = `/dapodik/gtk?limit=${limit}&page=${page}&search=${search}`;
       if (type) url += `&type=${type}`;
       if (status) url += `&status=${status}`;
+      if (completeness) url += `&completeness=${completeness}`;
       
       const response = await api.get(url);
       return response.data;

@@ -18,11 +18,12 @@ interface Student {
 interface PrintPDCardPreviewProps {
   isOpen: boolean;
   onClose: () => void;
-  rombelId: string;
+  rombelId?: string;
   rombelName?: string;
+  student?: Student;
 }
 
-const PrintPDCardPreview: React.FC<PrintPDCardPreviewProps> = ({ isOpen, onClose, rombelId }) => {
+const PrintPDCardPreview: React.FC<PrintPDCardPreviewProps> = ({ isOpen, onClose, rombelId, student }) => {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(false);
   const [backgroundPd, setBackgroundPd] = useState<string | null>(null);
@@ -47,28 +48,31 @@ const PrintPDCardPreview: React.FC<PrintPDCardPreviewProps> = ({ isOpen, onClose
   }, [isOpen]);
 
   useEffect(() => {
-    if (isOpen && rombelId) {
-      const fetchStudents = async () => {
-        try {
-          setLoading(true);
-          const result = await dapodikService.getRombelAnggota(rombelId);
-          if (result && result.data) {
-            console.log("Anggota Rombel Loaded. Contoh Siswa:", result.data[0]);
-            setStudents(result.data);
-          } else {
+    if (isOpen) {
+      if (student) {
+        setStudents([student]);
+      } else if (rombelId) {
+        const fetchStudents = async () => {
+          try {
+            setLoading(true);
+            const result = await dapodikService.getRombelAnggota(rombelId);
+            if (result && result.data) {
+              console.log("Anggota Rombel Loaded. Contoh Siswa:", result.data[0]);
+              setStudents(result.data);
+            } else {
+              setStudents([]);
+            }
+          } catch (error) {
+            console.error("Gagal memuat anggota rombel:", error);
             setStudents([]);
+          } finally {
+            setLoading(false);
           }
-        } catch (error) {
-          console.error("Gagal memuat anggota rombel:", error);
-          setStudents([]);
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      fetchStudents();
+        };
+        fetchStudents();
+      }
     }
-  }, [isOpen, rombelId]);
+  }, [isOpen, rombelId, student]);
 
   useEffect(() => {
     if (!loading && students.length > 0 && isOpen) {

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { formatDateDMY } from "../../../utils/formatDate";
 import PageMeta from "../../../components/common/PageMeta";
 import { presensiService } from "../../../services/presensiService";
 import ComponentCard from "../../../components/common/ComponentCard";
@@ -227,7 +228,7 @@ const HariLibur: React.FC = () => {
                           {h.keterangan && <span className="text-xs text-gray-500 block mt-0.5 max-w-xs truncate">{h.keterangan}</span>}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 font-medium whitespace-nowrap">
-                          {new Date(h.tanggal_mulai).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })} - {new Date(h.tanggal_selesai).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          {formatDateDMY(h.tanggal_mulai)} - {formatDateDMY(h.tanggal_selesai)}
                         </td>
                         <td className="px-6 py-4 text-right whitespace-nowrap">
                           <button 

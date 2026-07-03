@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { formatDateDMY as globalFormatDateDMY, formatDateObjDMY } from "../../utils/formatDate";
 import { useSearchParams, useParams, useNavigate } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import Button from "../../components/ui/button/Button";
@@ -117,7 +118,7 @@ export default function GTKData() {
       }
 
       // Formatted dates
-      const todayFormatted = new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+      const todayFormatted = formatDateObjDMY(new Date());
       const now = new Date();
       const timeFormatted = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');
       const nowFormatted = todayFormatted + " " + timeFormatted;
@@ -592,30 +593,14 @@ export default function GTKData() {
         // Formatted dates
         const formatIndoDate = (dateStr: string | null | undefined) => {
           if (!dateStr) return "-";
-          try {
-            const date = new Date(dateStr);
-            if (isNaN(date.getTime())) return "-";
-            return date.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
-          } catch (e) {
-            return "-";
-          }
+          return globalFormatDateDMY(dateStr);
         };
 
         const formatDateDMY = (dateStr: string | null | undefined) => {
-          if (!dateStr) return "-";
-          try {
-            const date = new Date(dateStr);
-            if (isNaN(date.getTime())) return "-";
-            const day = String(date.getDate()).padStart(2, '0');
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const year = date.getFullYear();
-            return `${day}/${month}/${year}`;
-          } catch (e) {
-            return "-";
-          }
+          return globalFormatDateDMY(dateStr);
         };
 
-        const todayFormatted = new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+        const todayFormatted = formatDateObjDMY(new Date());
 
         // Foto URL
         const fotoUrl = getFotoUrl(gtk.foto);
@@ -1485,14 +1470,14 @@ export default function GTKData() {
               item.jenis_kelamin || "",
               `${lengkapData}%`,
               item.tempat_lahir || "",
-              item.tanggal_lahir && !isNaN(new Date(item.tanggal_lahir).getTime()) ? new Date(item.tanggal_lahir).toLocaleDateString('id-ID') : "",
+              item.tanggal_lahir && !isNaN(new Date(item.tanggal_lahir).getTime()) ? globalFormatDateDMY(item.tanggal_lahir) : "",
               item.nama_ibu_kandung || "",
               item.status_kepegawaian_id_str || "",
               item.jenis_ptk_id_str || "",
               item.jabatan_ptk_id_str || "",
               alamat,
               item.nuptk || "",
-              item.tmt_tugas && !isNaN(new Date(item.tmt_tugas).getTime()) ? new Date(item.tmt_tugas).toLocaleDateString('id-ID') : ""
+              item.tmt_tugas && !isNaN(new Date(item.tmt_tugas).getTime()) ? globalFormatDateDMY(item.tmt_tugas) : ""
             ];
           });
 

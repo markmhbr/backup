@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { formatDateDMY } from "../../utils/formatDate";
 import {
   Table,
   TableBody,
@@ -112,13 +113,13 @@ export default function PDKeluarTable({ onSelectionChange, searchTerm, itemsPerP
                   <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{item.nisn || "-"}</TableCell>
                   <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{item.tempat_lahir || "-"}</TableCell>
                   <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                    {item.tanggal_lahir ? new Date(item.tanggal_lahir).toLocaleDateString('id-ID') : "-"}
+                    {formatDateDMY(item.tanggal_lahir)}
                   </TableCell>
                   <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{item.jenis_pendaftaran_id_str || "-"}</TableCell>
                   <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{item.jenis_keluar_id || "-"}</TableCell>
                   <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400 min-w-[200px]">{item.ket_keluar || "-"}</TableCell>
                   <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                    {item.tanggal_keluar ? new Date(item.tanggal_keluar).toLocaleDateString('id-ID') : "-"}
+                    {formatDateDMY(item.tanggal_keluar)}
                   </TableCell>
                   <TableCell className="px-5 py-4 text-start">
                     <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-orange-600 border border-orange-500 hover:bg-orange-50 transition-colors">

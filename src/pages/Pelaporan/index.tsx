@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { formatDateDMY } from "../../utils/formatDate";
 import { Link } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import Badge from "../../components/ui/badge/Badge";
@@ -125,8 +126,8 @@ export default function PelaporanSekolahPage() {
                           {item.judul}
                         </TableCell>
                         <TableCell className="px-5 py-3.5 text-sm text-gray-500">
-                          {item.tanggal_mulai ? new Date(item.tanggal_mulai).toLocaleDateString("id-ID") : "-"} s/d{" "}
-                          {item.tanggal_selesai ? new Date(item.tanggal_selesai).toLocaleDateString("id-ID") : "-"}
+                          {formatDateDMY(item.tanggal_mulai)} s/d{" "}
+                          {formatDateDMY(item.tanggal_selesai)}
                         </TableCell>
                         <TableCell className="px-5 py-3.5 text-center">
                           <Badge color={item.jumlah_dokumen > 0 ? "success" : "light"} size="sm">

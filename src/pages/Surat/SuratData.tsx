@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { formatDateDMY } from '../../utils/formatDate';
 import { useSearchParams } from 'react-router';
 import { suratService } from '../../services/suratService';
 import { dapodikService } from '../../services/dapodikService';
@@ -1187,10 +1188,10 @@ const SuratData: React.FC = () => {
                     inbounds.map((item) => (
                       <TableRow key={item.surat_masuk_id} className="hover:bg-gray-50/50 dark:hover:bg-white/[0.01]">
                         <TableCell className="px-5 py-3.5 font-semibold text-brand-600 dark:text-brand-400">{item.nomor_agenda}</TableCell>
-                        <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/80">{new Date(item.tanggal_diterima).toLocaleDateString('id-ID')}</TableCell>
+                        <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/80">{formatDateDMY(item.tanggal_diterima)}</TableCell>
                         <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/80">
                           <div className="font-semibold text-gray-900 dark:text-white">{item.nomor_surat}</div>
-                          <div className="text-xs text-gray-500">{new Date(item.tanggal_surat).toLocaleDateString('id-ID')}</div>
+                          <div className="text-xs text-gray-500">{formatDateDMY(item.tanggal_surat)}</div>
                         </TableCell>
                         <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/80">
                           <div className="font-semibold text-gray-900 dark:text-white">{item.perihal}</div>
@@ -1244,7 +1245,7 @@ const SuratData: React.FC = () => {
                         <TableCell className="px-5 py-3.5 font-mono text-xs font-semibold text-gray-800 dark:text-white/85">
                           {item.nomor_surat || <span className="text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded font-sans text-[10px] font-bold">[ DRAFT ]</span>}
                         </TableCell>
-                        <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/80">{new Date(item.tanggal_surat).toLocaleDateString('id-ID')}</TableCell>
+                        <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/80">{formatDateDMY(item.tanggal_surat)}</TableCell>
                         <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/80">
                           <div className="font-semibold text-gray-900 dark:text-white">{item.perihal}</div>
                           <div className="text-xs text-gray-500">Template: {item.template_surat?.nama_template || '-'}</div>

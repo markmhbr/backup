@@ -5,7 +5,6 @@ import Button from "../../components/ui/button/Button";
 import OriginalInput from "../../components/form/input/InputField";
 import type { InputProps } from "../../components/form/input/InputField";
 import Label from "../../components/form/Label";
-import api from "../../services/api";
 
 const Input: React.FC<InputProps> = (props) => {
   return <OriginalInput {...props} showStatusIcon={true} />;
@@ -17,6 +16,8 @@ import { dapodikService } from "../../services/dapodikService";
 import { referenceService } from "../../services/referenceService";
 import Swal from "sweetalert2";
 import { getFotoUrl } from "../../utils/image";
+import { printGTKProfile } from "../../utils/printGTKProfile";
+import PrintGTKCardPreview from "../../components/gtk/PrintGTKCardPreview";
 
 
 const format3Digits = (value: string | number | null | undefined): string => {
@@ -38,8 +39,23 @@ const sanitizeRtRw = (value: string | number | null | undefined): string => {
   return numStr;
 };
 
-const EditGTKPage: React.FC = () => {
-  const { role, id } = useParams<{ role: string; id: string }>();
+const formatDateToIndonesian = (dateStr: string | null | undefined): string => {
+  if (!dateStr) return "";
+  const cleanDate = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+  const parts = cleanDate.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  }
+  return cleanDate;
+};
+
+interface EditGTKPageProps {
+  profileId?: string;
+}
+
+const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
+  const { role, id: paramId } = useParams<{ role: string; id: string }>();
+  const id = profileId || paramId;
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState("profil");
@@ -64,7 +80,7 @@ const EditGTKPage: React.FC = () => {
   };
 
   const [formData, setFormData] = useState<any>({});
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(!!id);
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
   const [tempCoords, setTempCoords] = useState<{lat: string, lng: string} | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -77,6 +93,121 @@ const EditGTKPage: React.FC = () => {
 
   const [isPengajuanModalOpen, setIsPengajuanModalOpen] = useState(false);
   const [isFormPengajuanOpen, setIsFormPengajuanOpen] = useState(false);
+  const [isCardModalOpen, setIsCardModalOpen] = useState(false);
+  const [selectedPersonForCard, setSelectedPersonForCard] = useState<any | null>(null);
+
+  const [isCompletenessModalOpen, setIsCompletenessModalOpen] = useState(false);
+  const [hasShownCompletenessAlert, setHasShownCompletenessAlert] = useState(false);
+
+  const getEmptyFields = () => {
+    if (!formData || !formData.nama) return [];
+
+    const requiredFields = [
+      { key: 'nama', label: 'Nama Lengkap' },
+      { key: 'nik', label: 'NIK' },
+      { key: 'kk', label: 'No. Kartu Keluarga' },
+      { key: 'jk', label: 'Jenis Kelamin' },
+      { key: 'tempatLahir', label: 'Tempat Lahir' },
+      { key: 'tanggalLahir', label: 'Tanggal Lahir' },
+      { key: 'ibuKandung', label: 'Nama Ibu Kandung' },
+      { key: 'agama_id', label: 'Agama' },
+      { key: 'statusPerkawinan', label: 'Status Perkawinan' },
+      { key: 'namaPasangan', label: 'Nama Pasangan' },
+      { key: 'pekerjaanPasangan', label: 'Pekerjaan Pasangan' },
+      { key: 'namaWajibPajak', label: 'Nama Wajib Pajak' },
+      { key: 'npwp', label: 'NPWP' },
+      { key: 'kampungJalan', label: 'Alamat Jalan' },
+      { key: 'rt', label: 'RT' },
+      { key: 'rw', label: 'RW' },
+      { key: 'dusun', label: 'Nama Dusun' },
+      { key: 'desaKelurahan', label: 'Desa/Kelurahan' },
+      { key: 'provinsi', label: 'Provinsi' },
+      { key: 'kotaKabupaten', label: 'Kabupaten/Kota' },
+      { key: 'kecamatan', label: 'Kecamatan' },
+      { key: 'kodePos', label: 'Kode Pos' },
+      { key: 'lintang', label: 'Lintang' },
+      { key: 'bujur', label: 'Bujur' },
+      { key: 'sumber_gaji_id', label: 'Sumber Gaji' },
+      { key: 'idBank', label: 'Nama Bank' },
+      { key: 'noRekening', label: 'No. Rekening' },
+      { key: 'atasNamaRekening', label: 'Rekening Atas Nama' },
+      { key: 'cabangBank', label: 'Kantor Cabang Bank (KCP)' },
+      { key: 'noHp', label: 'Nomor HP' },
+      { key: 'noWa', label: 'Nomor WhatsApp' },
+      { key: 'idTelegram', label: 'ID Telegram' },
+      { key: 'email', label: 'Email' }
+    ];
+
+    const hasSertifikasi = formData.memilikiSertifikasi === 'Ya' || (formData.riwayatSertifikasi && formData.riwayatSertifikasi.length > 0);
+    const isMarried = formData.statusPerkawinan === '1' || formData.statusPerkawinan === 1;
+
+    const checkFilled = (field: any) => {
+      if (field.key === 'provinsi' || field.key === 'kotaKabupaten' || field.key === 'kecamatan') {
+        const desa = formData['desaKelurahan'];
+        const prov = formData['provinsi'];
+        const kab = formData['kotaKabupaten'];
+        const kec = formData['kecamatan'];
+        return !!((desa && desa !== '-' && desa !== '') || (prov && prov !== '-' && prov !== '') || (kab && kab !== '-' && kab !== '') || (kec && kec !== '-' && kec !== ''));
+      }
+
+      const val = formData[field.key];
+      if (val !== undefined && val !== null && val !== '' && val !== '-' && val !== 0 && val !== '0') {
+        return true;
+      }
+      return false;
+    };
+
+    return requiredFields.filter(field => {
+      if (field.key === 'idBank' || field.key === 'noRekening' || field.key === 'atasNamaRekening' || field.key === 'cabangBank') {
+        return hasSertifikasi;
+      }
+      if (field.key === 'namaPasangan' || field.key === 'pekerjaanPasangan') {
+        return isMarried;
+      }
+      return true;
+    }).map(field => ({
+      ...field,
+      filled: checkFilled(field)
+    }));
+  };
+
+  const fieldStatus = getEmptyFields();
+  const emptyCount = fieldStatus.filter(f => !f.filled).length;
+  const totalCount = fieldStatus.length;
+  const completenessPercentage = totalCount > 0 ? Math.round(((totalCount - emptyCount) / totalCount) * 100) : 0;
+
+  useEffect(() => {
+    if (profileId && formData && formData.nama && !loading && !hasShownCompletenessAlert) {
+      const statusList = getEmptyFields();
+      const emptyFields = statusList.filter(f => !f.filled);
+      if (emptyFields.length > 0) {
+        setIsCompletenessModalOpen(true);
+        setHasShownCompletenessAlert(true);
+      }
+    }
+  }, [profileId, formData, loading, hasShownCompletenessAlert]);
+
+  const handlePrintBiodata = async () => {
+    if (id) {
+      await printGTKProfile([id]);
+    }
+  };
+
+  const handlePrintCard = () => {
+    if (!id || !formData) return;
+    setSelectedPersonForCard({
+      ptk_id: id,
+      nama: formData.nama,
+      foto: formData.avatar,
+      nuptk: formData.nuptk,
+      nik: formData.nik,
+      avatar: getFotoUrl(formData.avatar, ""),
+      jabatan: formData.jabatanPtk || formData.jenisPtk || "GTK",
+      jenis: "Guru",
+      qr_token: formData.qr_token || "",
+    });
+    setIsCardModalOpen(true);
+  };
   const [selectedFields, setSelectedFields] = useState<string[]>([]);
   const [pengajuanForm, setPengajuanForm] = useState<any>({});
 
@@ -267,38 +398,7 @@ const EditGTKPage: React.FC = () => {
     }
   };
 
-  const handleReset2FA = async () => {
-    const confirm = await Swal.fire({
-      title: "Set Ulang Authenticator?",
-      text: "Pengguna harus melakukan scan ulang QR code Google Authenticator saat login berikutnya.",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#3085d6",
-      confirmButtonText: "Ya, Set Ulang!",
-      cancelButtonText: "Batal"
-    });
 
-    if (confirm.isConfirmed) {
-      try {
-        Swal.fire({
-          title: "Memproses...",
-          allowOutsideClick: false,
-          didOpen: () => {
-            Swal.showLoading();
-          }
-        });
-
-        await api.post("/auth/reset-2fa", { ptk_id: id });
-        
-        Swal.fire("Berhasil", "Authenticator (2FA) berhasil diset ulang.", "success");
-      } catch (err: any) {
-        console.error(err);
-        const errMsg = err.response?.data?.message || "Gagal menyetel ulang authenticator.";
-        Swal.fire("Error", errMsg, "error");
-      }
-    }
-  };
 
   const handleProvinceChange = async (provName: string, provCode: string) => {
     handlePengajuanInputChange("provinsi", provName);
@@ -485,6 +585,7 @@ const EditGTKPage: React.FC = () => {
     const fetchData = async () => {
       if (id) {
         setLoading(true);
+        setFormData({});
         try {
           const result = await dapodikService.getGtkDetail(id);
           if (result.status === "success" && result.data) {
@@ -503,7 +604,7 @@ const EditGTKPage: React.FC = () => {
               nipNiyNigb: data.nip || data.niy_nigk || "",
               jk: data.jenis_kelamin || "L",
               tempatLahir: data.tempat_lahir || "",
-              tanggalLahir: data.tanggal_lahir ? data.tanggal_lahir.split('T')[0] : "",
+              tanggalLahir: formatDateToIndonesian(data.tanggal_lahir),
               ibuKandung: data.nama_ibu_kandung || "",
               agama: data.agama_nama || "",
               agama_id: data.agama_id || "",
@@ -530,11 +631,11 @@ const EditGTKPage: React.FC = () => {
               jabatanPtk: data.jabatan_ptk_nama || "",
               ptkInduk: data.ptk_induk_str || "",
               skPengangkatan: data.sk_pengangkatan || "",
-              tmtPengangkatan: data.tmt_pengangkatan ? data.tmt_pengangkatan.split('T')[0] : "",
+              tmtPengangkatan: formatDateToIndonesian(data.tmt_pengangkatan),
               lembagaPengangkat: data.lembaga_pengangkat_nama || "",
               skCpns: data.sk_cpns || "",
-              tmtCpns: data.tmt_cpns ? data.tmt_cpns.split('T')[0] : "",
-              tmtPns: data.tmt_pns ? data.tmt_pns.split('T')[0] : "",
+              tmtCpns: formatDateToIndonesian(data.tmt_cpns),
+              tmtPns: formatDateToIndonesian(data.tmt_pns),
               pangkatTerakhir: data.pangkat_golongan_nama || "",
               sumberGaji: data.sumber_gaji_nama || "",
               sumber_gaji_id: data.sumber_gaji_id || "",
@@ -542,8 +643,16 @@ const EditGTKPage: React.FC = () => {
               riwayatKepangkatan: data.rwy_kepangkatan ? data.rwy_kepangkatan.map((k: any) => ({
                 gol: k.pangkat_golongan_nama || k.pangkat || "-",
                 nomorSk: k.nomor_sk || "",
-                tmt: k.tmt_pangkat ? k.tmt_pangkat.split('T')[0] : (k.tmt_golongan ? k.tmt_golongan.split('T')[0] : "-"),
+                tmt: formatDateToIndonesian(k.tmt_pangkat || k.tmt_golongan),
                 masaKerja: k.masa_kerja_gol_tahun !== undefined ? `${k.masa_kerja_gol_tahun || 0}th ${k.masa_kerja_gol_bulan || 0}bln` : (k.masaKerja || `${k.masa_kerja_tahun || 0}th ${k.masa_kerja_bulan || 0}bln`),
+              })) : [],
+              
+              tugasTambahan: data.tugas_tambahan ? data.tugas_tambahan.map((t: any) => ({
+                jabatan: t.jabatan_tugas_nama || t.jabatan_ptk_id || "-",
+                nomorSk: t.nomor_sk || "",
+                tmt: formatDateToIndonesian(t.tmt_tambahan),
+                tst: formatDateToIndonesian(t.tst_tambahan),
+                jumlahJam: t.jumlah_jam_diakui !== undefined ? Number(t.jumlah_jam_diakui) : (t.jumlah_jam !== null && t.jumlah_jam !== undefined ? Number(t.jumlah_jam) : 0),
               })) : [],
               
               pendidikanTerakhir: data.pendidikan_terakhir || "",
@@ -569,8 +678,8 @@ const EditGTKPage: React.FC = () => {
                 lembagaSertifikasi: s.lembaga_sertifikasi_nama || s.kode_lemb_sert || "",
                 bidangStudi: s.bidang_studi_nama || s.bidang_studi_id_str || "",
                 jenisSertifikasi: s.jenis_sertifikasi_nama || s.id_jenis_sertifikasi || "",
-                tglBerlaku: s.tgl_sert ? s.tgl_sert.split('T')[0] : "",
-                tglHabisBerlaku: s.tgl_exp_sert ? s.tgl_exp_sert.split('T')[0] : "",
+                tglBerlaku: formatDateToIndonesian(s.tgl_sert),
+                tglHabisBerlaku: formatDateToIndonesian(s.tgl_exp_sert),
                 noSertifikasi: s.nomor_sertifikat || "",
                 noRegistrasi: s.nomer_registrasi || "",
                 nomorPeserta: s.nomor_peserta || "",
@@ -584,6 +693,7 @@ const EditGTKPage: React.FC = () => {
               cabangBank: data.nama_kcp || "",
               noRekening: data.rekening_bank || "",
               atasNamaRekening: data.rekening_atas_nama || "",
+              qr_token: data.qr_token || "",
             });
           }
         } catch (error) {
@@ -952,6 +1062,14 @@ const EditGTKPage: React.FC = () => {
     }
   }, [isMapModalOpen]);
 
+  if (loading && !formData.id) {
+    return (
+      <div className="flex h-[70vh] items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-brand-500 border-t-transparent"></div>
+      </div>
+    );
+  }
+
   return (
     <>
       <PageMeta
@@ -970,28 +1088,50 @@ const EditGTKPage: React.FC = () => {
         {/* Header Section */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 no-print">
           <div>
-            <button
-              onClick={() => navigate(`/${role}/gtk-data`)}
-              className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white transition-colors mb-2"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-              Kembali ke Daftar
-            </button>
+            {!profileId && (
+              <button
+                onClick={() => navigate(`/${role}/gtk-data`)}
+                className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white transition-colors mb-2"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Kembali ke Daftar
+              </button>
+            )}
             <h3 className="text-xl font-bold text-gray-800 dark:text-white/90">
-              Ubah Data Guru dan Tenaga Kependidikan
+              {profileId ? "Profil Saya" : "Ubah Data Guru dan Tenaga Kependidikan"}
             </h3>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              Ubah rincian data untuk GTK: <span className="font-semibold text-brand-500">{formData.nama || "Memuat..."}</span>
+              {profileId ? "Rincian profil dan data identitas Anda" : <>Ubah rincian data untuk GTK: <span className="font-semibold text-brand-500">{formData.nama || "Memuat..."}</span></>}
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 md:gap-3">
+            {!profileId && (
+              <button
+                onClick={() => navigate(`/${role}/gtk-data`)}
+                className="px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] transition-colors"
+              >
+                Batal
+              </button>
+            )}
             <button
-              onClick={() => navigate(`/${role}/gtk-data`)}
-              className="px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] transition-colors"
+              onClick={handlePrintBiodata}
+              className="px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] transition-colors flex items-center gap-2"
             >
-              Batal
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Cetak Biodata
+            </button>
+            <button
+              onClick={handlePrintCard}
+              className="px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] transition-colors flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+              </svg>
+              Cetak Kartu ID
             </button>
             <button
               onClick={handleCheckPengajuan}
@@ -1004,6 +1144,37 @@ const EditGTKPage: React.FC = () => {
             </Button>
           </div>
         </div>
+
+        {profileId && (
+          <div className="p-5 rounded-2xl border border-warning-200 bg-warning-50 dark:border-warning-900/30 dark:bg-warning-900/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print shadow-sm">
+            <div className="flex gap-4">
+              <div className="p-2.5 bg-warning-100 dark:bg-warning-900/30 rounded-xl text-warning-600 dark:text-warning-400 self-start">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div>
+                <h4 className="font-bold text-warning-800 dark:text-warning-300 text-base">
+                  Persentase Kelengkapan Profil Anda: {completenessPercentage}%
+                </h4>
+                <p className="text-sm text-warning-700 dark:text-warning-400 mt-1">
+                  {emptyCount > 0
+                    ? `Terdapat ${emptyCount} kolom wajib yang masih belum terisi di profil Anda. Klik tombol di kanan untuk melihat kolom yang kosong.`
+                    : "Selamat! Profil Anda telah terisi lengkap 100%."}
+                </p>
+              </div>
+            </div>
+            {emptyCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setIsCompletenessModalOpen(true)}
+                className="px-5 py-2.5 text-sm font-bold text-white bg-warning-600 hover:bg-warning-700 active:bg-warning-800 rounded-xl transition-colors shadow-sm whitespace-nowrap self-start sm:self-center"
+              >
+                Lihat Kolom Kosong
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Tab Navigation */}
         <div className="flex border-b border-gray-200 dark:border-gray-800 overflow-x-auto custom-scrollbar whitespace-nowrap no-print mb-6">
@@ -1105,7 +1276,7 @@ const EditGTKPage: React.FC = () => {
                   <div className="space-y-2"><Label>NIP/NIY/NIGB</Label><Input value={formData.nipNiyNigb || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                   <div className="space-y-2"><Label>Jenis Kelamin</Label><Input value={formData.jk === "L" ? "Laki-laki" : formData.jk === "P" ? "Perempuan" : formData.jk || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                   <div className="space-y-2"><Label>Tempat Lahir</Label><Input value={formData.tempatLahir || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                  <div className="space-y-2"><Label>Tanggal Lahir</Label><Input type="date" value={formData.tanggalLahir || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                  <div className="space-y-2"><Label>Tanggal Lahir</Label><Input value={formData.tanggalLahir || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                   <div className="space-y-2">
                     <Label>Nama Ibu Kandung</Label>
                     <Input value={formData.ibuKandung || ""} placeholder="Data kosong dari Dapodik" disabled />
@@ -1341,15 +1512,15 @@ const EditGTKPage: React.FC = () => {
                     <Label>Status Induk (PTK Induk)</Label>
                     <Input value={formData.ptkInduk || ""} disabled placeholder="Data kosong dari Dapodik" />
                   </div>
-                  <div className="space-y-2"><Label>SK. Pengangkatan</Label><Input value={formData.skPengangkatan || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                  <div className="space-y-2"><Label>TMT Pengangkatan</Label><Input type="date" value={formData.tmtPengangkatan || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                   <div className="space-y-2"><Label>SK. Pengangkatan</Label><Input value={formData.skPengangkatan || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                  <div className="space-y-2"><Label>TMT Pengangkatan</Label><Input value={formData.tmtPengangkatan || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                   <div className="space-y-2">
                     <Label>Lembaga Pengangkat</Label>
                     <Input value={formData.lembagaPengangkat || ""} disabled placeholder="Data kosong dari Dapodik" />
                   </div>
                   <div className="space-y-2"><Label>SK CPNS</Label><Input value={formData.skCpns || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                  <div className="space-y-2"><Label>TMT CPNS</Label><Input type="date" value={formData.tmtCpns || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
-                  <div className="space-y-2"><Label>TMT PNS</Label><Input type="date" value={formData.tmtPns || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                  <div className="space-y-2"><Label>TMT CPNS</Label><Input value={formData.tmtCpns || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
+                  <div className="space-y-2"><Label>TMT PNS</Label><Input value={formData.tmtPns || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                   <div className="space-y-2">
                     <Label>Pangkat Terakhir</Label>
                     <Input value={formData.pangkatTerakhir || ""} disabled placeholder="Data kosong dari Dapodik" />
@@ -1395,13 +1566,49 @@ const EditGTKPage: React.FC = () => {
                                       <TableRow key={i}>
                                           <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{r.gol || r.pangkat || "-"}</TableCell>
                                           <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{r.nomorSk || r.nomor_sk || "-"}</TableCell>
-                                          <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{r.tmt || (r.tmt_golongan ? r.tmt_golongan.split('T')[0] : "-")}</TableCell>
+                                          <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{r.tmt || (r.tmt_golongan ? formatDateToIndonesian(r.tmt_golongan) : "-")}</TableCell>
                                           <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{r.masaKerja || `${r.masa_kerja_tahun || 0}th ${r.masa_kerja_bulan || 0}bln`}</TableCell>
                                       </TableRow>
                                   ))
                               ) : (
                                   <TableRow>
                                       <TableCell colSpan={4} className="px-5 py-10 text-center italic text-gray-500">Belum ada riwayat kepangkatan</TableCell>
+                                  </TableRow>
+                              )}
+                          </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+              </div>
+
+              <div className="space-y-4">
+                  <h5 className="font-semibold text-gray-800 dark:text-white/90">Tugas Tambahan</h5>
+                  <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+                    <div className="max-w-full overflow-x-auto custom-scrollbar">
+                      <Table className="min-w-full">
+                          <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
+                              <TableRow>
+                                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Jabatan / Tugas</TableCell>
+                                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Nomor SK</TableCell>
+                                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">TMT</TableCell>
+                                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">TST</TableCell>
+                                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Jml Jam</TableCell>
+                              </TableRow>
+                          </TableHeader>
+                          <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
+                              {formData.tugasTambahan && formData.tugasTambahan.length > 0 ? (
+                                  formData.tugasTambahan.map((t: any, i: number) => (
+                                      <TableRow key={i}>
+                                          <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{t.jabatan || "-"}</TableCell>
+                                          <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{t.nomorSk || "-"}</TableCell>
+                                          <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{t.tmt || "-"}</TableCell>
+                                          <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{t.tst || "-"}</TableCell>
+                                          <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{t.jumlahJam || 0}</TableCell>
+                                      </TableRow>
+                                  ))
+                              ) : (
+                                  <TableRow>
+                                      <TableCell colSpan={5} className="px-5 py-10 text-center italic text-gray-500">Belum ada tugas tambahan</TableCell>
                                   </TableRow>
                               )}
                           </TableBody>
@@ -1550,24 +1757,12 @@ const EditGTKPage: React.FC = () => {
               </div>
               <div className="space-y-2">
                 <Label>Email</Label>
-                <div className="flex gap-2">
-                  <Input 
-                    type="email" 
-                    value={formData.email || ""} 
-                    disabled
-                    placeholder="nama@email.com" 
-                    className="flex-grow"
-                  />
-                  {formData.email && (
-                    <button
-                      type="button"
-                      onClick={handleReset2FA}
-                      className="px-3 py-2 text-xs font-semibold text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors whitespace-nowrap"
-                    >
-                      Reset 2FA
-                    </button>
-                  )}
-                </div>
+                <Input 
+                  type="email" 
+                  value={formData.email || ""} 
+                  disabled
+                  placeholder="nama@email.com" 
+                />
               </div>
               <div className="space-y-2">
                 <Label>Id. Telegram <span className="text-red-500">*</span></Label>
@@ -1763,18 +1958,7 @@ const EditGTKPage: React.FC = () => {
 
         </div>
 
-        {/* Footer Actions */}
-        <div className="flex justify-end gap-3 rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 no-print">
-          <button
-            onClick={() => navigate(`/${role}/gtk-data`)}
-            className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
-          >
-            Batal
-          </button>
-          <Button variant="primary-outline" onClick={handleSave} disabled={loading}>
-            Simpan Perubahan
-          </Button>
-        </div>
+
       </div>
 
       {/* Leaflet Map Modal (popup coordinate picker) */}
@@ -2056,6 +2240,76 @@ const EditGTKPage: React.FC = () => {
           </Button>
         </div>
       </Modal>
+
+      <Modal
+        isOpen={isCompletenessModalOpen}
+        onClose={() => setIsCompletenessModalOpen(false)}
+        className="max-w-md p-6"
+      >
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+              Kolom Profil yang Belum Terisi
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Silakan lengkapi data berikut agar profil Anda mencapai 100% lengkap.
+            </p>
+          </div>
+
+          <div className="space-y-2 bg-gray-50 dark:bg-gray-800/40 p-4 rounded-2xl border border-gray-100 dark:border-gray-800">
+            <div className="flex justify-between items-center text-sm font-semibold">
+              <span className="text-gray-600 dark:text-gray-400">Kelengkapan</span>
+              <span className={completenessPercentage === 100 ? 'text-success-500' : completenessPercentage < 50 ? 'text-error-500' : 'text-warning-500'}>
+                {completenessPercentage}%
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-2">
+              <div
+                className={`h-2 rounded-full ${
+                  completenessPercentage === 100 ? 'bg-success-500' : completenessPercentage < 50 ? 'bg-error-500' : 'bg-warning-500'
+                }`}
+                style={{ width: `${completenessPercentage}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="max-h-[300px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+            {getEmptyFields().map((field) => (
+              <div key={field.key} className="flex items-center justify-between text-sm py-1.5 border-b border-gray-50 dark:border-gray-800/40">
+                <span className="text-gray-600 dark:text-gray-400 font-medium">{field.label}</span>
+                <span className={`inline-flex items-center gap-1 font-semibold ${field.filled ? 'text-success-600 dark:text-success-400' : 'text-error-600 dark:text-error-400'}`}>
+                  {field.filled ? (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
+                      Terisi
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                      Kosong
+                    </>
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex gap-3 justify-end pt-2 border-t border-gray-100 dark:border-gray-800">
+            <button
+              onClick={() => setIsCompletenessModalOpen(false)}
+              className="px-4 py-2 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 dark:text-gray-300 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              Tutup
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <PrintGTKCardPreview
+        isOpen={isCardModalOpen}
+        onClose={() => setIsCardModalOpen(false)}
+        person={selectedPersonForCard}
+      />
     </>
   );
 };

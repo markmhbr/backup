@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { formatDateDMY } from "../../utils/formatDate";
 import { useSearchParams } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import ComponentCard from "../../components/common/ComponentCard";
@@ -349,11 +350,7 @@ export default function KeuanganData() {
   // Helper date
   const formatDate = (dateString: string) => {
     if (!dateString) return "-";
-    return new Date(dateString).toLocaleDateString("id-ID", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
+    return formatDateDMY(dateString);
   };
 
   // Helper tipe tagihan

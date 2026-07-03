@@ -1,4 +1,8 @@
 import { useState, useEffect } from "react";
+import { formatDateDMY } from "../../utils/formatDate";
+import { Modal } from "../ui/modal";
+import Button from "../ui/button/Button";
+import { useNavigate } from "react-router";
 import {
   Table,
   TableBody,
@@ -22,21 +26,58 @@ interface StudentTableProps {
 
 export default function StudentTable({ onSelectionChange, searchTerm, completenessFilter, gradeFilter, itemsPerPage }: StudentTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
+  const navigate = useNavigate();
+  const [isCompletenessModalOpen, setIsCompletenessModalOpen] = useState(false);
+  const [selectedItemForCompleteness, setSelectedItemForCompleteness] = useState<any>(null);
+
+  const handleShowCompleteness = (item: any) => {
+    setSelectedItemForCompleteness(item);
+    setIsCompletenessModalOpen(true);
+  };
+
   const [data, setData] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   
+  const isFieldFilled = (item: any, key: string) => {
+    const value = item[key];
+    if (value && value !== '-' && value !== '' && value !== 0 && value !== '0') {
+      return true;
+    }
+    // Fallback: jika desa_kelurahan atau kode_wilayah terisi, maka provinsi, kabupaten_kota, dan kecamatan juga dianggap terisi
+    if (key === 'provinsi' || key === 'kabupaten_kota' || key === 'kecamatan') {
+      const desa = item['desa_kelurahan'];
+      const kodeWilayah = item['kode_wilayah'];
+      return !!((desa && desa !== '-' && desa !== '') || (kodeWilayah && kodeWilayah !== '-' && kodeWilayah !== ''));
+    }
+    return false;
+  };
+
   const calculateCompleteness = (item: any) => {
-    const fields = [
-      'nama', 'jenis_kelamin', 'nisn', 'nik', 'tempat_lahir', 'tanggal_lahir',
-      'agama_id_str', 'alamat_jalan', 'rt', 'rw', 'provinsi', 'kabupaten_kota',
-      'kecamatan', 'desa_kelurahan', 'nomor_telepon_seluler', 'email',
-      'nama_ayah', 'nama_ibu', 'tinggi_badan', 'berat_badan'
+    const allFields = [
+      'nama', 'jenis_kelamin', 'nik', 'tempat_lahir', 'tanggal_lahir',
+      'agama_id_str', 'no_kk', 'reg_akta_lahir', 'anak_keberapa',
+      'nomor_telepon_seluler', 'no_whatsapp', 'email_aktif',
+      'alamat_jalan', 'rt', 'rw', 'nama_dusun', 'desa_kelurahan', 'provinsi', 'kabupaten_kota', 'kecamatan',
+      'kode_pos', 'jenis_tinggal_id', 'alat_transportasi_id', 'lintang', 'bujur',
+      'tinggi_badan', 'berat_badan', 'lingkar_kepala', 'jarak_rumah_ke_sekolah', 'waktu_tempuh_ke_sekolah',
+      'menit_tempuh_ke_sekolah', 'jumlah_saudara_kandung',
+      'nama_ayah', 'nik_ayah', 'tahun_lahir_ayah', 'jenjang_pendidikan_ayah', 'pekerjaan_id_ayah', 'penghasilan_id_ayah',
+      'nama_ibu', 'nik_ibu', 'tahun_lahir_ibu', 'jenjang_pendidikan_ibu', 'pekerjaan_id_ibu', 'penghasilan_id_ibu',
+      'nama_wali', 'nik_wali', 'tahun_lahir_wali', 'jenjang_pendidikan_wali', 'pekerjaan_id_wali', 'penghasilan_id_wali'
     ];
+
+    const fields = allFields.filter(key => {
+      if (key.endsWith('_wali')) {
+        return item['is_wali'] === true || item['is_wali'] === 1 || item['is_wali'] === '1' || !!(item['nama_wali'] || item['nik_wali']);
+      }
+      return true;
+    });
+
     let filled = 0;
     fields.forEach(f => {
-      if (item[f] && item[f] !== '-' && item[f] !== '') {
+      if (isFieldFilled(item, f)) {
         filled++;
       }
     });
@@ -53,7 +94,8 @@ export default function StudentTable({ onSelectionChange, searchTerm, completene
           currentPage, 
           undefined, 
           'aktif', 
-          gradeFilter === 'all' ? undefined : gradeFilter
+          gradeFilter === 'all' ? undefined : gradeFilter,
+          completenessFilter
         );
         if (result.status === 'success') {
           let fetchedData = result.data || [];
@@ -63,17 +105,6 @@ export default function StudentTable({ onSelectionChange, searchTerm, completene
             ...item,
             lengkapData: calculateCompleteness(item)
           }));
-
-          // Filter by completeness if active
-          if (completenessFilter !== "all") {
-            if (completenessFilter === "100") {
-              fetchedData = fetchedData.filter((item: any) => item.lengkapData === 100);
-            } else if (completenessFilter === "99") {
-              fetchedData = fetchedData.filter((item: any) => item.lengkapData < 100);
-            } else if (completenessFilter === "50") {
-              fetchedData = fetchedData.filter((item: any) => item.lengkapData < 50);
-            }
-          }
 
           setData(fetchedData);
           setTotal(result.meta?.total || 0);
@@ -163,7 +194,11 @@ export default function StudentTable({ onSelectionChange, searchTerm, completene
                 </TableCell>
                 <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{item.jenis_kelamin}</TableCell>
                 <TableCell className="px-5 py-4 text-start">
-                  <div className="flex items-center gap-1.5">
+                  <div 
+                    className="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={() => handleShowCompleteness(item)}
+                    title="Klik untuk melihat detail kelengkapan data"
+                  >
                       <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-1.5 max-w-[60px]">
                           <div 
                             className={`h-1.5 rounded-full ${item.lengkapData === 100 ? 'bg-success-500' : item.lengkapData < 50 ? 'bg-error-500' : 'bg-warning-500'}`} 
@@ -182,12 +217,12 @@ export default function StudentTable({ onSelectionChange, searchTerm, completene
                 <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400 text-center">{item.tingkat_pendidikan_id || "-"}</TableCell>
                 <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400 whitespace-nowrap">{item.nama_rombel || "-"}</TableCell>
                 <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                  {item.tanggal_masuk_sekolah ? new Date(item.tanggal_masuk_sekolah).toLocaleDateString('id-ID') : "-"}
+                  {formatDateDMY(item.tanggal_masuk_sekolah)}
                 </TableCell>
                 <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{item.jenis_pendaftaran_id_str || "-"}</TableCell>
                 <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{item.tempat_lahir || "-"}</TableCell>
                 <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                  {item.tanggal_lahir ? new Date(item.tanggal_lahir).toLocaleDateString('id-ID') : "-"}
+                  {formatDateDMY(item.tanggal_lahir)}
                 </TableCell>
               </TableRow>
             )) : (
@@ -205,6 +240,141 @@ export default function StudentTable({ onSelectionChange, searchTerm, completene
         totalPages={totalPages}
         onPageChange={(page) => setCurrentPage(page)}
       />
+
+      {selectedItemForCompleteness && (
+        <Modal
+          isOpen={isCompletenessModalOpen}
+          onClose={() => setIsCompletenessModalOpen(false)}
+          className="max-w-md p-6"
+        >
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                Detail Kelengkapan Data Peserta Didik
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                {selectedItemForCompleteness.nama}
+              </p>
+            </div>
+
+            <div className="space-y-2 bg-gray-50 dark:bg-gray-800/40 p-4 rounded-2xl border border-gray-100 dark:border-gray-800">
+              <div className="flex justify-between items-center text-sm font-semibold">
+                <span className="text-gray-600 dark:text-gray-400">Persentase</span>
+                <span className={`${
+                  selectedItemForCompleteness.lengkapData === 100 ? 'text-success-500' : selectedItemForCompleteness.lengkapData < 50 ? 'text-error-500' : 'text-warning-500'
+                }`}>
+                  {selectedItemForCompleteness.lengkapData}%
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-2">
+                <div 
+                  className={`h-2 rounded-full ${
+                    selectedItemForCompleteness.lengkapData === 100 ? 'bg-success-500' : selectedItemForCompleteness.lengkapData < 50 ? 'bg-error-500' : 'bg-warning-500'
+                  }`} 
+                  style={{ width: `${selectedItemForCompleteness.lengkapData}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="max-h-[300px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+              {[
+                { key: 'nama', label: 'Nama Lengkap' },
+                { key: 'jenis_kelamin', label: 'Jenis Kelamin' },
+                { key: 'nik', label: 'NIK' },
+                { key: 'tempat_lahir', label: 'Tempat Lahir' },
+                { key: 'tanggal_lahir', label: 'Tanggal Lahir' },
+                { key: 'agama_id_str', label: 'Agama' },
+                { key: 'no_kk', label: 'No. Kartu Keluarga' },
+                { key: 'reg_akta_lahir', label: 'Register Akta Lahir' },
+                { key: 'anak_keberapa', label: 'Anak ke-' },
+                { key: 'nomor_telepon_seluler', label: 'Nomor HP' },
+                { key: 'no_whatsapp', label: 'Nomor WhatsApp' },
+                { key: 'email_aktif', label: 'Email Aktif' },
+                { key: 'alamat_jalan', label: 'Alamat Jalan' },
+                { key: 'rt', label: 'RT' },
+                { key: 'rw', label: 'RW' },
+                { key: 'nama_dusun', label: 'Nama Dusun' },
+                { key: 'desa_kelurahan', label: 'Desa/Kelurahan' },
+                { key: 'provinsi', label: 'Provinsi' },
+                { key: 'kabupaten_kota', label: 'Kabupaten/Kota' },
+                { key: 'kecamatan', label: 'Kecamatan' },
+                { key: 'kode_pos', label: 'Kode Pos' },
+                { key: 'jenis_tinggal_id', label: 'Jenis Tinggal' },
+                { key: 'alat_transportasi_id', label: 'Alat Transportasi' },
+                { key: 'lintang', label: 'Lintang' },
+                { key: 'bujur', label: 'Bujur' },
+                { key: 'tinggi_badan', label: 'Tinggi Badan' },
+                { key: 'berat_badan', label: 'Berat Badan' },
+                { key: 'lingkar_kepala', label: 'Lingkar Kepala' },
+                { key: 'jarak_rumah_ke_sekolah', label: 'Jarak Rumah' },
+                { key: 'waktu_tempuh_ke_sekolah', label: 'Waktu Tempuh' },
+                { key: 'menit_tempuh_ke_sekolah', label: 'Menit Tempuh' },
+                { key: 'jumlah_saudara_kandung', label: 'Jumlah Saudara' },
+                { key: 'nama_ayah', label: 'Nama Ayah' },
+                { key: 'nik_ayah', label: 'NIK Ayah' },
+                { key: 'tahun_lahir_ayah', label: 'Tahun Lahir Ayah' },
+                { key: 'jenjang_pendidikan_ayah', label: 'Pendidikan Ayah' },
+                { key: 'pekerjaan_id_ayah', label: 'Pekerjaan Ayah' },
+                { key: 'penghasilan_id_ayah', label: 'Penghasilan Ayah' },
+                { key: 'nama_ibu', label: 'Nama Ibu' },
+                { key: 'nik_ibu', label: 'NIK Ibu' },
+                { key: 'tahun_lahir_ibu', label: 'Tahun Lahir Ibu' },
+                { key: 'jenjang_pendidikan_ibu', label: 'Pendidikan Ibu' },
+                { key: 'pekerjaan_id_ibu', label: 'Pekerjaan Ibu' },
+                { key: 'penghasilan_id_ibu', label: 'Penghasilan Ibu' },
+                { key: 'nama_wali', label: 'Nama Wali' },
+                { key: 'nik_wali', label: 'NIK Wali' },
+                { key: 'tahun_lahir_wali', label: 'Tahun Lahir Wali' },
+                { key: 'jenjang_pendidikan_wali', label: 'Pendidikan Wali' },
+                { key: 'pekerjaan_id_wali', label: 'Pekerjaan Wali' },
+                { key: 'penghasilan_id_wali', label: 'Penghasilan Wali' }
+              ].filter((field) => {
+                if (field.key.endsWith('_wali')) {
+                  const item = selectedItemForCompleteness;
+                  return item.is_wali === true || item.is_wali === 1 || item.is_wali === '1' || !!(item.nama_wali || item.nik_wali);
+                }
+                return true;
+              }).map((field) => {
+                const isFilled = isFieldFilled(selectedItemForCompleteness, field.key);
+                return (
+                  <div key={field.key} className="flex items-center justify-between text-sm py-1.5 border-b border-gray-50 dark:border-gray-800/40">
+                    <span className="text-gray-600 dark:text-gray-400 font-medium">{field.label}</span>
+                    <span className={`inline-flex items-center gap-1 font-semibold ${isFilled ? 'text-success-600 dark:text-success-400' : 'text-error-600 dark:text-error-400'}`}>
+                      {isFilled ? (
+                        <>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
+                          Terisi
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                          Kosong
+                        </>
+                      )}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex gap-3 justify-end pt-2 border-t border-gray-100 dark:border-gray-800">
+              <Button variant="outline" size="sm" onClick={() => setIsCompletenessModalOpen(false)}>
+                Tutup
+              </Button>
+              <Button 
+                variant="primary" 
+                size="sm" 
+                onClick={() => {
+                  const role = window.location.pathname.split("/")[1];
+                  navigate(`/${role}/student-data/edit/${selectedItemForCompleteness.peserta_didik_id}`);
+                }}
+              >
+                Lengkapi Data
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

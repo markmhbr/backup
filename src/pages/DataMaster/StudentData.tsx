@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { formatDateDMY, formatDateObjDMY } from "../../utils/formatDate";
 import { useSearchParams, useParams, useNavigate } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import Button from "../../components/ui/button/Button";
@@ -547,20 +548,14 @@ export default function StudentData() {
 `;
 
       // Formatted dates for document footer
-      const todayFormatted = new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+      const todayFormatted = formatDateObjDMY(new Date());
       const now = new Date();
       const timeFormatted = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');
       const nowFormatted = todayFormatted + " " + timeFormatted;
 
       const formatIndoDate = (dateStr: string | null | undefined) => {
         if (!dateStr) return "-";
-        try {
-          const date = new Date(dateStr);
-          if (isNaN(date.getTime())) return "-";
-          return date.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
-        } catch (e) {
-          return "-";
-        }
+        return formatDateDMY(dateStr);
       };
 
       const logoUrl = getFotoUrl(sekolah.logo, 'https://upload.wikimedia.org/wikipedia/commons/9/9c/Logo_Tut_Wuri_Handayani.png');
@@ -1250,10 +1245,10 @@ export default function StudentData() {
               item.no_kk || "",
               rombel?.tingkat_pendidikan_id ? String(rombel.tingkat_pendidikan_id) : "",
               rombel?.nama || "",
-              item.tanggal_masuk_sekolah ? new Date(item.tanggal_masuk_sekolah).toLocaleDateString('id-ID') : "",
+              item.tanggal_masuk_sekolah ? formatDateDMY(item.tanggal_masuk_sekolah) : "",
               jenisPendaftaran,
               item.tempat_lahir || "",
-              item.tanggal_lahir && !isNaN(new Date(item.tanggal_lahir).getTime()) ? new Date(item.tanggal_lahir).toLocaleDateString('id-ID') : ""
+              item.tanggal_lahir && !isNaN(new Date(item.tanggal_lahir).getTime()) ? formatDateDMY(item.tanggal_lahir) : ""
             ];
           });
 

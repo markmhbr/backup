@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { formatDateDMY, formatDateTimeDMY } from "../../utils/formatDate";
 import { useSearchParams } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import ComponentCard from "../../components/common/ComponentCard";
@@ -411,13 +412,7 @@ export default function IndisiplinerData() {
   // Helper to format ISO Date/Time into friendly Indonesian
   const formatDateTime = (isoString: string) => {
     const date = new Date(isoString);
-    return date.toLocaleDateString("id-ID", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }) + " WIB";
+    return formatDateTimeDMY(date) + " WIB";
   };
 
 
@@ -1551,7 +1546,7 @@ export default function IndisiplinerData() {
                       </span>
                       <div>
                         <span className="text-xs text-gray-400 font-semibold">
-                          {new Date(tanjut.tanggal).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
+                          {formatDateDMY(tanjut.tanggal)}
                         </span>
                         <h5 className="font-bold text-sm text-gray-800 dark:text-white mt-0.5">
                           {tanjut.jenis_tindak_lanjut?.nama}

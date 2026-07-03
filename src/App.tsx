@@ -52,6 +52,7 @@ import DetailPelaporanSekolahPage from "./pages/Pelaporan/detail";
 import MenuSettings from "./pages/Pengaturan/Menu";
 import BackupPage from "./pages/Pengaturan/Backup";
 import Umum from "./pages/Pengaturan/Umum";
+import ProfilePage from "./pages/DataMaster/ProfilePage";
 
 function HomeRedirect() {
   const { user, isAuthenticated } = useAuth();
@@ -132,7 +133,7 @@ export default function App() {
             {/* Other */}
             
             {/* Profile */}
-            <Route path="profile" element={<Blank />} />
+            <Route path="profile" element={<ProfilePage />} />
           </Route>
         </Route>
 
