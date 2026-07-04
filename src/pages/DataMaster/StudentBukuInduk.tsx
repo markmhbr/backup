@@ -135,7 +135,7 @@ export default function StudentBukuInduk() {
                     {students.length > 0 ? students.map((item) => (
                       <TableRow key={item.peserta_didik_id}>
                         <TableCell className="px-5 py-4 text-start">
-                          <Avatar src={getFotoUrl(item.foto, "/images/user/user-01.jpg")} size="medium" />
+                          <Avatar src={getFotoUrl(item.foto, "/images/default/profile.jpg")} size="medium" />
                         </TableCell>
                         <TableCell className="px-5 py-4 text-start font-medium text-gray-800 dark:text-white/90 whitespace-nowrap">
                           {item.nama}

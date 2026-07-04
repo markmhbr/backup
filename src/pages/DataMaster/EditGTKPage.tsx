@@ -1101,7 +1101,9 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
 
       await dapodikService.updateGtk(id, updatePayload);
       Swal.fire({ title: "Berhasil", text: "Data Berhasil disimpan", icon: "success", confirmButtonColor: "#465FFF" });
-      navigate(`/${role}/gtk-data`);
+      if (!profileId) {
+        navigate(`/${role}/gtk-data`);
+      }
     } catch (error) {
       Swal.fire("Error", "Gagal menyimpan data", "error");
     } finally {
@@ -1192,7 +1194,7 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
             >
               Pengajuan Perbaikan
             </button>
-            <Button variant="primary-outline" onClick={handleSave} disabled={loading}>
+            <Button variant="outline" onClick={handleSave} disabled={loading}>
               Simpan Perubahan
             </Button>
           </div>

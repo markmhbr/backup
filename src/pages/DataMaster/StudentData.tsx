@@ -36,6 +36,14 @@ export default function StudentData() {
 
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
   const [completenessFilter, setCompletenessFilter] = useState("all");
   const [gradeFilter, setGradeFilter] = useState("all");
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -1447,7 +1455,7 @@ export default function StudentData() {
             <StudentTable 
                 type="aktif" 
                 onSelectionChange={handleSelectionChange} 
-                searchTerm={searchQuery}
+                searchTerm={debouncedSearchQuery}
                 completenessFilter={completenessFilter}
                 gradeFilter={gradeFilter}
                 itemsPerPage={itemsPerPage}
@@ -1461,7 +1469,7 @@ export default function StudentData() {
                         Rekap PD berdasarkan Tingkat
                     </h4>
                     <RekapPDTable 
-                        searchTerm={searchQuery}
+                        searchTerm={debouncedSearchQuery}
                     />
                 </div>
                 <div className="pt-6 border-t border-gray-100 dark:border-white/[0.05]">
@@ -1469,7 +1477,7 @@ export default function StudentData() {
                         Rekap PD berdasarkan Kompetensi Keahlian
                     </h4>
                     <RekapPDKompetensiTable 
-                        searchTerm={searchQuery}
+                        searchTerm={debouncedSearchQuery}
                     />
                 </div>
                 <div className="pt-6 border-t border-gray-100 dark:border-white/[0.05]">
@@ -1485,7 +1493,7 @@ export default function StudentData() {
             <div className="space-y-4">
               <PDKeluarTable 
                 onSelectionChange={handleSelectionChange} 
-                searchTerm={searchQuery}
+                searchTerm={debouncedSearchQuery}
                 itemsPerPage={itemsPerPage}
               />
             </div>

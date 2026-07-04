@@ -347,7 +347,13 @@ export default function JadwalPelajaran() {
       fetchScheduleDetails();
     } catch (err: any) {
       const msg = err?.response?.data?.message || "Gagal menyimpan jadwal";
-      Swal.fire("Gagal", msg, "error");
+      Swal.fire({
+        title: "Gagal",
+        text: msg,
+        icon: "error",
+        timer: 2000,
+        showConfirmButton: false,
+      });
     }
   };
 

@@ -38,6 +38,14 @@ export default function GTKData() {
 
   const [selectedGTKIds, setSelectedGTKIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
   const [completenessFilter, setCompletenessFilter] = useState("all");
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
@@ -1669,7 +1677,7 @@ export default function GTKData() {
             <div className="space-y-4">
               <GuruTable
                 onSelectionChange={handleSelectionChange}
-                searchTerm={searchQuery}
+                searchTerm={debouncedSearchQuery}
                 completenessFilter={completenessFilter}
                 itemsPerPage={itemsPerPage}
               />
@@ -1680,7 +1688,7 @@ export default function GTKData() {
             <div className="space-y-4">
               <TendikTable
                 onSelectionChange={handleSelectionChange}
-                searchTerm={searchQuery}
+                searchTerm={debouncedSearchQuery}
                 completenessFilter={completenessFilter}
                 itemsPerPage={itemsPerPage}
               />
@@ -1694,7 +1702,7 @@ export default function GTKData() {
                   Rekap GTK berdasarkan Kategori
                 </h4>
                 <RekapGTKTable
-                  searchTerm={searchQuery}
+                  searchTerm={debouncedSearchQuery}
                 />
               </div>
 
@@ -1718,7 +1726,7 @@ export default function GTKData() {
             <div className="space-y-4">
               <NonAktifTable
                 onSelectionChange={handleSelectionChange}
-                searchTerm={searchQuery}
+                searchTerm={debouncedSearchQuery}
                 completenessFilter={completenessFilter}
                 itemsPerPage={itemsPerPage}
               />

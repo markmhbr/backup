@@ -1155,7 +1155,9 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
         icon: "success",
         confirmButtonColor: "#465FFF",
       });
-      navigate(`/${role}/student-data`);
+      if (!profileId) {
+        navigate(`/${role}/student-data`);
+      }
     } catch (error) {
       Swal.fire("Error", "Gagal menyimpan data", "error");
     } finally {
@@ -1250,7 +1252,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
             >
               Pengajuan Perbaikan
             </button>
-            <Button variant="primary-outline" onClick={handleSave} disabled={loading}>
+            <Button variant="outline" onClick={handleSave} disabled={loading}>
               Simpan Perubahan
             </Button>
           </div>

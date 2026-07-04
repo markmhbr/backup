@@ -518,30 +518,12 @@ export const exportJadwalToCSV = (params: ExportCSVParams) => {
     });
   });
 
-  // Generate Excel HTML
-  let htmlContent = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">`;
-  htmlContent += `<head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Jadwal Pelajaran</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>`;
-  htmlContent += `<body><table border="1">`;
-  
-  rows.forEach((row, idx) => {
-    if (idx === 0) {
-      // Header Row
-      htmlContent += `<tr style="background-color: #4f46e5; color: #ffffff; font-weight: bold;">`;
-      row.forEach(cell => {
-        htmlContent += `<td>${cell}</td>`;
-      });
-      htmlContent += `</tr>`;
-    } else {
-      htmlContent += `<tr>`;
-      row.forEach(cell => {
-        htmlContent += `<td>${cell}</td>`;
-      });
-      htmlContent += `</tr>`;
-    }
-  });
-  htmlContent += `</table></body></html>`;
+  // Generate CSV Content
+  const csvContent = rows
+    .map((row) => row.map((val) => `"${val.replace(/"/g, '""')}"`).join(","))
+    .join("\n");
 
-  const blob = new Blob([htmlContent], { type: "application/vnd.ms-excel;charset=utf-8;" });
+  const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
   
   const link = document.createElement("a");
   if (link.download !== undefined) {
@@ -549,7 +531,7 @@ export const exportJadwalToCSV = (params: ExportCSVParams) => {
     link.setAttribute("href", url);
     
     const sanitizedTemplateName = jenisJadwalNama.replace(/\s+/g, '_');
-    link.setAttribute("download", `Jadwal_Pelajaran_${sanitizedTemplateName}_${new Date().toISOString().split('T')[0]}.xls`);
+    link.setAttribute("download", `Jadwal_Pelajaran_${sanitizedTemplateName}_${new Date().toISOString().split('T')[0]}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();

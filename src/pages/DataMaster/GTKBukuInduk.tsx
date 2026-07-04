@@ -127,7 +127,7 @@ export default function GTKBukuInduk() {
                   {data.length > 0 ? data.map((item) => (
                     <TableRow key={item.ptk_id}>
                       <TableCell className="px-5 py-4 text-start">
-                        <Avatar src={getFotoUrl(item.foto, "/images/user/user-01.jpg")} size="medium" />
+                        <Avatar src={getFotoUrl(item.foto, "/images/default/profile.jpg")} size="medium" />
                       </TableCell>
                       <TableCell className="px-5 py-4 text-start font-medium text-gray-800 dark:text-white/90 whitespace-nowrap">
                         {item.nama}

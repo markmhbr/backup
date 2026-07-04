@@ -517,5 +517,17 @@ export const dapodikService = {
       console.error('Gagal mengambil data custom jabatans:', error);
       throw error;
     }
+  },
+
+  getCustomJumlahJam: async (index?: number) => {
+    try {
+      let url = '/dapodik/tugas-tambahan/custom-jumlah-jam';
+      if (index !== undefined) url += `?index=${index}`;
+      const response = await api.get(url);
+      return response.data;
+    } catch (error: any) {
+      console.error('Gagal mengambil data custom jumlah jam:', error);
+      throw error;
+    }
   }
 };

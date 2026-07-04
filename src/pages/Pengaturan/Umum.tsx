@@ -158,10 +158,7 @@ export default function Umum() {
     fetchSettings();
   }, []);
 
-  const handlePengaturanChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setPengaturanData((prev) => ({ ...prev, [name]: value }));
-  };
+
 
   const handleBackgroundChange = (type: "gtk" | "pd") => async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -290,34 +287,7 @@ export default function Umum() {
             </div>
           </div>
 
-          <div className="border-t border-gray-100 dark:border-white/[0.05] pt-6 space-y-4">
-            <h5 className="font-semibold text-gray-800 dark:text-white/90">
-              Batasan Tanggal Pengajuan Perbaikan Data
-            </h5>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Tentukan tanggal mulai dan tanggal selesai di mana GTK atau Peserta Didik diperbolehkan mengajukan perubahan data.
-            </p>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 max-w-md">
-              <div>
-                <Label>Tanggal Mulai Pengajuan</Label>
-                <Input
-                  type="date"
-                  name="waktu_mulai_pengajuan"
-                  value={pengaturanData.waktu_mulai_pengajuan}
-                  onChange={handlePengaturanChange}
-                />
-              </div>
-              <div>
-                <Label>Tanggal Sampai Pengajuan</Label>
-                <Input
-                  type="date"
-                  name="waktu_sampai_pengajuan"
-                  value={pengaturanData.waktu_sampai_pengajuan}
-                  onChange={handlePengaturanChange}
-                />
-              </div>
-            </div>
-          </div>
+
 
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-white/[0.05]">
             <Button variant="outline" type="button" onClick={() => setIsResetModalOpen(true)}>

@@ -26,6 +26,10 @@ export default function SubjectTable({ searchTerm, itemsPerPage }: SubjectTableP
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  useEffect(() => {
     const fetchSubjects = async () => {
       setIsLoading(true);
       try {
@@ -45,12 +49,14 @@ export default function SubjectTable({ searchTerm, itemsPerPage }: SubjectTableP
       }
     };
 
-    // Debounce the search term to avoid spamming the backend
-    const timeoutId = setTimeout(() => {
+    if (searchTerm) {
+      const timeoutId = setTimeout(() => {
+        fetchSubjects();
+      }, 300);
+      return () => clearTimeout(timeoutId);
+    } else {
       fetchSubjects();
-    }, 500);
-
-    return () => clearTimeout(timeoutId);
+    }
   }, [searchTerm, itemsPerPage, currentPage]);
 
   const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
