@@ -413,7 +413,7 @@ export default function SchoolProfile() {
   const handleExport = () => {
     Swal.fire({
       title: "Export Data?",
-      text: "Data profil sekolah akan diunduh dalam format CSV.",
+      text: "Data profil sekolah akan diunduh dalam format Excel.",
       icon: "question",
       showCancelButton: true,
       confirmButtonColor: "#10b981",
@@ -436,15 +436,32 @@ export default function SchoolProfile() {
             administrasiData.skPendirian, administrasiData.tglSkPendirian, administrasiData.skIzinOperasional, administrasiData.tglSkIzinOperasional, administrasiData.npwp, administrasiData.nmWp, administrasiData.namaBank, administrasiData.noRekening, administrasiData.rekeningAtasNama, administrasiData.cabangKcp,
             kontakData.email, kontakData.telepon, kontakData.website, kontakData.nomorFax
           ];
-          const rows = [headers, values];
 
-          // Generate CSV content
-          const csvContent = "\uFEFF" + rows.map(e => e.map(val => `"${String(val || '').replace(/"/g, '""')}"`).join(",")).join("\n");
-          const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+          // Generate Excel HTML
+          let htmlContent = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">`;
+          htmlContent += `<head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Profil Sekolah</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>`;
+          htmlContent += `<body><table border="1">`;
+          
+          // Header Row
+          htmlContent += `<tr style="background-color: #4f46e5; color: #ffffff; font-weight: bold;">`;
+          headers.forEach(header => {
+            htmlContent += `<td>${header}</td>`;
+          });
+          htmlContent += `</tr>`;
+
+          // Value Row
+          htmlContent += `<tr>`;
+          values.forEach(val => {
+            htmlContent += `<td>${val || ''}</td>`;
+          });
+          htmlContent += `</tr>`;
+          htmlContent += `</table></body></html>`;
+
+          const blob = new Blob([htmlContent], { type: "application/vnd.ms-excel;charset=utf-8;" });
           const url = URL.createObjectURL(blob);
           const link = document.createElement("a");
           link.setAttribute("href", url);
-          link.setAttribute("download", `Profil_Sekolah_${profileData.namaSekolah.replace(/\s+/g, '_') || 'Sekolah'}.csv`);
+          link.setAttribute("download", `Profil_Sekolah_${profileData.namaSekolah.replace(/\s+/g, '_') || 'Sekolah'}.xls`);
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);

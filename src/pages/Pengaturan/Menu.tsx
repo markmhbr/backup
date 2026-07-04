@@ -40,6 +40,7 @@ const menuDefinition = [
   { id: "rombel-pilihan", name: "Data Master - Rombel - Matpel Pilihan" },
   { id: "rombel-wali", name: "Data Master - Rombel - Wali" },
   { id: "rombel-rekap", name: "Data Master - Rombel - Rekap Rombel" },
+  { id: "tugas-tambahan", name: "Data Master - Rombel - Tugas Tambahan" },
   { id: "mata-pelajaran", name: "Data Master - Mata Pelajaran" },
   { id: "sarpras", name: "Data Master - Sarpras" },
   { id: "akademik", name: "Akademik (Parent Menu)" },
@@ -86,6 +87,7 @@ export default function MenuSettings() {
   const [checkedMenus, setCheckedMenus] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [mappings, setMappings] = useState<MenuRoleMapping[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     const fetchRoles = async () => {
@@ -178,6 +180,10 @@ export default function MenuSettings() {
     }
   };
 
+  const filteredRoles = roles.filter((role) =>
+    role.peran_nama.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <>
       <PageMeta
@@ -196,24 +202,42 @@ export default function MenuSettings() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column: Role Selector */}
-          <div className="lg:col-span-1 rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-4">
+          <div className="lg:col-span-1 rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 flex flex-col space-y-4">
             <h4 className="font-semibold text-gray-800 dark:text-white/90">
               Pilih Peran Pengguna
             </h4>
-            <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
-              {roles.map((role) => (
-                <button
-                  key={role.peran_id}
-                  onClick={() => setSelectedRole(role)}
-                  className={`w-full text-left px-4 py-3 rounded-xl border text-sm font-medium transition-all ${
-                    selectedRole?.peran_id === role.peran_id
-                      ? "border-brand-500 bg-brand-50 text-brand-600 dark:bg-brand-950/20 dark:text-brand-400"
-                      : "border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.02]"
-                  }`}
-                >
-                  {role.peran_nama}
-                </button>
-              ))}
+            
+            {/* Search Box */}
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Cari peran..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-800 placeholder-gray-400 focus:bg-white focus:border-brand-500 focus:outline-none dark:border-gray-800 dark:bg-white/[0.02] dark:text-white"
+              />
+            </div>
+
+            <div className="space-y-2 max-h-[600px] overflow-y-auto pr-2 flex-1">
+              {filteredRoles.length > 0 ? (
+                filteredRoles.map((role) => (
+                  <button
+                    key={role.peran_id}
+                    onClick={() => setSelectedRole(role)}
+                    className={`w-full text-left px-4 py-3 rounded-xl border text-sm font-medium transition-all ${
+                      selectedRole?.peran_id === role.peran_id
+                        ? "border-brand-500 bg-brand-50 text-brand-600 dark:bg-brand-950/20 dark:text-brand-400"
+                        : "border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.02]"
+                    }`}
+                  >
+                    {role.peran_nama}
+                  </button>
+                ))
+              ) : (
+                <div className="text-center py-8 text-sm text-gray-400">
+                  Peran tidak ditemukan
+                </div>
+              )}
             </div>
           </div>
 

@@ -463,5 +463,59 @@ export const dapodikService = {
       console.error('Gagal menyimpan pengaturan umum:', error);
       throw error;
     }
+  },
+
+  getTugasTambahan: async (limit: number = 10, search: string = '', page: number = 1, index?: number) => {
+    try {
+      let url = `/dapodik/tugas-tambahan?limit=${limit}&page=${page}&search=${search}`;
+      if (index !== undefined) url += `&index=${index}`;
+      const response = await api.get(url);
+      return response.data;
+    } catch (error: any) {
+      console.error('Gagal mengambil data tugas tambahan:', error);
+      throw error;
+    }
+  },
+
+  createTugasTambahan: async (data: any) => {
+    try {
+      const response = await api.post('/dapodik/tugas-tambahan', data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Gagal menambah tugas tambahan:', error);
+      throw error;
+    }
+  },
+
+  updateTugasTambahan: async (id: string, data: any) => {
+    try {
+      const response = await api.patch(`/dapodik/tugas-tambahan/${id}`, data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Gagal mengubah tugas tambahan:', error);
+      throw error;
+    }
+  },
+
+  deleteTugasTambahan: async (id: string) => {
+    try {
+      const response = await api.delete(`/dapodik/tugas-tambahan/${id}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Gagal menghapus tugas tambahan:', error);
+      throw error;
+    }
+  },
+
+  getCustomJabatans: async (index?: number) => {
+    try {
+      let url = '/dapodik/tugas-tambahan/custom-jabatans';
+      if (index !== undefined) url += `?index=${index}`;
+      const response = await api.get(url);
+      return response.data;
+    } catch (error: any) {
+      console.error('Gagal mengambil data custom jabatans:', error);
+      throw error;
+    }
   }
 };

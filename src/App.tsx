@@ -29,6 +29,7 @@ import SubjectData from "./pages/DataMaster/SubjectData";
 import SarprasData from "./pages/DataMaster/SarprasData";
 import GTKBukuInduk from "./pages/DataMaster/GTKBukuInduk";
 import StudentBukuInduk from "./pages/DataMaster/StudentBukuInduk";
+import TugasTambahanPage from "./pages/DataMaster/TugasTambahanPage";
 import TahunPelajaran from "./pages/Academic/TahunPelajaran";
 import KompetensiPage from "./pages/Academic/KompetensiPage";
 import GTKCardPage from "./pages/Academic/GTKCardPage";
@@ -94,6 +95,7 @@ export default function App() {
             <Route path="sarpras-data" element={<SarprasData />} />
             <Route path="gtk-buku-induk" element={<GTKBukuInduk />} />
             <Route path="student-buku-induk" element={<StudentBukuInduk />} />
+            <Route path="tugas-tambahan" element={<TugasTambahanPage />} />
 
             {/* Academic */}
             <Route path="academic/year" element={<TahunPelajaran />} />

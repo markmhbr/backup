@@ -87,6 +87,29 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
 
   const [isCompletenessModalOpen, setIsCompletenessModalOpen] = useState(false);
   const [hasShownCompletenessAlert, setHasShownCompletenessAlert] = useState(false);
+  const [errors, setErrors] = useState<any>({});
+
+  const isWaliMode = formData?.isWali === true || formData?.isWali === 1 || formData?.isWali === '1' || !!(formData?.namaWali || formData?.nikWali);
+
+  const hasTabError = (tabId: string) => {
+    if (tabId === "profil") {
+      return !!(errors.agama_id || errors.noKK || errors.noAkte || errors.anakKe || errors.noHp || errors.noWa || errors.emailAktif);
+    }
+    if (tabId === "alamat") {
+      return !!(errors.jalan || errors.rt || errors.rw || errors.dusun || errors.desaKelurahan || errors.provinsi || errors.kabupaten || errors.kecamatan || errors.kodePos || errors.jenisTinggalId || errors.alatTransportasiId || errors.lintang || errors.bujur);
+    }
+    if (tabId === "periodik") {
+      return !!(errors.tinggiBadan || errors.beratBadan || errors.lingkarKepala || errors.jarakRumah || errors.waktuTempuh || errors.menitTempuh || errors.jumlahSaudara);
+    }
+    if (tabId === "orangtua") {
+      const basicParentErr = errors.namaAyah || errors.nikAyah || errors.tahunLahirAyah || errors.jenjang_pendidikan_ayah || errors.pekerjaan_id_ayah || errors.penghasilan_id_ayah || errors.namaIbu || errors.nikIbu || errors.tahunLahirIbu || errors.jenjang_pendidikan_ibu || errors.pekerjaan_id_ibu || errors.penghasilan_id_ibu;
+      if (isWaliMode) {
+        return !!(basicParentErr || errors.namaWali || errors.nikWali || errors.tahunLahirWali || errors.jenjang_pendidikan_wali || errors.pekerjaan_id_wali || errors.penghasilan_id_wali);
+      }
+      return !!basicParentErr;
+    }
+    return false;
+  };
 
   const getEmptyFields = () => {
     if (!formData || !formData.nama) return [];
@@ -143,8 +166,6 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
       { key: 'pekerjaan_id_wali', label: 'Pekerjaan Wali' },
       { key: 'penghasilan_id_wali', label: 'Penghasilan Wali' }
     ];
-
-    const isWaliMode = formData.isWali === true || formData.isWali === 1 || formData.isWali === '1' || !!(formData.namaWali || formData.nikWali);
 
     const checkFilled = (field: any) => {
       if (field.key === 'provinsi' || field.key === 'kabupatenKota' || field.key === 'kecamatan') {
@@ -237,7 +258,15 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
 
         if (optionsRes.status === "fulfilled") {
           const val = optionsRes.value;
-          setRefOptions(val?.data || val || null);
+          const rawData = val?.data || val || null;
+          if (rawData && Array.isArray(rawData.jenjang_pendidikan)) {
+            rawData.jenjang_pendidikan = [...rawData.jenjang_pendidikan].sort((a: any, b: any) => {
+              const idA = Number(a.jenjang_pendidikan_id || a.id || 0);
+              const idB = Number(b.jenjang_pendidikan_id || b.id || 0);
+              return idA - idB;
+            });
+          }
+          setRefOptions(rawData);
         }
         if (provsRes.status === "fulfilled") {
           const val = provsRes.value;
@@ -841,6 +870,9 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
 
   const handleInputChange = (field: string, value: any) => {
     setFormData((prev: any) => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors((prev: any) => ({ ...prev, [field]: false }));
+    }
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -934,6 +966,95 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
 
   const handleSave = async () => {
     if (!id) return;
+
+    // --- Validation ---
+    const newErrors: any = {};
+    const v = (key: string) => !formData[key] || String(formData[key]).trim() === "" || String(formData[key]).trim() === "-";
+
+    // Profil
+    if (v("agama_id")) newErrors.agama_id = true;
+    if (v("noKK")) newErrors.noKK = true;
+    if (v("noAkte")) newErrors.noAkte = true;
+    if (v("anakKe")) newErrors.anakKe = true;
+    if (v("noHp")) newErrors.noHp = true;
+    if (v("noWa")) newErrors.noWa = true;
+    if (v("emailAktif")) newErrors.emailAktif = true;
+    if (v("noTelpRumah")) newErrors.noTelpRumah = true;
+
+    // Alamat
+    if (v("jalan")) newErrors.jalan = true;
+    if (v("rt")) newErrors.rt = true;
+    if (v("rw")) newErrors.rw = true;
+    if (v("dusun")) newErrors.dusun = true;
+    if (v("provinsi")) newErrors.provinsi = true;
+    if (v("kabupaten")) newErrors.kabupaten = true;
+    if (!formData.kecamatan && !formData.kecamatanName) newErrors.kecamatan = true;
+    if (!formData.desaKelurahan && !formData.desaKelurahanCode) newErrors.desaKelurahan = true;
+    if (v("kodePos")) newErrors.kodePos = true;
+    if (!formData.jenis_tinggal_id && !formData.jenisTinggalId) newErrors.jenisTinggalId = true;
+    if (!formData.alat_transportasi_id && !formData.alatTransportasiId) newErrors.alatTransportasiId = true;
+    if (v("lintang")) newErrors.lintang = true;
+    if (v("bujur")) newErrors.bujur = true;
+
+    // Periodik
+    if (v("tinggiBadan")) newErrors.tinggiBadan = true;
+    if (v("beratBadan")) newErrors.beratBadan = true;
+    if (v("lingkarKepala")) newErrors.lingkarKepala = true;
+    if (v("jarakRumah")) newErrors.jarakRumah = true;
+    if (v("jarakRumahKm")) newErrors.jarakRumahKm = true;
+    if (v("waktuTempuh")) newErrors.waktuTempuh = true;
+    if (v("menitTempuh")) newErrors.menitTempuh = true;
+    if (v("jumlahSaudara")) newErrors.jumlahSaudara = true;
+    if (v("idHobby")) newErrors.idHobby = true;
+    if (v("idCita")) newErrors.idCita = true;
+
+    // Orang Tua - Ayah
+    if (v("namaAyah")) newErrors.namaAyah = true;
+    if (v("nikAyah")) newErrors.nikAyah = true;
+    if (v("tahunLahirAyah")) newErrors.tahunLahirAyah = true;
+    if (v("pekerjaan_id_ayah")) newErrors.pekerjaan_id_ayah = true;
+    if (v("jenjang_pendidikan_ayah")) newErrors.jenjang_pendidikan_ayah = true;
+    if (v("penghasilan_id_ayah")) newErrors.penghasilan_id_ayah = true;
+
+    // Orang Tua - Ibu
+    if (v("nikIbu")) newErrors.nikIbu = true;
+    if (v("tahunLahirIbu")) newErrors.tahunLahirIbu = true;
+    if (v("pekerjaan_id_ibu")) newErrors.pekerjaan_id_ibu = true;
+    if (v("jenjang_pendidikan_ibu")) newErrors.jenjang_pendidikan_ibu = true;
+    if (v("penghasilan_id_ibu")) newErrors.penghasilan_id_ibu = true;
+
+    // Wali (only if isWali)
+    if (isWaliMode) {
+      if (v("namaWali")) newErrors.namaWali = true;
+      if (v("nikWali")) newErrors.nikWali = true;
+      if (v("tahunLahirWali")) newErrors.tahunLahirWali = true;
+      if (v("pekerjaan_id_wali")) newErrors.pekerjaan_id_wali = true;
+      if (v("jenjang_pendidikan_wali")) newErrors.jenjang_pendidikan_wali = true;
+      if (v("penghasilan_id_wali")) newErrors.penghasilan_id_wali = true;
+    }
+
+    setErrors(newErrors);
+
+    if (Object.keys(newErrors).length > 0) {
+      // Determine which tab to switch to
+      if (newErrors.agama_id || newErrors.noKK || newErrors.noAkte || newErrors.anakKe || newErrors.noHp || newErrors.noWa || newErrors.emailAktif || newErrors.noTelpRumah) {
+        setActiveTab("profil");
+      } else if (newErrors.jalan || newErrors.rt || newErrors.rw || newErrors.dusun || newErrors.provinsi || newErrors.kabupaten || newErrors.kecamatan || newErrors.desaKelurahan || newErrors.kodePos || newErrors.jenisTinggalId || newErrors.alatTransportasiId || newErrors.lintang || newErrors.bujur) {
+        setActiveTab("alamat");
+      } else if (newErrors.tinggiBadan || newErrors.beratBadan || newErrors.lingkarKepala || newErrors.jarakRumah || newErrors.jarakRumahKm || newErrors.waktuTempuh || newErrors.menitTempuh || newErrors.jumlahSaudara || newErrors.idHobby || newErrors.idCita) {
+        setActiveTab("periodik");
+      } else {
+        setActiveTab("orangtua");
+      }
+
+      Swal.fire({
+        title: "Validasi Gagal",
+        text: `Terdapat ${Object.keys(newErrors).length} kolom wajib yang belum diisi. Silakan lengkapi data yang ditandai merah.`,
+        icon: "error",
+        confirmButtonColor: "#465FFF"
+      });
+      return;
+    }
 
     if (formData.noKK && formData.noKK.length !== 16) {
       Swal.fire({
@@ -1173,13 +1294,19 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2.5 text-sm font-medium transition-colors duration-200 border-b-2 ${
+              className={`relative px-4 py-2.5 text-sm font-medium transition-colors duration-200 border-b-2 ${
                 activeTab === tab.id
                   ? "border-brand-500 text-brand-500"
                   : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
               }`}
             >
               {tab.label}
+              {hasTabError(tab.id) && (
+                <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -1244,8 +1371,9 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                     <div className="space-y-2"><Label>NIPD</Label><Input value={formData.nipd || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                     <div className="space-y-2"><Label>NIK</Label><Input value={formData.nik || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                      <div className="space-y-2">
-                       <Label>No. Kartu Keluarga</Label>
+                       <Label>No. Kartu Keluarga <span className="text-red-500">*</span></Label>
                        <Input 
+                         error={errors.noKK}
                          value={formData.noKK || ""} 
                          maxLength={16}
                          placeholder="Masukkan No. Kartu Keluarga" 
@@ -1253,8 +1381,9 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                        />
                      </div>
                      <div className="space-y-2">
-                       <Label>No. Register Akte Lahir</Label>
+                       <Label>No. Register Akte Lahir <span className="text-red-500">*</span></Label>
                        <Input 
+                         error={errors.noAkte}
                          value={formData.noAkte || ""} 
                          placeholder="Masukkan No. Register Akte Lahir" 
                          onChange={(e) => handleInputChange("noAkte", e.target.value)} 
@@ -1308,7 +1437,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                         )}
                       </div>
                       <div className="space-y-2">
-                        <Label>Agama</Label>
+                        <Label>Agama <span className="text-red-500">*</span></Label>
                         <select
                           value={formData.agama_id || ""}
                           onChange={(e) => {
@@ -1318,8 +1447,9 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                               agama_id: e.target.value,
                               agama: opt?.nama || opt?.agama || ""
                             }));
+                            if (errors.agama_id) setErrors((prev: any) => ({ ...prev, agama_id: false }));
                           }}
-                          className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                          className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.agama_id ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                         >
                           <option value="">Pilih Agama</option>
                           {(refOptions?.agama || []).map((a: any) => (
@@ -1328,9 +1458,10 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                         </select>
                       </div>
                      <div className="space-y-2">
-                       <Label>Anak ke-</Label>
+                       <Label>Anak ke- <span className="text-red-500">*</span></Label>
                        <Input 
                          type="number" 
+                         error={errors.anakKe}
                          value={formData.anakKe || ""} 
                          placeholder="Masukkan Anak ke- (angka)" 
                          onChange={(e) => handleInputChange("anakKe", e.target.value)} 
@@ -1349,23 +1480,25 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                   </h5>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>No. Telp. Rumah</Label>
-                      <Input 
-                        value={formData.noTelpRumah || ""} 
-                        placeholder="Masukkan No. Telepon Rumah" 
-                        onChange={(e) => handleInputChange("noTelpRumah", e.target.value.replace(/\D/g, ''))} 
-                      />
+                       <Label>No. Telp. Rumah <span className="text-red-500">*</span></Label>
+                       <Input 
+                         error={errors.noTelpRumah}
+                         value={formData.noTelpRumah || ""} 
+                         placeholder="Masukkan No. Telepon Rumah" 
+                         onChange={(e) => handleInputChange("noTelpRumah", e.target.value.replace(/\D/g, ''))} 
+                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>No. Handphone</Label>
+                      <Label>No. Handphone <span className="text-red-500">*</span></Label>
                       <Input 
+                        error={errors.noHp}
                         value={formData.noHp || ""} 
                         placeholder="Masukkan No. Handphone" 
                         onChange={(e) => handleInputChange("noHp", e.target.value.replace(/\D/g, ''))} 
                       />
                     </div>
-                    <div className="space-y-2"><Label>No. Whatsapp <span className="text-red-500">*</span></Label><Input value={formData.noWa || ""} placeholder="0812XXXXXXXX" onChange={(e) => handleInputChange("noWa", e.target.value)} /></div>
-                    <div className="space-y-2"><Label>Email Aktif <span className="text-red-500">*</span></Label><Input type="email" value={formData.emailAktif || ""} placeholder="nama@email.com" onChange={(e) => handleInputChange("emailAktif", e.target.value)} /></div>
+                    <div className="space-y-2"><Label>No. Whatsapp <span className="text-red-500">*</span></Label><Input error={errors.noWa} value={formData.noWa || ""} placeholder="0812XXXXXXXX" onChange={(e) => handleInputChange("noWa", e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Email Aktif <span className="text-red-500">*</span></Label><Input error={errors.emailAktif} type="email" value={formData.emailAktif || ""} placeholder="nama@email.com" onChange={(e) => handleInputChange("emailAktif", e.target.value)} /></div>
                     <div className="space-y-2">
                       <Label>Email Akun</Label>
                       <Input 
@@ -1433,31 +1566,34 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                   </h5>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Jalan atau Kampung</Label>
+                      <Label>Jalan atau Kampung <span className="text-red-500">*</span></Label>
                       <Input 
+                        error={errors.jalan}
                         value={formData.jalan || ""} 
                         placeholder="Masukkan jalan atau kampung" 
                         onChange={(e) => handleInputChange("jalan", e.target.value)} 
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>RT</Label>
+                      <Label>RT <span className="text-red-500">*</span></Label>
                       <Input 
+                        error={errors.rt}
                         value={formData.rt || ""} 
                         placeholder="Masukkan RT (contoh: 001)" 
                         onChange={(e) => handleInputChange("rt", e.target.value)} 
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>RW</Label>
+                      <Label>RW <span className="text-red-500">*</span></Label>
                       <Input 
+                        error={errors.rw}
                         value={formData.rw || ""} 
                         placeholder="Masukkan RW (contoh: 002)" 
                         onChange={(e) => handleInputChange("rw", e.target.value)} 
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Provinsi</Label>
+                      <Label>Provinsi <span className="text-red-500">*</span></Label>
                       <select
                         value={addrProvinces.find(p => p.nama?.trim().toLowerCase() === formData.provinsi?.trim().toLowerCase())?.kode_wilayah?.trim() || ""}
                         onChange={(e) => {
@@ -1465,7 +1601,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                           const name = addrProvinces.find(p => p.kode_wilayah?.trim() === code)?.nama || "";
                           handleAddrProvinceChange(code, name);
                         }}
-                        className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                        className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.provinsi ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                       >
                         <option value="">{formData.provinsi || "Pilih Provinsi"}</option>
                         {addrProvinces.map((p) => (
@@ -1474,7 +1610,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                       </select>
                     </div>
                     <div className="space-y-2">
-                      <Label>Kab./Kota</Label>
+                      <Label>Kab./Kota <span className="text-red-500">*</span></Label>
                       <select
                         value={addrKabupatens.find(k => k.nama?.trim().toLowerCase() === formData.kabupaten?.trim().toLowerCase())?.kode_wilayah?.trim() || ""}
                         onChange={(e) => {
@@ -1482,7 +1618,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                           const name = addrKabupatens.find(k => k.kode_wilayah?.trim() === code)?.nama || "";
                           handleAddrKabupatenChange(code, name);
                         }}
-                        className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                        className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.kabupaten ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                         disabled={!formData.provinsi}
                       >
                         <option value="">{formData.kabupaten || "Pilih Kab./Kota"}</option>
@@ -1492,7 +1628,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                       </select>
                     </div>
                     <div className="space-y-2">
-                      <Label>Kecamatan</Label>
+                      <Label>Kecamatan <span className="text-red-500">*</span></Label>
                       <select
                         value={formData.kecamatan?.trim() || ""}
                         onChange={(e) => {
@@ -1501,7 +1637,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                           handleInputChange("kecamatanName", name);
                           handleAddrKecamatanChange(code);
                         }}
-                        className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                        className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.kecamatan ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                         disabled={!formData.kabupaten}
                       >
                         <option value="">{formData.kecamatanName || "Pilih Kecamatan"}</option>
@@ -1511,7 +1647,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                       </select>
                     </div>
                     <div className="space-y-2">
-                      <Label>Desa/Kelurahan</Label>
+                      <Label>Desa/Kelurahan <span className="text-red-500">*</span></Label>
                       <select
                         value={formData.desaKelurahanCode?.trim() || ""}
                         onChange={(e) => {
@@ -1519,7 +1655,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                           const name = addrDesas.find(d => d.kode_wilayah?.trim() === code)?.nama || "";
                           handleAddrDesaChange(code, name);
                         }}
-                        className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                        className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.desaKelurahan ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                         disabled={!formData.kecamatan}
                       >
                         <option value="">{formData.desaKelurahan || "Pilih Desa/Kelurahan"}</option>
@@ -1529,15 +1665,16 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                       </select>
                     </div>
                     <div className="space-y-2">
-                      <Label>Kode Pos</Label>
+                      <Label>Kode Pos <span className="text-red-500">*</span></Label>
                       <Input 
+                        error={errors.kodePos}
                         value={formData.kodePos || ""} 
                         placeholder="Masukkan Kode Pos" 
                         onChange={(e) => handleInputChange("kodePos", e.target.value.replace(/\D/g, ''))} 
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Tempat Tinggal</Label>
+                      <Label>Tempat Tinggal <span className="text-red-500">*</span></Label>
                       <select
                         value={formData.jenis_tinggal_id || formData.jenisTinggalId || ""}
                         onChange={(e) => {
@@ -1549,7 +1686,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                             jenisTinggal: opt?.nama || opt?.jenis_tinggal || ""
                           }));
                         }}
-                        className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                        className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.jenisTinggalId ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                       >
                         <option value="">Pilih Tempat Tinggal</option>
                         {(refOptions?.jenis_tinggal || []).map((t: any) => (
@@ -1558,7 +1695,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                       </select>
                     </div>
                     <div className="space-y-2">
-                      <Label>Transportasi</Label>
+                      <Label>Transportasi <span className="text-red-500">*</span></Label>
                       <select
                         value={formData.alat_transportasi_id || formData.alatTransportasiId || ""}
                         onChange={(e) => {
@@ -1570,7 +1707,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                             alatTransportasi: opt?.nama || opt?.alat_transportasi || ""
                           }));
                         }}
-                        className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                        className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.alatTransportasiId ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                       >
                         <option value="">Pilih Alat Transportasi</option>
                         {(refOptions?.alat_transportasi || []).map((t: any) => (
@@ -1580,16 +1717,18 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                     </div>
                     <div className="col-span-full grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>Lintang</Label>
+                        <Label>Lintang <span className="text-red-500">*</span></Label>
                         <Input 
+                          error={errors.lintang}
                           value={formData.lintang || ""} 
                           placeholder="Contoh: -6.200000" 
                           onChange={(e) => handleInputChange("lintang", e.target.value)} 
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Bujur</Label>
+                        <Label>Bujur <span className="text-red-500">*</span></Label>
                         <Input 
+                          error={errors.bujur}
                           value={formData.bujur || ""} 
                           placeholder="Contoh: 106.816666" 
                           onChange={(e) => handleInputChange("bujur", e.target.value)} 
@@ -1621,83 +1760,96 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                 </h5>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label>Tinggi Badan (cm)</Label>
+                    <Label>Tinggi Badan (cm) <span className="text-red-500">*</span></Label>
                     <Input 
                       type="number" 
+                      error={errors.tinggiBadan}
                       value={formData.tinggiBadan || ""} 
                       placeholder="Masukkan Tinggi Badan" 
                       onChange={(e) => handleInputChange("tinggiBadan", e.target.value)} 
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Berat Badan (kg)</Label>
+                    <Label>Berat Badan (kg) <span className="text-red-500">*</span></Label>
                     <Input 
                       type="number" 
+                      error={errors.beratBadan}
                       value={formData.beratBadan || ""} 
                       placeholder="Masukkan Berat Badan" 
                       onChange={(e) => handleInputChange("beratBadan", e.target.value)} 
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Lingkar Kepala (cm)</Label>
+                    <Label>Lingkar Kepala (cm) <span className="text-red-500">*</span></Label>
                     <Input 
                       type="number" 
+                      error={errors.lingkarKepala}
                       value={formData.lingkarKepala || ""} 
                       placeholder="Masukkan Lingkar Kepala" 
                       onChange={(e) => handleInputChange("lingkarKepala", e.target.value)} 
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Jarak Rumah ke Sekolah (m)</Label>
+                    <Label>Jarak Rumah ke Sekolah (m) <span className="text-red-500">*</span></Label>
                     <Input 
                       type="number" 
+                      error={errors.jarakRumah}
                       value={formData.jarakRumah || ""} 
                       placeholder="Masukkan Jarak Rumah" 
                       onChange={(e) => handleInputChange("jarakRumah", e.target.value)} 
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Jarak Rumah ke Sekolah (km)</Label>
+                    <Label>Jarak Rumah ke Sekolah (km) <span className="text-red-500">*</span></Label>
                     <Input 
                       type="number" 
+                      error={errors.jarakRumahKm}
                       value={formData.jarakRumahKm || ""} 
                       placeholder="Masukkan Jarak Rumah (KM)" 
                       onChange={(e) => handleInputChange("jarakRumahKm", e.target.value)} 
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Waktu Tempuh (jam/menit)</Label>
+                    <Label>Waktu Tempuh (jam/menit) <span className="text-red-500">*</span></Label>
                     <Input 
                       type="number" 
+                      error={errors.waktuTempuh}
                       value={formData.waktuTempuh || ""} 
                       placeholder="Masukkan Waktu Tempuh (jam)" 
                       onChange={(e) => handleInputChange("waktuTempuh", e.target.value)} 
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Menit Tempuh (menit)</Label>
+                    <Label>Menit Tempuh (menit) <span className="text-red-500">*</span></Label>
                     <Input 
                       type="number" 
+                      error={errors.menitTempuh}
                       value={formData.menitTempuh || ""} 
                       placeholder="Masukkan Waktu Tempuh (menit)" 
                       onChange={(e) => handleInputChange("menitTempuh", e.target.value)} 
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Jumlah Saudara Kandung</Label>
+                    <Label>Jumlah Saudara Kandung <span className="text-red-500">*</span></Label>
                     <Input 
                       type="number" 
+                      error={errors.jumlahSaudara}
                       value={formData.jumlahSaudara || ""} 
                       placeholder="Masukkan Jumlah Saudara Kandung" 
                       onChange={(e) => handleInputChange("jumlahSaudara", e.target.value)} 
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Hobi</Label>
+                    <Label>Hobi <span className="text-red-500">*</span></Label>
                     <select
                       value={formData.idHobby || ""}
-                      onChange={(e) => handleInputChange("idHobby", e.target.value)}
-                      className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                      onChange={(e) => {
+                        handleInputChange("idHobby", e.target.value);
+                        if (errors.idHobby) {
+                          setErrors((prev: any) => ({ ...prev, idHobby: false }));
+                        }
+                      }}
+                      className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.idHobby ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                     >
                       <option value="">Pilih Hobi</option>
                       {(refOptions?.jenis_hobby || []).map((h: any) => (
@@ -1706,11 +1858,16 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Cita-Cita</Label>
+                    <Label>Cita-Cita <span className="text-red-500">*</span></Label>
                     <select
                       value={formData.idCita || ""}
-                      onChange={(e) => handleInputChange("idCita", e.target.value)}
-                      className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                      onChange={(e) => {
+                        handleInputChange("idCita", e.target.value);
+                        if (errors.idCita) {
+                          setErrors((prev: any) => ({ ...prev, idCita: false }));
+                        }
+                      }}
+                      className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.idCita ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                     >
                       <option value="">Pilih Cita-Cita</option>
                       {(refOptions?.jenis_cita || []).map((c: any) => (
@@ -1744,16 +1901,18 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
               </h5>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Nama Lengkap</Label>
+                  <Label>Nama Lengkap <span className="text-red-500">*</span></Label>
                   <Input 
+                    error={errors.namaAyah}
                     value={formData.namaAyah || ""} 
                     placeholder="Masukkan Nama Lengkap Ayah" 
                     onChange={(e) => handleInputChange("namaAyah", e.target.value)} 
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>NIK</Label>
+                  <Label>NIK <span className="text-red-500">*</span></Label>
                   <Input 
+                    error={errors.nikAyah}
                     value={formData.nikAyah || ""} 
                     maxLength={16}
                     placeholder="Masukkan NIK Ayah" 
@@ -1761,7 +1920,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                   />
                 </div>
                 <div className="space-y-2">
-                   <Label>Pekerjaan</Label>
+                   <Label>Pekerjaan <span className="text-red-500">*</span></Label>
                    <select
                      value={formData.pekerjaan_id_ayah || ""}
                      onChange={(e) => {
@@ -1772,7 +1931,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                          pekerjaanAyah: opt?.nama || opt?.pekerjaan || ""
                        }));
                      }}
-                     className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                     className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.pekerjaan_id_ayah ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                    >
                      <option value="">Pilih Pekerjaan</option>
                      {(refOptions?.pekerjaan || []).map((p: any) => (
@@ -1781,16 +1940,17 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                    </select>
                  </div>
                  <div className="space-y-2">
-                   <Label>Tahun Lahir</Label>
+                   <Label>Tahun Lahir <span className="text-red-500">*</span></Label>
                    <Input 
                      type="number" 
+                     error={errors.tahunLahirAyah}
                      value={formData.tahunLahirAyah || ""} 
                      placeholder="Masukkan Tahun Lahir Ayah" 
                      onChange={(e) => handleInputChange("tahunLahirAyah", e.target.value)} 
                    />
                  </div>
                  <div className="space-y-2">
-                   <Label>Pendidikan</Label>
+                   <Label>Pendidikan <span className="text-red-500">*</span></Label>
                    <select
                      value={formData.jenjang_pendidikan_ayah || ""}
                      onChange={(e) => {
@@ -1801,7 +1961,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                          jenjangPendidikanAyah: opt?.nama || opt?.jenjang_pendidikan || ""
                        }));
                      }}
-                     className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                     className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.jenjang_pendidikan_ayah ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                    >
                      <option value="">Pilih Pendidikan</option>
                      {(refOptions?.jenjang_pendidikan || []).map((p: any) => (
@@ -1810,7 +1970,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                    </select>
                  </div>
                  <div className="space-y-2">
-                   <Label>Penghasilan</Label>
+                   <Label>Penghasilan <span className="text-red-500">*</span></Label>
                    <select
                      value={formData.penghasilan_id_ayah || ""}
                      onChange={(e) => {
@@ -1821,7 +1981,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                          penghasilanAyah: opt?.nama || opt?.penghasilan || ""
                        }));
                      }}
-                     className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                     className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.penghasilan_id_ayah ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                    >
                      <option value="">Pilih Penghasilan</option>
                      {(refOptions?.penghasilan || []).map((p: any) => (
@@ -1893,8 +2053,9 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                   <Input value={formData.namaIbu || ""} placeholder="Data kosong dari Dapodik" disabled />
                 </div>
                 <div className="space-y-2">
-                  <Label>NIK</Label>
+                  <Label>NIK <span className="text-red-500">*</span></Label>
                   <Input 
+                    error={errors.nikIbu}
                     value={formData.nikIbu || ""} 
                     maxLength={16}
                     placeholder="Masukkan NIK Ibu" 
@@ -1902,7 +2063,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                   />
                 </div>
                 <div className="space-y-2">
-                   <Label>Pekerjaan</Label>
+                   <Label>Pekerjaan <span className="text-red-500">*</span></Label>
                    <select
                      value={formData.pekerjaan_id_ibu || ""}
                      onChange={(e) => {
@@ -1913,7 +2074,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                          pekerjaanIbu: opt?.nama || opt?.pekerjaan || ""
                        }));
                      }}
-                     className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                     className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.pekerjaan_id_ibu ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                    >
                      <option value="">Pilih Pekerjaan</option>
                      {(refOptions?.pekerjaan || []).map((p: any) => (
@@ -1922,16 +2083,17 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                    </select>
                  </div>
                  <div className="space-y-2">
-                   <Label>Tahun Lahir</Label>
+                   <Label>Tahun Lahir <span className="text-red-500">*</span></Label>
                    <Input 
                      type="number" 
+                     error={errors.tahunLahirIbu}
                      value={formData.tahunLahirIbu || ""} 
                      placeholder="Masukkan Tahun Lahir Ibu" 
                      onChange={(e) => handleInputChange("tahunLahirIbu", e.target.value)} 
                    />
                  </div>
                  <div className="space-y-2">
-                   <Label>Pendidikan</Label>
+                   <Label>Pendidikan <span className="text-red-500">*</span></Label>
                    <select
                      value={formData.jenjang_pendidikan_ibu || ""}
                      onChange={(e) => {
@@ -1942,7 +2104,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                          jenjangPendidikanIbu: opt?.nama || opt?.jenjang_pendidikan || ""
                        }));
                      }}
-                     className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                     className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.jenjang_pendidikan_ibu ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                    >
                      <option value="">Pilih Pendidikan</option>
                      {(refOptions?.jenjang_pendidikan || []).map((p: any) => (
@@ -1951,7 +2113,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                    </select>
                  </div>
                  <div className="space-y-2">
-                   <Label>Penghasilan</Label>
+                   <Label>Penghasilan <span className="text-red-500">*</span></Label>
                    <select
                      value={formData.penghasilan_id_ibu || ""}
                      onChange={(e) => {
@@ -1962,7 +2124,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                          penghasilanIbu: opt?.nama || opt?.penghasilan || ""
                        }));
                      }}
-                     className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                     className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.penghasilan_id_ibu ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                    >
                      <option value="">Pilih Penghasilan</option>
                      {(refOptions?.penghasilan || []).map((p: any) => (
@@ -2057,16 +2219,18 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                {formData.isWali ? (
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                    <div className="space-y-2">
-                     <Label>Nama Lengkap</Label>
+                     <Label>Nama Lengkap <span className="text-red-500">*</span></Label>
                      <Input 
+                       error={errors.namaWali}
                        value={formData.namaWali || ""} 
                        placeholder="Masukkan Nama Lengkap Wali" 
                        onChange={(e) => handleInputChange("namaWali", e.target.value)} 
                      />
                    </div>
                    <div className="space-y-2">
-                     <Label>NIK</Label>
+                     <Label>NIK <span className="text-red-500">*</span></Label>
                      <Input 
+                       error={errors.nikWali}
                        value={formData.nikWali || ""} 
                        maxLength={16}
                        placeholder="Masukkan NIK Wali" 
@@ -2074,7 +2238,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                      />
                    </div>
                    <div className="space-y-2">
-                     <Label>Pekerjaan</Label>
+                     <Label>Pekerjaan <span className="text-red-500">*</span></Label>
                      <select
                        value={formData.pekerjaan_id_wali || ""}
                        onChange={(e) => {
@@ -2085,7 +2249,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                            pekerjaanWali: opt?.nama || opt?.pekerjaan || ""
                          }));
                        }}
-                       className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                       className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.pekerjaan_id_wali ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                      >
                        <option value="">Pilih Pekerjaan</option>
                        {(refOptions?.pekerjaan || []).map((p: any) => (
@@ -2094,16 +2258,17 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                      </select>
                    </div>
                    <div className="space-y-2">
-                     <Label>Tahun Lahir</Label>
+                     <Label>Tahun Lahir <span className="text-red-500">*</span></Label>
                      <Input 
                        type="number" 
+                       error={errors.tahunLahirWali}
                        value={formData.tahunLahirWali || ""} 
                        placeholder="Masukkan Tahun Lahir Wali" 
                        onChange={(e) => handleInputChange("tahunLahirWali", e.target.value)} 
                      />
                    </div>
                    <div className="space-y-2">
-                     <Label>Pendidikan</Label>
+                     <Label>Pendidikan <span className="text-red-500">*</span></Label>
                      <select
                        value={formData.jenjang_pendidikan_wali || ""}
                        onChange={(e) => {
@@ -2114,7 +2279,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                            jenjangPendidikanWali: opt?.nama || opt?.jenjang_pendidikan || ""
                          }));
                        }}
-                       className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                       className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.jenjang_pendidikan_wali ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                      >
                        <option value="">Pilih Pendidikan</option>
                        {(refOptions?.jenjang_pendidikan || []).map((p: any) => (
@@ -2123,7 +2288,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                      </select>
                    </div>
                    <div className="space-y-2">
-                     <Label>Penghasilan</Label>
+                     <Label>Penghasilan <span className="text-red-500">*</span></Label>
                      <select
                        value={formData.penghasilan_id_wali || ""}
                        onChange={(e) => {
@@ -2134,7 +2299,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                            penghasilanWali: opt?.nama || opt?.penghasilan || ""
                          }));
                        }}
-                       className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                       className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.penghasilan_id_wali ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                      >
                        <option value="">Pilih Penghasilan</option>
                        {(refOptions?.penghasilan || []).map((p: any) => (

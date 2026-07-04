@@ -192,6 +192,12 @@ const navItems: NavItem[] = [
         ],
       },
       {
+        name: "Tugas Tambahan",
+        path: "/tugas-tambahan",
+        icon: <DotIcon />,
+        id: "tugas-tambahan",
+      },
+      {
         name: "Mata Pelajaran",
         path: "/subject-data",
         icon: <DotIcon />,
@@ -467,12 +473,12 @@ const AppSidebar: React.FC = () => {
           if (filteredSubs.length > 0) {
             return { ...item, subItems: filteredSubs };
           }
-          if (item.id && (item.id === "profile" || allowedMenus.includes(item.id))) {
+          if (item.id && (item.id === "profile" || item.id === "dashboard" || allowedMenus.includes(item.id))) {
             return { ...item, subItems: [] };
           }
           return null;
         }
-        if (!item.id || item.id === "profile" || allowedMenus.includes(item.id)) {
+        if (!item.id || item.id === "profile" || item.id === "dashboard" || allowedMenus.includes(item.id)) {
           return item;
         }
         return null;

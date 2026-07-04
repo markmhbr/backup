@@ -5,12 +5,16 @@ import { Table, TableBody, TableCell, TableHeader, TableRow } from "../../compon
 import Swal from "sweetalert2";
 import { jadwalService, type JenisJadwal, type PengaturanJadwalSlot, type JadwalEntry } from "../../services/jadwalService";
 import { dapodikService } from "../../services/dapodikService";
-import { SearchIcon, TrashBinIcon, PlusIcon, InfoIcon } from "../../icons";
+import { SearchIcon, TrashBinIcon, PlusIcon, InfoIcon, PrinterIcon, DownloadIcon } from "../../icons";
 import Input from "../../components/form/input/InputField";
+import Button from "../../components/ui/button/Button";
+import { Modal } from "../../components/ui/modal";
+import { printJadwal, exportJadwalToCSV } from "../../utils/printJadwal";
 
 interface RombelOption {
   value: string;
   label: string;
+  tingkat_pendidikan_id?: number | null;
 }
 
 interface MapelOption {
@@ -32,8 +36,32 @@ export default function JadwalPelajaran() {
   const [loading, setLoading] = useState(true);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
   const [mapelSearch, setMapelSearch] = useState("");
+  
+  // Export states
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [exportType, setExportType] = useState<"kelas" | "angkatan" | "semua">("kelas");
+  const [selectedExportRombel, setSelectedExportRombel] = useState("");
+  const [selectedExportTingkat, setSelectedExportTingkat] = useState("");
+  const [exportFormat, setExportFormat] = useState<"pdf" | "csv">("pdf");
+  const [isExporting, setIsExporting] = useState(false);
+
   const selectedJenisData = jenisJadwalList.find(j => j.jenis_jadwal_id === selectedJenis);
   const isCustom = !!selectedJenisData?.custom_mapel;
+
+  const tingkatOptions = useMemo(() => {
+    const list = rombelList
+      .map(r => r.tingkat_pendidikan_id)
+      .filter((v, i, self) => v !== null && v !== undefined && self.indexOf(v) === i)
+      .sort((a, b) => (a || 0) - (b || 0));
+    return list.map(t => ({ value: String(t), label: `Tingkat ${t}` }));
+  }, [rombelList]);
+
+  // Set default selectedExportTingkat when tingkatOptions are loaded
+  useEffect(() => {
+    if (tingkatOptions.length > 0 && !selectedExportTingkat) {
+      setSelectedExportTingkat(tingkatOptions[0].value);
+    }
+  }, [tingkatOptions, selectedExportTingkat]);
 
   const allDays = useMemo(() => [
     { id: 1, name: "Senin" },
@@ -131,6 +159,7 @@ export default function JadwalPelajaran() {
         ].map((r: any) => ({
           value: r.rombongan_belajar_id,
           label: r.nama,
+          tingkat_pendidikan_id: r.tingkat_pendidikan_id ? Number(r.tingkat_pendidikan_id) : null,
         }));
         setRombelList(rombels);
         if (rombels.length > 0) {
@@ -195,6 +224,71 @@ export default function JadwalPelajaran() {
   useEffect(() => {
     fetchScheduleDetails();
   }, [fetchScheduleDetails]);
+
+  const handleExport = async () => {
+    if (!selectedJenis) return;
+    setIsExporting(true);
+    try {
+      // 1. Fetch school info (needed for headers)
+      const sekolahRes = await dapodikService.getSekolah();
+      const sekolah = sekolahRes.data || {};
+
+      // 2. Identify target rombels to export
+      let targetRombels: typeof rombelList = [];
+      if (exportType === "kelas") {
+        const found = rombelList.find(r => r.value === selectedExportRombel);
+        if (found) targetRombels = [found];
+      } else if (exportType === "angkatan") {
+        targetRombels = rombelList.filter(r => String(r.tingkat_pendidikan_id) === selectedExportTingkat);
+      } else {
+        targetRombels = rombelList;
+      }
+
+      if (targetRombels.length === 0) {
+        Swal.fire("Peringatan", "Tidak ada kelas yang terpilih untuk diexport", "warning");
+        setIsExporting(false);
+        return;
+      }
+
+      // 3. Fetch schedules
+      let exportSchedules: any[] = [];
+      if (exportType === "kelas") {
+        const res = await jadwalService.getJadwalPelajaran(selectedJenis, selectedExportRombel);
+        exportSchedules = res.data || [];
+      } else {
+        // Fetch all schedules for this template
+        const res = await jadwalService.getJadwalPelajaran(selectedJenis);
+        exportSchedules = res.data || [];
+      }
+
+      const templateName = jenisJadwalList.find(j => j.jenis_jadwal_id === selectedJenis)?.nama || "Jadwal";
+
+      if (exportFormat === "pdf") {
+        printJadwal({
+          sekolah,
+          jenisJadwalNama: templateName,
+          activeDays: days,
+          slots,
+          schedules: exportSchedules,
+          rombels: targetRombels,
+        });
+      } else {
+        exportJadwalToCSV({
+          jenisJadwalNama: templateName,
+          activeDays: days,
+          slots,
+          schedules: exportSchedules,
+          rombels: targetRombels,
+        });
+      }
+      setIsExportModalOpen(false);
+    } catch (err) {
+      console.error("Gagal melakukan export jadwal:", err);
+      Swal.fire("Gagal", "Terjadi kesalahan saat memproses export jadwal", "error");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   // Group unique slots by urutan (represented by number arrays up to the max urutan)
   const uniqueSlots = useMemo(() => {
@@ -306,7 +400,7 @@ export default function JadwalPelajaran() {
               Drag & drop mata pelajaran dari list kiri ke slot waktu di sebelah kanan.
             </p>
           </div>
-          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+          <div className="flex flex-col sm:flex-row items-end gap-3 w-full md:w-auto">
             <div className="w-full sm:w-60">
               <label className="block text-xs font-semibold text-gray-500 mb-1">Template Jadwal</label>
               <Select
@@ -324,6 +418,19 @@ export default function JadwalPelajaran() {
                 onChange={(value) => setSelectedRombel(value)}
                 placeholder="Pilih Kelas..."
               />
+            </div>
+            <div className="w-full sm:w-auto">
+              <Button
+                variant="primary"
+                onClick={() => {
+                  setSelectedExportRombel(selectedRombel);
+                  setIsExportModalOpen(true);
+                }}
+                className="w-full flex items-center justify-center gap-2 py-2.5 h-[42px]"
+              >
+                <PrinterIcon className="w-4 h-4" />
+                <span>Export</span>
+              </Button>
             </div>
           </div>
         </div>
@@ -574,6 +681,124 @@ export default function JadwalPelajaran() {
           </div>
         </div>
       </div>
+
+      <Modal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        className="max-w-md p-6"
+      >
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+              Export Jadwal Pelajaran
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Pilih kriteria export jadwal pelajaran di bawah ini.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Berdasarkan</label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { value: "kelas", label: "Kelas" },
+                  { value: "angkatan", label: "Angkatan" },
+                  { value: "semua", label: "Semua" }
+                ].map((type) => (
+                  <button
+                    key={type.value}
+                    type="button"
+                    onClick={() => setExportType(type.value as any)}
+                    className={`py-2 px-3 text-xs font-bold rounded-xl border transition-all ${
+                      exportType === type.value
+                        ? "bg-brand-500 text-white border-brand-600 shadow-sm"
+                        : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-700"
+                    }`}
+                  >
+                    {type.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {exportType === "kelas" && (
+              <div className="space-y-1.5 animate-fadeIn">
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-400">Pilih Kelas</label>
+                <Select
+                  options={rombelList}
+                  value={selectedExportRombel}
+                  onChange={(val) => setSelectedExportRombel(val)}
+                  placeholder="Pilih Kelas..."
+                />
+              </div>
+            )}
+
+            {exportType === "angkatan" && (
+              <div className="space-y-1.5 animate-fadeIn">
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-400">Pilih Angkatan/Tingkat</label>
+                <Select
+                  options={tingkatOptions}
+                  value={selectedExportTingkat}
+                  onChange={(val) => setSelectedExportTingkat(val)}
+                  placeholder="Pilih Angkatan..."
+                />
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Format Output</label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: "pdf", label: "PDF / Cetak", icon: PrinterIcon },
+                  { value: "csv", label: "Excel / CSV", icon: DownloadIcon }
+                ].map((format) => {
+                  const Icon = format.icon;
+                  return (
+                    <button
+                      key={format.value}
+                      type="button"
+                      onClick={() => setExportFormat(format.value as any)}
+                      className={`py-2.5 px-3 text-xs font-bold rounded-xl border flex items-center justify-center gap-2 transition-all ${
+                        exportFormat === format.value
+                          ? "bg-brand-500 text-white border-brand-600 shadow-sm"
+                          : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-700"
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      {format.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-3 justify-end pt-4 border-t border-gray-100 dark:border-gray-800">
+            <button
+              onClick={() => setIsExportModalOpen(false)}
+              className="px-4 py-2 text-sm font-semibold text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 rounded-lg transition-colors"
+            >
+              Batal
+            </button>
+            <Button
+              variant="primary"
+              onClick={handleExport}
+              disabled={isExporting}
+              className="flex items-center gap-2 min-w-[100px] justify-center animate-none"
+            >
+              {isExporting ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                  <span>Memproses...</span>
+                </>
+              ) : (
+                <span>Export</span>
+              )}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </>
   );
 }

@@ -173,9 +173,13 @@ export const jadwalService = {
   // JADWAL PELAJARAN
   // =====================
 
-  getJadwalPelajaran: async (jenisJadwalId: string, rombelId: string) => {
+  getJadwalPelajaran: async (jenisJadwalId: string, rombelId?: string) => {
     try {
-      const response = await api.get(`/jadwal/jadwal-pelajaran?jenisJadwalId=${jenisJadwalId}&rombelId=${rombelId}`);
+      let url = `/jadwal/jadwal-pelajaran?jenisJadwalId=${jenisJadwalId}`;
+      if (rombelId) {
+        url += `&rombelId=${rombelId}`;
+      }
+      const response = await api.get(url);
       return response.data;
     } catch (error: any) {
       console.error('Gagal mengambil jadwal pelajaran:', error);

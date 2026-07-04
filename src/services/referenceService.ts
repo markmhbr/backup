@@ -45,5 +45,15 @@ export const referenceService = {
       console.error('Gagal mengambil data wilayah:', error);
       throw error;
     }
+  },
+
+  getJabatanPtk: async () => {
+    try {
+      const response = await api.get('/reference/jabatan-ptk');
+      return response.data;
+    } catch (error: any) {
+      console.error('Gagal mengambil data jabatan ptk:', error);
+      throw error;
+    }
   }
 };

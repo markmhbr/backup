@@ -74,11 +74,6 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
     ? import.meta.env.VITE_API_URL.replace("/api", "") 
     : "http://localhost:3000";
 
-  const hasTabError = (tabId: string) => {
-    if (tabId === "kontak") return !!(errors.noWa || errors.idTelegram);
-    return false;
-  };
-
   const [formData, setFormData] = useState<any>({});
   const [loading, setLoading] = useState(!!id);
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
@@ -90,6 +85,28 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
   const [pendingDocs, setPendingDocs] = useState<any[]>([]); 
   const docFileInputRef = useRef<HTMLInputElement>(null);
   const [errors, setErrors] = useState<any>({});
+
+  const isMarried = formData?.statusPerkawinan === '1' || formData?.statusPerkawinan === 1;
+  const hasSertifikasi = formData?.memilikiSertifikasi === 'Ya' || (formData?.riwayatSertifikasi && formData?.riwayatSertifikasi.length > 0);
+
+  const hasTabError = (tabId: string) => {
+    if (tabId === "profil") {
+      return !!(errors.kk || errors.agama_id || errors.statusPerkawinan || (isMarried && (errors.namaPasangan || errors.pekerjaanPasangan)) || errors.namaWajibPajak || errors.npwp);
+    }
+    if (tabId === "alamat") {
+      return !!(errors.kampungJalan || errors.rt || errors.rw || errors.dusun || errors.desaKelurahan || errors.provinsi || errors.kotaKabupaten || errors.kecamatan || errors.kodePos || errors.lintang || errors.bujur);
+    }
+    if (tabId === "kepegawaian") {
+      return !!(errors.sumber_gaji_id);
+    }
+    if (tabId === "sertifikasi") {
+      return !!(hasSertifikasi && (errors.namaBank || errors.cabangBank || errors.noRekening || errors.atasNamaRekening));
+    }
+    if (tabId === "kontak") {
+      return !!(errors.noTelpRumah || errors.noHp || errors.noWa || errors.idTelegram);
+    }
+    return false;
+  };
 
   const [isPengajuanModalOpen, setIsPengajuanModalOpen] = useState(false);
   const [isFormPengajuanOpen, setIsFormPengajuanOpen] = useState(false);
@@ -137,9 +154,6 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
       { key: 'idTelegram', label: 'ID Telegram' },
       { key: 'email', label: 'Email' }
     ];
-
-    const hasSertifikasi = formData.memilikiSertifikasi === 'Ya' || (formData.riwayatSertifikasi && formData.riwayatSertifikasi.length > 0);
-    const isMarried = formData.statusPerkawinan === '1' || formData.statusPerkawinan === 1;
 
     const checkFilled = (field: any) => {
       if (field.key === 'provinsi' || field.key === 'kotaKabupaten' || field.key === 'kecamatan') {
@@ -961,7 +975,46 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
     let hasError = false;
     const newErrors: any = {};
     
-    // Check validation constraints matching dashboard required fields (*)
+    // Check validation constraints matching required fields
+    if (!formData.kk) { newErrors.kk = true; hasError = true; }
+    if (!formData.agama_id) { newErrors.agama_id = true; hasError = true; }
+    if (!formData.statusPerkawinan) { newErrors.statusPerkawinan = true; hasError = true; }
+    
+    if (isMarried) {
+      if (!formData.namaPasangan) { newErrors.namaPasangan = true; hasError = true; }
+      if (!formData.pekerjaanPasangan) { newErrors.pekerjaanPasangan = true; hasError = true; }
+    }
+    
+    if (!formData.namaWajibPajak) { newErrors.namaWajibPajak = true; hasError = true; }
+    if (!formData.npwp) { newErrors.npwp = true; hasError = true; }
+    
+    // Alamat
+    if (!formData.kampungJalan) { newErrors.kampungJalan = true; hasError = true; }
+    if (!formData.rt) { newErrors.rt = true; hasError = true; }
+    if (!formData.rw) { newErrors.rw = true; hasError = true; }
+    if (!formData.dusun) { newErrors.dusun = true; hasError = true; }
+    if (!formData.desaKelurahan) { newErrors.desaKelurahan = true; hasError = true; }
+    if (!formData.provinsi) { newErrors.provinsi = true; hasError = true; }
+    if (!formData.kotaKabupaten) { newErrors.kotaKabupaten = true; hasError = true; }
+    if (!formData.kecamatan) { newErrors.kecamatan = true; hasError = true; }
+    if (!formData.kodePos) { newErrors.kodePos = true; hasError = true; }
+    if (!formData.lintang) { newErrors.lintang = true; hasError = true; }
+    if (!formData.bujur) { newErrors.bujur = true; hasError = true; }
+    
+    // Kepegawaian / Sumber Gaji
+    if (!formData.sumber_gaji_id) { newErrors.sumber_gaji_id = true; hasError = true; }
+    
+    // Bank jika Sertifikasi
+    if (hasSertifikasi) {
+      if (!formData.namaBank) { newErrors.namaBank = true; hasError = true; }
+      if (!formData.cabangBank) { newErrors.cabangBank = true; hasError = true; }
+      if (!formData.noRekening) { newErrors.noRekening = true; hasError = true; }
+      if (!formData.atasNamaRekening) { newErrors.atasNamaRekening = true; hasError = true; }
+    }
+    
+    // Kontak
+    if (!formData.noTelpRumah) { newErrors.noTelpRumah = true; hasError = true; }
+    if (!formData.noHp) { newErrors.noHp = true; hasError = true; }
     if (!formData.noWa) { newErrors.noWa = true; hasError = true; }
     if (!formData.idTelegram) { newErrors.idTelegram = true; hasError = true; }
 
@@ -1264,8 +1317,9 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                   <div className="space-y-2"><Label>Nama Lengkap</Label><Input value={formData.nama || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                   <div className="space-y-2"><Label>NIK</Label><Input value={formData.nik || ""} maxLength={16} placeholder="Data kosong dari Dapodik" disabled /></div>
                   <div className="space-y-2">
-                    <Label>Nomor KK</Label>
+                    <Label>Nomor KK <span className="text-red-500">*</span></Label>
                     <Input 
+                      error={errors.kk}
                       value={formData.kk || ""} 
                       maxLength={16} 
                       placeholder="Masukkan Nomor KK" 
@@ -1283,7 +1337,7 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                   </div>
                   <div className="space-y-2"><Label>Kewarganegaraan</Label><Input value={formData.kewarganegaraan || ""} placeholder="Data kosong dari Dapodik" disabled /></div>
                   <div className="space-y-2">
-                    <Label>Agama</Label>
+                    <Label>Agama <span className="text-red-500">*</span></Label>
                     <select
                       value={formData.agama_id || ""}
                       onChange={(e) => {
@@ -1294,7 +1348,7 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                           agama: opt?.nama || opt?.agama || ""
                         }));
                       }}
-                      className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                      className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.agama_id ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                     >
                       <option value="">Pilih Agama</option>
                       {(refOptions?.agama || []).map((a: any) => (
@@ -1303,11 +1357,11 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Status Perkawinan</Label>
+                    <Label>Status Perkawinan <span className="text-red-500">*</span></Label>
                     <select
                       value={formData.statusPerkawinan || ""}
                       onChange={(e) => handleInputChange("statusPerkawinan", e.target.value)}
-                      className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                      className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.statusPerkawinan ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                     >
                       <option value="">Pilih Status Perkawinan</option>
                       <option value="1">Kawin</option>
@@ -1316,19 +1370,20 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Nama Pasangan</Label>
+                    <Label>Nama Pasangan {isMarried && <span className="text-red-500">*</span>}</Label>
                     <Input 
+                      error={errors.namaPasangan}
                       value={formData.namaPasangan || ""} 
                       placeholder="Masukkan nama pasangan" 
                       onChange={(e) => handleInputChange("namaPasangan", e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Pekerjaan Pasangan</Label>
+                    <Label>Pekerjaan Pasangan {isMarried && <span className="text-red-500">*</span>}</Label>
                     <select
                       value={formData.pekerjaanPasangan || ""}
                       onChange={(e) => handleInputChange("pekerjaanPasangan", e.target.value)}
-                      className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                      className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.pekerjaanPasangan ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                     >
                       <option value="">Pilih Pekerjaan Pasangan</option>
                       {(refOptions?.pekerjaan || refOptions?.mst_pekerjaan || []).map((o: any) => (
@@ -1337,7 +1392,7 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Nama Wajib Pajak</Label>
+                    <Label>Nama Wajib Pajak <span className="text-red-500">*</span></Label>
                     <Input 
                       error={errors.namaWajibPajak} 
                       value={formData.namaWajibPajak || ""} 
@@ -1346,7 +1401,7 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>NPWP</Label>
+                    <Label>NPWP <span className="text-red-500">*</span></Label>
                     <Input 
                       error={errors.npwp} 
                       value={formData.npwp || ""} 
@@ -1369,11 +1424,20 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
             </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>Kampung/Jalan</Label><Input value={formData.kampungJalan || ""} placeholder="Masukkan kampung atau jalan" onChange={(e) => handleInputChange("kampungJalan", e.target.value)} /></div>
+                <div className="space-y-2">
+                  <Label>Kampung/Jalan <span className="text-red-500">*</span></Label>
+                  <Input 
+                    error={errors.kampungJalan}
+                    value={formData.kampungJalan || ""} 
+                    placeholder="Masukkan kampung atau jalan" 
+                    onChange={(e) => handleInputChange("kampungJalan", e.target.value)} 
+                  />
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>RT</Label>
+                    <Label>RT <span className="text-red-500">*</span></Label>
                     <Input 
+                      error={errors.rt}
                       value={formData.rt || ""} 
                       placeholder="000"
                       onChange={(e) => handleInputChange("rt", e.target.value.replace(/\D/g, ''))} 
@@ -1381,8 +1445,9 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>RW</Label>
+                    <Label>RW <span className="text-red-500">*</span></Label>
                     <Input 
+                      error={errors.rw}
                       value={formData.rw || ""} 
                       placeholder="000"
                       onChange={(e) => handleInputChange("rw", e.target.value.replace(/\D/g, ''))} 
@@ -1390,16 +1455,24 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                     />
                   </div>
                 </div>
-                <div className="space-y-2"><Label>Dusun</Label><Input value={formData.dusun || ""} placeholder="Masukkan dusun" onChange={(e) => handleInputChange("dusun", e.target.value)} /></div>
                 <div className="space-y-2">
-                  <Label>Provinsi</Label>
+                  <Label>Dusun <span className="text-red-500">*</span></Label>
+                  <Input 
+                    error={errors.dusun}
+                    value={formData.dusun || ""} 
+                    placeholder="Masukkan dusun" 
+                    onChange={(e) => handleInputChange("dusun", e.target.value)} 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Provinsi <span className="text-red-500">*</span></Label>
                   <select
                     value={addrProvinces.find(p => p.nama === formData.provinsi)?.kode_wilayah || ""}
                     onChange={(e) => {
                       const selectedOpt = addrProvinces.find(p => String(p.kode_wilayah) === e.target.value);
                       handleAddrProvinceChange(e.target.value, selectedOpt?.nama || "");
                     }}
-                    className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                    className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.provinsi ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                   >
                     <option value="">{formData.provinsi || "Pilih Provinsi"}</option>
                     {addrProvinces.map((prov) => (
@@ -1408,14 +1481,14 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Kab./Kota</Label>
+                  <Label>Kab./Kota <span className="text-red-500">*</span></Label>
                   <select
                     value={addrKabupatens.find(k => k.nama === formData.kotaKabupaten)?.kode_wilayah || ""}
                     onChange={(e) => {
                       const selectedOpt = addrKabupatens.find(k => String(k.kode_wilayah) === e.target.value);
                       handleAddrKabupatenChange(e.target.value, selectedOpt?.nama || "");
                     }}
-                    className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                    className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.kotaKabupaten ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                   >
                     <option value="">{formData.kotaKabupaten || "Pilih Kabupaten/Kota"}</option>
                     {addrKabupatens.map((kab) => (
@@ -1424,13 +1497,13 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Kecamatan</Label>
+                  <Label>Kecamatan <span className="text-red-500">*</span></Label>
                   <select
                     value={formData.kecamatan || ""}
                     onChange={(e) => {
                       handleAddrKecamatanChange(e.target.value);
                     }}
-                    className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                    className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.kecamatan ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                   >
                     <option value="">{formData.kecamatan || "Pilih Kecamatan"}</option>
                     {addrKecamatans.map((kec) => (
@@ -1439,13 +1512,13 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Desa/Kelurahan</Label>
+                  <Label>Desa/Kelurahan <span className="text-red-500">*</span></Label>
                   <select
                     value={formData.desaKelurahan || ""}
                     onChange={(e) => {
                       handleAddrDesaChange(e.target.value);
                     }}
-                    className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                    className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.desaKelurahan ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                   >
                     <option value="">{formData.desaKelurahan || "Pilih Desa/Kelurahan"}</option>
                     {addrDesas.map((desa) => (
@@ -1453,9 +1526,17 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                     ))}
                   </select>
                 </div>
-                <div className="space-y-2"><Label>Kode Pos</Label><Input value={formData.kodePos || ""} placeholder="Masukkan kode pos" onChange={(e) => handleInputChange("kodePos", e.target.value)} /></div>
                 <div className="space-y-2">
-                   <Label>Lintang</Label>
+                  <Label>Kode Pos <span className="text-red-500">*</span></Label>
+                  <Input 
+                    error={errors.kodePos}
+                    value={formData.kodePos || ""} 
+                    placeholder="Masukkan kode pos" 
+                    onChange={(e) => handleInputChange("kodePos", e.target.value)} 
+                  />
+                </div>
+                <div className="space-y-2">
+                   <Label>Lintang <span className="text-red-500">*</span></Label>
                    <Input 
                      error={errors.lintang}
                      value={formData.lintang || ""} 
@@ -1464,7 +1545,7 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                    />
                 </div>
                 <div className="space-y-2">
-                   <Label>Bujur</Label>
+                   <Label>Bujur <span className="text-red-500">*</span></Label>
                    <Input 
                      error={errors.bujur}
                      value={formData.bujur || ""} 
@@ -1525,8 +1606,8 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                     <Label>Pangkat Terakhir</Label>
                     <Input value={formData.pangkatTerakhir || ""} disabled placeholder="Data kosong dari Dapodik" />
                   </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <Label>Sumber Gaji</Label>
+                   <div className="space-y-2 md:col-span-2">
+                    <Label>Sumber Gaji <span className="text-red-500">*</span></Label>
                     <select
                       value={formData.sumber_gaji_id || ""}
                       onChange={(e) => {
@@ -1537,7 +1618,7 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                           sumberGaji: opt?.nama || opt?.sumber_gaji || ""
                         }));
                       }}
-                      className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                      className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.sumber_gaji_id ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                     >
                       <option value="">Pilih Sumber Gaji</option>
                       {(refOptions?.sumber_gaji || refOptions?.sumber_gaji_id || []).map((o: any) => (
@@ -1729,7 +1810,7 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
  
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>No. Telp Rumah</Label>
+                <Label>No. Telp Rumah <span className="text-red-500">*</span></Label>
                 <Input 
                   error={errors.noTelpRumah}
                   value={formData.noTelpRumah || ""} 
@@ -1738,7 +1819,7 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                 />
               </div>
               <div className="space-y-2">
-                <Label>No. Handphone</Label>
+                <Label>No. Handphone <span className="text-red-500">*</span></Label>
                 <Input 
                   error={errors.noHp}
                   value={formData.noHp || ""} 
@@ -1845,11 +1926,12 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                   <h5 className="font-semibold text-gray-800 dark:text-white/90">Data Bank</h5>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>Nama Bank</Label>
+                        <Label>Nama Bank {hasSertifikasi && <span className="text-red-500">*</span>}</Label>
                         <select
                           value={formData.namaBank || ""}
                           onChange={(e) => handleInputChange("namaBank", e.target.value)}
-                          className="w-full rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white"
+                          disabled={!hasSertifikasi}
+                          className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${!hasSertifikasi ? "bg-gray-100 dark:bg-gray-800 dark:text-gray-500 cursor-not-allowed" : ""} ${errors.namaBank ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                         >
                           <option value="">Pilih Bank</option>
                           {bankList.map((b: any) => (
@@ -1860,30 +1942,33 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                         </select>
                       </div>
                        <div className="space-y-2">
-                        <Label>Cabang Bank</Label>
+                        <Label>Cabang Bank {hasSertifikasi && <span className="text-red-500">*</span>}</Label>
                         <Input 
                           error={errors.cabangBank}
                           value={formData.cabangBank || ""} 
                           onChange={(e) => handleInputChange("cabangBank", e.target.value)}
-                          placeholder="Nama cabang" 
+                          placeholder={hasSertifikasi ? "Nama cabang" : "Tidak memerlukan sertifikasi"} 
+                          disabled={!hasSertifikasi}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>No. Rekening</Label>
+                        <Label>No. Rekening {hasSertifikasi && <span className="text-red-500">*</span>}</Label>
                         <Input 
                           error={errors.noRekening}
                           value={formData.noRekening || ""} 
                           onChange={(e) => handleInputChange("noRekening", e.target.value)}
-                          placeholder="Nomor rekening" 
+                          placeholder={hasSertifikasi ? "Nomor rekening" : "Tidak memerlukan sertifikasi"} 
+                          disabled={!hasSertifikasi}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Atas Nama (a.n.)</Label>
+                        <Label>Atas Nama (a.n.) {hasSertifikasi && <span className="text-red-500">*</span>}</Label>
                         <Input 
                           error={errors.atasNamaRekening}
                           value={formData.atasNamaRekening || ""} 
                           onChange={(e) => handleInputChange("atasNamaRekening", e.target.value)}
-                          placeholder="Nama pemilik rekening" 
+                          placeholder={hasSertifikasi ? "Nama pemilik rekening" : "Tidak memerlukan sertifikasi"} 
+                          disabled={!hasSertifikasi}
                         />
                       </div>
                   </div>

@@ -55,12 +55,33 @@ export default function SubjectData() {
             item.nama_mata_pelajaran || ""
           ]);
 
-          const csvContent = "\uFEFF" + [headers, ...rows].map(e => e.map((val: any) => `"${String(val || '').replace(/"/g, '""')}"`).join(",")).join("\n");
-          const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+          // Generate Excel HTML
+          let htmlContent = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">`;
+          htmlContent += `<head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Data Mapel</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>`;
+          htmlContent += `<body><table border="1">`;
+          
+          // Header Row
+          htmlContent += `<tr style="background-color: #4f46e5; color: #ffffff; font-weight: bold;">`;
+          headers.forEach(header => {
+            htmlContent += `<td>${header}</td>`;
+          });
+          htmlContent += `</tr>`;
+
+          // Value Rows
+          rows.forEach((row: any) => {
+            htmlContent += `<tr>`;
+            row.forEach((cell: any) => {
+              htmlContent += `<td>${cell}</td>`;
+            });
+            htmlContent += `</tr>`;
+          });
+          htmlContent += `</table></body></html>`;
+
+          const blob = new Blob([htmlContent], { type: "application/vnd.ms-excel;charset=utf-8;" });
           const url = URL.createObjectURL(blob);
           const link = document.createElement("a");
           link.setAttribute("href", url);
-          link.setAttribute("download", `Data_Mata_Pelajaran_${new Date().toISOString().split('T')[0]}.csv`);
+          link.setAttribute("download", `Data_Mata_Pelajaran_${new Date().toISOString().split('T')[0]}.xls`);
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
