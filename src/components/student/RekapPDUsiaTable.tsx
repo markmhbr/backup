@@ -36,8 +36,8 @@ export default function RekapPDUsiaTable() {
             lakiLaki: item.l || 0,
             perempuan: item.p || 0,
             totalJK: item.total || 0,
-            siswaBaru: 0, // Not implemented in backend yet for usia
-            pindahan: 0,
+            siswaBaru: item.baru || 0,
+            pindahan: item.pindahan || 0,
             totalStatus: item.total || 0,
           }));
           setRekapData(mapped);

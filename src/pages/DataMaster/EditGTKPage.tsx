@@ -10,6 +10,10 @@ const Input: React.FC<InputProps> = (props) => {
   return <OriginalInput {...props} showStatusIcon={true} />;
 };
 import Switch from "../../components/form/switch/Switch";
+import imageCompression from "browser-image-compression";
+import Lightbox from "yet-another-react-lightbox";
+import "yet-another-react-lightbox/styles.css";
+import Zoom from "yet-another-react-lightbox/plugins/zoom";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "../../components/ui/table";
 import { Modal } from "../../components/ui/modal";
 import { dapodikService } from "../../services/dapodikService";
@@ -79,6 +83,39 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
   const [tempCoords, setTempCoords] = useState<{lat: string, lng: string} | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+
+  const getImageSlides = () => {
+    const slides: any[] = [];
+    (pendingDocs || []).forEach((doc: any) => {
+      const filename = doc.fileName || doc.fileUrl || doc.nama || "";
+      const ext = filename.substring(filename.lastIndexOf('.')).toLowerCase();
+      const isImage = ['.jpg', '.jpeg', '.png', '.webp'].includes(ext);
+      if (isImage) {
+        const fileUrl = doc.fileUrl.startsWith('/') ? `${apiBaseUrl}${doc.fileUrl}` : doc.fileUrl;
+        slides.push({
+          src: fileUrl,
+          title: doc.nama,
+          id: doc.id
+        });
+      }
+    });
+    return slides;
+  };
+
+  const handleViewDoc = (url: string, filename: string, docId: any) => {
+    const ext = filename.substring(filename.lastIndexOf('.')).toLowerCase();
+    const isImage = ['.jpg', '.jpeg', '.png', '.webp'].includes(ext);
+    if (isImage) {
+      const slides = getImageSlides();
+      const idx = slides.findIndex(s => s.id === docId);
+      setLightboxIndex(idx >= 0 ? idx : 0);
+      setLightboxOpen(true);
+    } else {
+      window.open(url, '_blank');
+    }
+  };
   // Document Upload State
   const [docName, setDocName] = useState("");
   const [docFile, setDocFile] = useState<File | null>(null);
@@ -749,9 +786,71 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
     fileInputRef.current?.click();
   };
 
+  const compressImage = async (file: File, maxSizeBytes: number): Promise<File> => {
+    if (!file.type.startsWith('image/')) {
+      return file;
+    }
+    const options = {
+      maxSizeMB: maxSizeBytes / (1024 * 1024),
+      maxWidthOrHeight: maxSizeBytes > 200 * 1024 ? 2048 : 1600, // 2048px untuk foto 500Kb, 1600px untuk dokumen 100Kb
+      useWebWorker: true,
+      initialQuality: 0.95, // Kualitas awal tinggi agar tidak blur/pecah
+    };
+    try {
+      const compressedBlob = await imageCompression(file, options);
+      return new File([compressedBlob], file.name.substring(0, file.name.lastIndexOf('.')) + '.jpg', {
+        type: 'image/jpeg',
+        lastModified: Date.now()
+      });
+    } catch (error) {
+      console.error("Gagal melakukan kompresi gambar:", error);
+      return file;
+    }
+  };
+
+  const handleDownloadDoc = async (url: string, filename: string) => {
+    Swal.fire({
+      title: "Mengunduh...",
+      text: "Sedang mengunduh file dokumen",
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      }
+    });
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+      Swal.close();
+    } catch (error) {
+      Swal.close();
+      window.open(url, '_blank');
+    }
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    let file = e.target.files?.[0];
     if (file && id) {
+      if (file.size > 500 * 1024) {
+        Swal.fire({
+          title: "Mengompres Foto...",
+          text: "Ukuran foto melebihi 500Kb. Sedang mengompres foto otomatis...",
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading();
+          }
+        });
+        file = await compressImage(file, 500 * 1024);
+        Swal.close();
+      }
+      
       if (file.size > 500 * 1024) {
         Swal.fire({ title: "File Terlalu Besar", text: "Ukuran foto maksimal adalah 500Kb", icon: "error", confirmButtonColor: "#465FFF" });
         return;
@@ -787,24 +886,39 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
       return;
     }
 
-    // Validate size: images max 100KB, pdf max 200KB
+    let fileToUpload = docFile;
     const ext = docFile.name.substring(docFile.name.lastIndexOf('.')).toLowerCase();
     const isImage = ['.jpg', '.jpeg', '.png', '.webp'].includes(ext);
-    const maxSize = isImage ? 100 * 1024 : 200 * 1024;
+    const maxSize = 500 * 1024; // Naikkan ke 500KB agar dokumen tajam & terbaca jelas
     
-    if (docFile.size > maxSize) {
-      Swal.fire({
-        title: "File Terlalu Besar",
-        text: `Ukuran maksimal file adalah ${isImage ? "100Kb" : "200Kb"}. Silakan kompres terlebih dahulu.`,
-        icon: "error",
-        confirmButtonColor: "#465FFF",
-      });
-      return;
+    if (fileToUpload.size > maxSize) {
+      if (isImage) {
+        Swal.fire({
+          title: "Mengompres Gambar...",
+          text: "Ukuran berkas melebihi 500Kb. Sedang mengompres gambar otomatis...",
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading();
+          }
+        });
+        fileToUpload = await compressImage(docFile, maxSize);
+        Swal.close();
+      }
+      
+      if (fileToUpload.size > maxSize) {
+        Swal.fire({
+          title: "File Terlalu Besar",
+          text: `Ukuran maksimal file adalah 500Kb. Silakan kompres terlebih dahulu.`,
+          icon: "error",
+          confirmButtonColor: "#465FFF",
+        });
+        return;
+      }
     }
 
     setLoading(true);
     try {
-      await dapodikService.uploadGtkDokumen(id, docFile, docName);
+      await dapodikService.uploadGtkDokumen(id, fileToUpload, docName);
       
       // Reload GTK data
       const result = await dapodikService.getGtkDetail(id);
@@ -2015,23 +2129,49 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
               <div className="space-y-4">
                   <h5 className="font-semibold text-gray-800 dark:text-white/90">Daftar Dokumen</h5>
                   {pendingDocs && pendingDocs.length > 0 ? (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                          {pendingDocs.map((doc: any) => (
-                              <div key={doc.id} className="border border-gray-200 dark:border-white/[0.05] rounded-xl p-3 flex flex-col items-center relative group">
-                                  <button onClick={() => handleRemovePendingDocument(doc)} className="absolute top-2 right-2 bg-error-500 text-white p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                                  </button>
-                                  <a 
-                                    href={doc.fileUrl.startsWith('/') ? `${apiBaseUrl}${doc.fileUrl}` : doc.fileUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-sm font-medium text-brand-500 hover:underline text-center truncate w-full"
-                                    title={doc.nama}
-                                  >
-                                    {doc.nama}
-                                  </a>
-                              </div>
-                          ))}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                          {pendingDocs.map((doc: any) => {
+                              const fileUrl = doc.fileUrl.startsWith('/') ? `${apiBaseUrl}${doc.fileUrl}` : doc.fileUrl;
+                              return (
+                                  <div key={doc.id} className="border border-gray-200 dark:border-white/[0.05] rounded-xl p-4 flex flex-col justify-between bg-gray-50/20 dark:bg-white/[0.01] gap-3">
+                                      <div className="flex items-center gap-2.5 min-w-0">
+                                          {doc.nama.toLowerCase().endsWith('.pdf') ? (
+                                              <svg className="w-8 h-8 text-red-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                              </svg>
+                                          ) : (
+                                              <svg className="w-8 h-8 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                              </svg>
+                                          )}
+                                          <div className="min-w-0 flex-1">
+                                              <p className="text-xs text-gray-400 dark:text-gray-500 truncate">Nama Dokumen</p>
+                                              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate" title={doc.nama}>{doc.nama}</p>
+                                          </div>
+                                      </div>
+                                      <div className="flex items-center gap-2 border-t border-gray-100 dark:border-white/[0.05] pt-2">
+                                          <button 
+                                              onClick={() => handleViewDoc(fileUrl, doc.fileName || doc.fileUrl || doc.nama, doc.id)}
+                                              className="flex-1 text-center py-1.5 text-xs font-semibold text-brand-600 hover:bg-brand-50 dark:hover:bg-white/[0.03] rounded transition-colors border border-brand-100 dark:border-white/[0.05] cursor-pointer"
+                                          >
+                                              Lihat
+                                          </button>
+                                          <button 
+                                              onClick={() => handleDownloadDoc(fileUrl, doc.nama)} 
+                                              className="flex-1 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-350 hover:bg-gray-100 dark:hover:bg-white/[0.03] rounded transition-colors border border-gray-200 dark:border-white/[0.05]"
+                                          >
+                                              Unduh
+                                          </button>
+                                          <button 
+                                              onClick={() => handleRemovePendingDocument(doc)} 
+                                              className="flex-1 py-1.5 text-xs font-semibold text-error-600 hover:bg-error-50 dark:hover:bg-error-500/10 rounded transition-colors border border-error-100 dark:border-error-500/20"
+                                          >
+                                              Hapus
+                                          </button>
+                                      </div>
+                                  </div>
+                              );
+                          })}
                       </div>
                   ) : (
                       <div className="border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-xl p-10 text-center">
@@ -2396,6 +2536,14 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
         isOpen={isCardModalOpen}
         onClose={() => setIsCardModalOpen(false)}
         person={selectedPersonForCard}
+      />
+
+      <Lightbox
+        open={lightboxOpen}
+        close={() => setLightboxOpen(false)}
+        index={lightboxIndex}
+        slides={getImageSlides()}
+        plugins={[Zoom]}
       />
     </>
   );

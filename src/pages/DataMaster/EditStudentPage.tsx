@@ -10,7 +10,11 @@ const Input: React.FC<InputProps> = (props) => {
   return <OriginalInput {...props} showStatusIcon={true} />;
 };
 import Swal from "sweetalert2";
+import imageCompression from "browser-image-compression";
 import Switch from "../../components/form/switch/Switch";
+import Lightbox from "yet-another-react-lightbox";
+import "yet-another-react-lightbox/styles.css";
+import Zoom from "yet-another-react-lightbox/plugins/zoom";
 import { Modal } from "../../components/ui/modal";
 import { dapodikService } from "../../services/dapodikService";
 import { getFotoUrl } from "../../utils/image";
@@ -74,6 +78,41 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
   const [loading, setLoading] = useState(!!id);
   const [uploadedDocs, setUploadedDocs] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+
+  const getImageSlides = () => {
+    const slides: any[] = [];
+    studentDocTypes.forEach((docType) => {
+      const existingFile = uploadedDocs.find(f => f.startsWith(docType.key));
+      if (existingFile) {
+        const ext = existingFile.substring(existingFile.lastIndexOf('.')).toLowerCase();
+        const isImage = ['.jpg', '.jpeg', '.png', '.webp'].includes(ext);
+        if (isImage) {
+          const fileUrl = `${apiBaseUrl}/storage/${formData.sekolahId}/siswa/${id}/dokumen/${existingFile}`;
+          slides.push({
+            src: fileUrl,
+            title: docType.name,
+            key: docType.key
+          });
+        }
+      }
+    });
+    return slides;
+  };
+
+  const handleViewDoc = (url: string, filename: string, docKey: string) => {
+    const ext = filename.substring(filename.lastIndexOf('.')).toLowerCase();
+    const isImage = ['.jpg', '.jpeg', '.png', '.webp'].includes(ext);
+    if (isImage) {
+      const slides = getImageSlides();
+      const idx = slides.findIndex(s => s.key === docKey);
+      setLightboxIndex(idx >= 0 ? idx : 0);
+      setLightboxOpen(true);
+    } else {
+      window.open(url, '_blank');
+    }
+  };
 
   const [isPengajuanModalOpen, setIsPengajuanModalOpen] = useState(false);
   const [isKkDropdownOpen, setIsKkDropdownOpen] = useState(false);
@@ -344,16 +383,15 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
           const kabCode = desaCode.substring(0, 4) + "00";
           const kecCode = desaCode.substring(0, 6);
 
-          // Fetch kabupatens for this province
-          const kabRes = await referenceService.getWilayah(2, provCode);
+          // Concurrent fetch for address hierarchy
+          const [kabRes, kecRes, desaRes] = await Promise.all([
+            referenceService.getWilayah(2, provCode),
+            referenceService.getWilayah(3, kabCode),
+            referenceService.getWilayah(4, kecCode)
+          ]);
+
           setAddrKabupatens(kabRes?.data || kabRes || []);
-
-          // Fetch kecamatans for this kabupaten
-          const kecRes = await referenceService.getWilayah(3, kabCode);
           setAddrKecamatans(kecRes?.data || kecRes || []);
-
-          // Fetch desas for this kecamatan
-          const desaRes = await referenceService.getWilayah(4, kecCode);
           setAddrDesas(desaRes?.data || desaRes || []);
         } catch (e) {
           console.error("Gagal load address hierarchy on mount:", e);
@@ -878,9 +916,71 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
     }
   };
 
+  const compressImage = async (file: File, maxSizeBytes: number): Promise<File> => {
+    if (!file.type.startsWith('image/')) {
+      return file;
+    }
+    const options = {
+      maxSizeMB: maxSizeBytes / (1024 * 1024),
+      maxWidthOrHeight: maxSizeBytes > 200 * 1024 ? 2048 : 1600, // 2048px untuk foto 500Kb, 1600px untuk dokumen 100Kb
+      useWebWorker: true,
+      initialQuality: 0.95, // Kualitas awal tinggi agar tidak blur/pecah
+    };
+    try {
+      const compressedBlob = await imageCompression(file, options);
+      return new File([compressedBlob], file.name.substring(0, file.name.lastIndexOf('.')) + '.jpg', {
+        type: 'image/jpeg',
+        lastModified: Date.now()
+      });
+    } catch (error) {
+      console.error("Gagal melakukan kompresi gambar:", error);
+      return file;
+    }
+  };
+
+  const handleDownloadDoc = async (url: string, filename: string) => {
+    Swal.fire({
+      title: "Mengunduh...",
+      text: "Sedang mengunduh file dokumen",
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      }
+    });
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+      Swal.close();
+    } catch (error) {
+      Swal.close();
+      window.open(url, '_blank');
+    }
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    let file = e.target.files?.[0];
     if (file && id) {
+      if (file.size > 500 * 1024) {
+        Swal.fire({
+          title: "Mengompres Foto...",
+          text: "Ukuran foto melebihi 500Kb. Sedang mengompres foto otomatis...",
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading();
+          }
+        });
+        file = await compressImage(file, 500 * 1024);
+        Swal.close();
+      }
+      
       if (file.size > 500 * 1024) {
         Swal.fire({ title: "File Terlalu Besar", text: "Ukuran foto maksimal adalah 500Kb", icon: "error", confirmButtonColor: "#465FFF" });
         return;
@@ -907,23 +1007,39 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
   const handleUploadDoc = async (docName: string, file: File | undefined) => {
     if (!file || !id) return;
     
+    let fileToUpload = file;
     const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
     const isImage = ['.jpg', '.jpeg', '.png', '.webp'].includes(ext);
-    const maxSize = isImage ? 100 * 1024 : 200 * 1024;
+    const maxSize = 500 * 1024; // Naikkan ke 500KB agar dokumen tajam & terbaca jelas
     
-    if (file.size > maxSize) {
-      Swal.fire({
-        title: "File Terlalu Besar",
-        text: `Ukuran maksimal file adalah ${isImage ? "100Kb" : "200Kb"}. Silakan kompres terlebih dahulu.`,
-        icon: "error",
-        confirmButtonColor: "#465FFF",
-      });
-      return;
+    if (fileToUpload.size > maxSize) {
+      if (isImage) {
+        Swal.fire({
+          title: "Mengompres Gambar...",
+          text: "Ukuran berkas melebihi 500Kb. Sedang mengompres gambar otomatis...",
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading();
+          }
+        });
+        fileToUpload = await compressImage(file, maxSize);
+        Swal.close();
+      }
+      
+      if (fileToUpload.size > maxSize) {
+        Swal.fire({
+          title: "File Terlalu Besar",
+          text: `Ukuran maksimal file adalah 500Kb. Silakan kompres terlebih dahulu.`,
+          icon: "error",
+          confirmButtonColor: "#465FFF",
+        });
+        return;
+      }
     }
 
     setLoading(true);
     try {
-      await dapodikService.uploadSiswaDokumen(id, file, docName);
+      await dapodikService.uploadSiswaDokumen(id, fileToUpload, docName);
       
       const result = await dapodikService.getPesertaDidikDetail(id);
       if (result.status === "success" && result.data) {
@@ -2353,33 +2469,70 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                   : "";
 
                 return (
-                  <div key={docType.key} className="space-y-2 border border-gray-150 dark:border-white/[0.05] p-4 rounded-xl bg-gray-50/20 dark:bg-white/[0.01]">
-                    <Label>{docType.name}</Label>
+                  <div key={docType.key} className="space-y-3 border border-gray-200 dark:border-white/[0.05] p-5 rounded-xl bg-gray-50/30 dark:bg-white/[0.01] flex flex-col justify-between">
+                    <div>
+                      <Label className="font-semibold text-gray-700 dark:text-gray-300">{docType.name}</Label>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                        Format: PDF, JPG, JPEG, PNG (Maks 100Kb untuk Gambar, 200Kb untuk PDF)
+                      </p>
+                    </div>
                     {existingFile ? (
-                      <div className="flex items-center justify-between gap-4 bg-white dark:bg-gray-950 p-2.5 px-3.5 rounded-lg border border-gray-200 dark:border-white/[0.05] shadow-theme-xs">
-                        <a 
-                          href={fileUrl} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="text-sm font-medium text-brand-500 hover:underline truncate max-w-[200px]"
-                          title={existingFile}
-                        >
-                          {existingFile}
-                        </a>
-                        <button 
-                          onClick={() => handleDeleteDoc(existingFile, docType.name)} 
-                          className="text-xs font-semibold text-error-500 hover:text-error-600 transition-colors"
-                        >
-                          Hapus
-                        </button>
+                      <div className="flex flex-col gap-3 bg-white dark:bg-gray-950 p-3 rounded-lg border border-gray-150 dark:border-white/[0.05] shadow-theme-xs mt-2">
+                        <div className="flex items-center gap-2.5 truncate">
+                          {existingFile.toLowerCase().endsWith('.pdf') ? (
+                            <svg className="w-8 h-8 text-red-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                            </svg>
+                          ) : (
+                            <svg className="w-8 h-8 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs text-gray-400 dark:text-gray-500 truncate">Nama Berkas</p>
+                            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate" title={existingFile}>{existingFile}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 border-t border-gray-100 dark:border-white/[0.05] pt-2">
+                          <button 
+                            onClick={() => handleViewDoc(fileUrl, existingFile, docType.key)}
+                            className="flex-1 text-center py-1.5 text-xs font-semibold text-brand-600 hover:bg-brand-50 dark:hover:bg-white/[0.03] rounded transition-colors border border-brand-100 dark:border-white/[0.05] cursor-pointer"
+                          >
+                            Lihat
+                          </button>
+                          <button 
+                            onClick={() => handleDownloadDoc(fileUrl, existingFile)} 
+                            className="flex-1 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-350 hover:bg-gray-100 dark:hover:bg-white/[0.03] rounded transition-colors border border-gray-200 dark:border-white/[0.05]"
+                          >
+                            Unduh
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteDoc(existingFile, docType.name)} 
+                            className="flex-1 py-1.5 text-xs font-semibold text-error-600 hover:bg-error-50 dark:hover:bg-error-500/10 rounded transition-colors border border-error-100 dark:border-error-500/20"
+                          >
+                            Hapus
+                          </button>
+                        </div>
                       </div>
                     ) : (
-                      <input 
-                        type="file" 
-                        className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 dark:file:bg-white/[0.05] dark:file:text-white dark:hover:file:bg-white/[0.1] border border-gray-200 dark:border-gray-800 rounded-lg h-11 px-2 flex items-center bg-white dark:bg-gray-950" 
-                        onChange={(e) => handleUploadDoc(docType.name, e.target.files?.[0])}
-                        accept=".pdf,.jpg,.jpeg,.png,.webp"
-                      />
+                      <div className="relative mt-2">
+                        <input 
+                          type="file" 
+                          id={`file-${docType.key}`}
+                          className="hidden"
+                          onChange={(e) => handleUploadDoc(docType.name, e.target.files?.[0])}
+                          accept=".pdf,.jpg,.jpeg,.png,.webp"
+                        />
+                        <label 
+                          htmlFor={`file-${docType.key}`}
+                          className="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 dark:border-gray-800 hover:border-brand-500 dark:hover:border-brand-500 rounded-xl p-4 cursor-pointer hover:bg-brand-50/10 transition-all text-center space-y-1 h-24"
+                        >
+                          <svg className="w-6 h-6 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                          </svg>
+                          <span className="text-xs font-semibold text-brand-600 dark:text-brand-400">Pilih & Unggah File</span>
+                        </label>
+                      </div>
                     )}
                   </div>
                 );
@@ -2976,6 +3129,14 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
         isOpen={isCardModalOpen}
         onClose={() => setIsCardModalOpen(false)}
         student={selectedStudentForCard}
+      />
+
+      <Lightbox
+        open={lightboxOpen}
+        close={() => setLightboxOpen(false)}
+        index={lightboxIndex}
+        slides={getImageSlides()}
+        plugins={[Zoom]}
       />
     </>
   );
