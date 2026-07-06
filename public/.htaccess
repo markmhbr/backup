@@ -1,15 +1,15 @@
 <IfModule mod_headers.c>
     # Mencegah MIME-sniffing / browser menebak jenis file
-    Header set X-Content-Type-Options "nosniff" always
+    Header always set X-Content-Type-Options "nosniff"
     
     # Mencegah web dimasukkan ke dalam iframe situs lain (Anti-Clickjacking)
-    Header set X-Frame-Options "SAMEORIGIN" always
+    Header always set X-Frame-Options "SAMEORIGIN"
     
     # Melindungi informasi rujukan link (Privacy)
-    Header set Referrer-Policy "strict-origin-when-cross-origin" always
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
     
     # Kebijakan Keamanan Konten Dasar (Mencegah XSS)
-    Header set Content-Security-Policy "default-src 'self' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; style-src 'self' 'unsafe-inline' https:;" always
+    Header always set Content-Security-Policy "default-src 'self' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; style-src 'self' 'unsafe-inline' https:;"
 </IfModule>
 
 <IfModule mod_rewrite.c>

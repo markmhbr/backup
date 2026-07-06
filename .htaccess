@@ -1,0 +1,32 @@
+<IfModule mod_headers.c>
+    # Mencegah MIME-sniffing / browser menebak jenis file
+    Header always set X-Content-Type-Options "nosniff"
+    
+    # Mencegah web dimasukkan ke dalam iframe situs lain (Anti-Clickjacking)
+    Header always set X-Frame-Options "SAMEORIGIN"
+    
+    # Melindungi informasi rujukan link (Privacy)
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    
+    # Kebijakan Keamanan Konten Dasar (Mencegah XSS)
+    Header always set Content-Security-Policy "default-src 'self' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; style-src 'self' 'unsafe-inline' https:;"
+</IfModule>
+
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION BEGIN
+PassengerAppRoot "/home/smaknisc/public_html/simak_new"
+PassengerBaseURI "/"
+PassengerNodejs "/home/smaknisc/nodevenv/public_html/simak_new/24/bin/node"
+PassengerAppType node
+PassengerStartupFile server.js
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION END
+
+RewriteEngine On
+
+# 1. Alihkan traffic utama ke folder dist
+RewriteCond %{REQUEST_URI} !^/dist/
+RewriteRule ^(.*)$ dist/$1 [L]
+
+# 2. Aturan SPA Fallback (wajib jika menggunakan React/Vue/Vite Router)
+RewriteCond %{DOCUMENT_ROOT}/dist/$1 !-f
+RewriteCond %{DOCUMENT_ROOT}/dist/$1 !-d
+RewriteRule ^(.*)$ dist/index.html [L]
