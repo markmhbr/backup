@@ -96,7 +96,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
       return !!(errors.agama_id || errors.noKK || errors.noAkte || errors.anakKe || errors.noHp || errors.noWa || errors.emailAktif);
     }
     if (tabId === "alamat") {
-      return !!(errors.jalan || errors.rt || errors.rw || errors.desaKelurahan || errors.provinsi || errors.kabupaten || errors.kecamatan || errors.kodePos || errors.jenisTinggalId || errors.alatTransportasiId || errors.lintang || errors.bujur);
+      return !!(errors.jalan || errors.dusun || errors.rt || errors.rw || errors.desaKelurahan || errors.provinsi || errors.kabupaten || errors.kecamatan || errors.kodePos || errors.jenisTinggalId || errors.alatTransportasiId || errors.lintang || errors.bujur);
     }
     if (tabId === "periodik") {
       return !!(errors.tinggiBadan || errors.beratBadan || errors.lingkarKepala || errors.jarakRumah || errors.waktuTempuh || errors.menitTempuh || errors.jumlahSaudara);
@@ -778,6 +778,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
               idCita: data.id_cita !== null && data.id_cita !== undefined ? String(data.id_cita) : "",
               avatar: data.foto || "",
               jalan: data.alamat_jalan || "",
+              dusun: data.nama_dusun || "",
               rt: format3Digits(data.rt),
               rw: format3Digits(data.rw),
               provinsi: data.provinsi || "",
@@ -985,6 +986,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
 
     // Alamat
     if (v("jalan")) newErrors.jalan = true;
+    if (v("dusun")) newErrors.dusun = true;
     if (v("rt")) newErrors.rt = true;
     if (v("rw")) newErrors.rw = true;
     if (v("provinsi")) newErrors.provinsi = true;
@@ -1040,7 +1042,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
       // Determine which tab to switch to
       if (newErrors.agama_id || newErrors.noKK || newErrors.noAkte || newErrors.anakKe || newErrors.noHp || newErrors.noWa || newErrors.emailAktif || newErrors.noTelpRumah) {
         setActiveTab("profil");
-      } else if (newErrors.jalan || newErrors.rt || newErrors.rw || newErrors.provinsi || newErrors.kabupaten || newErrors.kecamatan || newErrors.desaKelurahan || newErrors.kodePos || newErrors.jenisTinggalId || newErrors.alatTransportasiId || newErrors.lintang || newErrors.bujur) {
+      } else if (newErrors.jalan || newErrors.dusun || newErrors.rt || newErrors.rw || newErrors.provinsi || newErrors.kabupaten || newErrors.kecamatan || newErrors.desaKelurahan || newErrors.kodePos || newErrors.jenisTinggalId || newErrors.alatTransportasiId || newErrors.lintang || newErrors.bujur) {
         setActiveTab("alamat");
       } else if (newErrors.tinggiBadan || newErrors.beratBadan || newErrors.lingkarKepala || newErrors.jarakRumah || newErrors.jarakRumahKm || newErrors.waktuTempuh || newErrors.menitTempuh || newErrors.jumlahSaudara || newErrors.idHobby || newErrors.idCita) {
         setActiveTab("periodik");
@@ -1084,6 +1086,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
         anak_keberapa: formData.anakKe ? String(formData.anakKe) : null,
         foto: formData.avatar,
         alamat_jalan: formData.jalan,
+        nama_dusun: formData.dusun || null,
         rt: sanitizeRtRw(formData.rt),
         rw: sanitizeRtRw(formData.rw),
         provinsi: formData.provinsi,
@@ -1579,22 +1582,33 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                         onChange={(e) => handleInputChange("jalan", e.target.value)} 
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label>RT <span className="text-red-500">*</span></Label>
-                      <Input 
-                        error={errors.rt}
-                        value={formData.rt || ""} 
-                        placeholder="Masukkan RT (contoh: 001)" 
-                        onChange={(e) => handleInputChange("rt", e.target.value)} 
-                      />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>RT <span className="text-red-500">*</span></Label>
+                        <Input 
+                          error={errors.rt}
+                          value={formData.rt || ""} 
+                          placeholder="Masukkan RT (contoh: 001)" 
+                          onChange={(e) => handleInputChange("rt", e.target.value)} 
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>RW <span className="text-red-500">*</span></Label>
+                        <Input 
+                          error={errors.rw}
+                          value={formData.rw || ""} 
+                          placeholder="Masukkan RW (contoh: 002)" 
+                          onChange={(e) => handleInputChange("rw", e.target.value)} 
+                        />
+                      </div>
                     </div>
                     <div className="space-y-2">
-                      <Label>RW <span className="text-red-500">*</span></Label>
+                      <Label>Nama Dusun <span className="text-red-500">*</span></Label>
                       <Input 
-                        error={errors.rw}
-                        value={formData.rw || ""} 
-                        placeholder="Masukkan RW (contoh: 002)" 
-                        onChange={(e) => handleInputChange("rw", e.target.value)} 
+                        error={errors.dusun}
+                        value={formData.dusun || ""} 
+                        placeholder="Masukkan Nama Dusun" 
+                        onChange={(e) => handleInputChange("dusun", e.target.value)} 
                       />
                     </div>
                     <div className="space-y-2">
