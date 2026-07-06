@@ -9,6 +9,8 @@ import FileInput from "../../components/form/input/FileInput";
 import Swal from "sweetalert2";
 import { DownloadIcon, PrinterIcon, PlusIcon, TrashBinIcon } from "../../icons";
 import { dapodikService } from "../../services/dapodikService";
+import { getFotoUrl } from "../../utils/image";
+import { useSekolah } from "../../context/SekolahContext";
 
 const format3Digits = (value: string | number | null | undefined): string => {
   if (value === null || value === undefined || value === "") return "";
@@ -20,6 +22,7 @@ const format3Digits = (value: string | number | null | undefined): string => {
 };
 
 export default function SchoolProfile() {
+  const { refreshSekolah } = useSekolah();
   const [activeTab, setActiveTab] = useState<
     "profil" | "administrasi" | "alamat" | "kontak" | "map"
   >("profil");
@@ -302,9 +305,13 @@ export default function SchoolProfile() {
         const result = await dapodikService.uploadLogo(file);
 
         if (result.status === "success" && result.data?.logo) {
-          // Gunakan URL absolut dari server
-          setLogoPreview(result.data.logo);
+          // Gunakan URL absolut dari server dengan cache-buster agar realtime terupdate
+          const absoluteUrl = `${getFotoUrl(result.data.logo, "")}?t=${Date.now()}`;
+          setLogoPreview(absoluteUrl);
           setProfileData((prev) => ({ ...prev, logo: result.data.logo }));
+          
+          // Trigger refresh context sekolah agar sidebar dll. langsung terupdate secara realtime
+          refreshSekolah().catch(err => console.error("Gagal refresh context sekolah:", err));
           
           Swal.fire({
             title: "Berhasil!",

@@ -38,7 +38,7 @@ export const SekolahProvider: React.FC<{ children: React.ReactNode }> = ({ child
         const raw = result.data;
         setSekolah({
           ...raw,
-          logo: raw.logo ? getFotoUrl(raw.logo, '') : null,
+          logo: raw.logo ? `${getFotoUrl(raw.logo, '')}?t=${Date.now()}` : null,
         });
       }
     } catch (err) {
