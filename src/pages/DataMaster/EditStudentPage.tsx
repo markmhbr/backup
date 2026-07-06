@@ -96,7 +96,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
       return !!(errors.agama_id || errors.noKK || errors.noAkte || errors.anakKe || errors.noHp || errors.noWa || errors.emailAktif);
     }
     if (tabId === "alamat") {
-      return !!(errors.jalan || errors.rt || errors.rw || errors.dusun || errors.desaKelurahan || errors.provinsi || errors.kabupaten || errors.kecamatan || errors.kodePos || errors.jenisTinggalId || errors.alatTransportasiId || errors.lintang || errors.bujur);
+      return !!(errors.jalan || errors.rt || errors.rw || errors.desaKelurahan || errors.provinsi || errors.kabupaten || errors.kecamatan || errors.kodePos || errors.jenisTinggalId || errors.alatTransportasiId || errors.lintang || errors.bujur);
     }
     if (tabId === "periodik") {
       return !!(errors.tinggiBadan || errors.beratBadan || errors.lingkarKepala || errors.jarakRumah || errors.waktuTempuh || errors.menitTempuh || errors.jumlahSaudara);
@@ -283,6 +283,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
     handleInputChange("provinsi", provName);
     handleInputChange("kabupaten", "");
     handleInputChange("kecamatan", "");
+    handleInputChange("kecamatanName", "");
     handleInputChange("desaKelurahan", "");
     handleInputChange("desaKelurahanCode", "");
     setAddrKabupatens([]);
@@ -300,6 +301,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
   const handleAddrKabupatenChange = async (kabCode: string, kabName: string) => {
     handleInputChange("kabupaten", kabName);
     handleInputChange("kecamatan", "");
+    handleInputChange("kecamatanName", "");
     handleInputChange("desaKelurahan", "");
     handleInputChange("desaKelurahanCode", "");
     setAddrKecamatans([]);
@@ -969,7 +971,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
 
     // --- Validation ---
     const newErrors: any = {};
-    const v = (key: string) => !formData[key] || String(formData[key]).trim() === "" || String(formData[key]).trim() === "-";
+    const v = (key: string) => !formData[key] || String(formData[key]).trim() === "" || String(formData[key]).trim() === "-" || String(formData[key]).trim() === "0";
 
     // Profil
     if (v("agama_id")) newErrors.agama_id = true;
@@ -985,7 +987,6 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
     if (v("jalan")) newErrors.jalan = true;
     if (v("rt")) newErrors.rt = true;
     if (v("rw")) newErrors.rw = true;
-    if (v("dusun")) newErrors.dusun = true;
     if (v("provinsi")) newErrors.provinsi = true;
     if (v("kabupaten")) newErrors.kabupaten = true;
     if (!formData.kecamatan && !formData.kecamatanName) newErrors.kecamatan = true;
@@ -1039,7 +1040,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
       // Determine which tab to switch to
       if (newErrors.agama_id || newErrors.noKK || newErrors.noAkte || newErrors.anakKe || newErrors.noHp || newErrors.noWa || newErrors.emailAktif || newErrors.noTelpRumah) {
         setActiveTab("profil");
-      } else if (newErrors.jalan || newErrors.rt || newErrors.rw || newErrors.dusun || newErrors.provinsi || newErrors.kabupaten || newErrors.kecamatan || newErrors.desaKelurahan || newErrors.kodePos || newErrors.jenisTinggalId || newErrors.alatTransportasiId || newErrors.lintang || newErrors.bujur) {
+      } else if (newErrors.jalan || newErrors.rt || newErrors.rw || newErrors.provinsi || newErrors.kabupaten || newErrors.kecamatan || newErrors.desaKelurahan || newErrors.kodePos || newErrors.jenisTinggalId || newErrors.alatTransportasiId || newErrors.lintang || newErrors.bujur) {
         setActiveTab("alamat");
       } else if (newErrors.tinggiBadan || newErrors.beratBadan || newErrors.lingkarKepala || newErrors.jarakRumah || newErrors.jarakRumahKm || newErrors.waktuTempuh || newErrors.menitTempuh || newErrors.jumlahSaudara || newErrors.idHobby || newErrors.idCita) {
         setActiveTab("periodik");
@@ -1087,11 +1088,11 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
         rw: sanitizeRtRw(formData.rw),
         provinsi: formData.provinsi,
         kabupaten_kota: formData.kabupaten,
-        kecamatan: formData.desaKelurahanCode || formData.kecamatan,
+        kecamatan: formData.kecamatan,
         desa_kelurahan: formData.desaKelurahan,
         kode_pos: formData.kodePos,
-        jenis_tinggal_id: formData.jenis_tinggal_id || null,
-        alat_transportasi_id: formData.alat_transportasi_id || null,
+        jenis_tinggal_id: formData.jenis_tinggal_id || formData.jenisTinggalId || null,
+        alat_transportasi_id: formData.alat_transportasi_id || formData.alatTransportasiId || null,
         lintang: formData.lintang ? formData.lintang : null,
         bujur: formData.bujur ? formData.bujur : null,
         penerima_kip: formData.penerimaKIP,
@@ -1291,26 +1292,28 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
 
         {/* Tab Navigation */}
         <div className="flex border-b border-gray-200 dark:border-gray-800 overflow-x-auto custom-scrollbar whitespace-nowrap no-print mb-6">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={`relative px-4 py-2.5 text-sm font-medium transition-colors duration-200 border-b-2 ${
-                activeTab === tab.id
-                  ? "border-brand-500 text-brand-500"
-                  : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-              }`}
-            >
-              {tab.label}
-              {hasTabError(tab.id) && (
-                <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
-                </span>
-              )}
-            </button>
-          ))}
+          {tabs.map((tab) => {
+            const hasError = hasTabError(tab.id);
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`relative px-4 py-2.5 text-sm font-medium transition-colors duration-200 border-b-2 flex items-center gap-1.5 ${
+                  activeTab === tab.id
+                    ? "border-brand-500 text-brand-500"
+                    : hasError
+                    ? "border-transparent text-red-500 hover:text-red-600 font-medium"
+                    : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                }`}
+              >
+                {tab.label}
+                {hasError && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {/* Stacked Cards Layout */}
@@ -1318,7 +1321,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
           
           {/* Card 1: Profil */}
           <div style={{ display: activeTab === "profil" ? "block" : "none" }}>
-            <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6">
+            <div className={`rounded-2xl border ${hasTabError("profil") ? "border-red-500" : "border-gray-200"} bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6`}>
             <div className="border-b border-gray-100 dark:border-white/[0.05] pb-3">
               <h4 className="text-lg font-bold text-gray-800 dark:text-white/90">
                 Profil & Identitas
@@ -1550,7 +1553,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
 
           {/* Card 1.5: Alamat & Tempat Tinggal */}
           <div style={{ display: activeTab === "alamat" ? "block" : "none" }}>
-            <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6">
+            <div className={`rounded-2xl border ${hasTabError("alamat") ? "border-red-500" : "border-gray-200"} bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6`}>
               <div className="border-b border-gray-100 dark:border-white/[0.05] pb-3">
                 <h4 className="text-lg font-bold text-gray-800 dark:text-white/90">
                   Alamat & Tempat Tinggal
@@ -1745,7 +1748,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
 
           {/* Card 2: Data Periodik */}
           <div style={{ display: activeTab === "periodik" ? "block" : "none" }}>
-            <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6">
+            <div className={`rounded-2xl border ${hasTabError("periodik") ? "border-red-500" : "border-gray-200"} bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6`}>
             <div className="border-b border-gray-100 dark:border-white/[0.05] pb-3">
               <h4 className="text-lg font-bold text-gray-800 dark:text-white/90">
                 Data Periodik
@@ -1886,7 +1889,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
 
           {/* Card 3: Orang Tua & Wali */}
           <div style={{ display: activeTab === "orangtua" ? "block" : "none" }}>
-            <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-8">
+            <div className={`rounded-2xl border ${hasTabError("orangtua") ? "border-red-500" : "border-gray-200"} bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-8`}>
             <div className="border-b border-gray-100 dark:border-white/[0.05] pb-3">
               <h4 className="text-lg font-bold text-gray-800 dark:text-white/90">
                 Orang Tua & Wali
