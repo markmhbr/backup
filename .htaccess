@@ -12,7 +12,10 @@ DirectoryIndex disabled
 RewriteEngine On
 RewriteBase /
 
-# 1. Jika request mengarah ke file nyata, jangan di-rewrite (langsung serve)
+# 1. Root URL & index.html: langsung arahkan ke dist/index.html (bypass root index.html development Vite)
+RewriteRule ^(index\.html)?$ dist/index.html [L]
+
+# 2. Jika request mengarah ke file nyata, jangan di-rewrite (langsung serve)
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^ - [L]
 
