@@ -7,14 +7,19 @@ PassengerStartupFile server.js
 # DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION END
 
 RewriteEngine On
+RewriteBase /
 
-# 1. Alihkan traffic utama ke folder dist
-RewriteCond %{REQUEST_URI} !^/dist/
+# 1. Jika request mengarah ke file nyata (termasuk yang sudah di-rewrite ke /dist/ atau file API/backend lainnya), jangan di-rewrite lagi
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# 2. Jika file yang dicari ada di dalam folder /dist/, rewrite ke folder /dist/
+RewriteCond %{DOCUMENT_ROOT}/dist/$1 -f [OR]
+RewriteCond %{DOCUMENT_ROOT}/dist/$1 -d
 RewriteRule ^(.*)$ dist/$1 [L]
 
-# 2. Aturan SPA Fallback (wajib jika menggunakan React/Vue/Vite Router)
-RewriteCond %{DOCUMENT_ROOT}/dist/$1 !-f
-RewriteCond %{DOCUMENT_ROOT}/dist/$1 !-d
+# 3. SPA Fallback: Kirim semua request rute lainnya ke dist/index.html agar React Router yang menangani
 RewriteRule ^(.*)$ dist/index.html [L]
 
 <IfModule mod_headers.c>
