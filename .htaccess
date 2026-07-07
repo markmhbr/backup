@@ -6,6 +6,9 @@ PassengerAppType node
 PassengerStartupFile server.js
 # DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION END
 
+# Mencegah Apache otomatis menyajikan index.html dari root proyek (yang merupakan file development Vite)
+DirectoryIndex disabled
+
 RewriteEngine On
 RewriteBase /
 
