@@ -857,12 +857,12 @@ export default function SchoolProfile() {
                 <div className="lg:col-span-4 no-print">
                   <div className="flex flex-col items-center gap-4 p-6 border border-dashed border-gray-200 dark:border-gray-800 rounded-xl bg-gray-50/50 dark:bg-white/[0.01]">
                     <div className="relative group">
-                      <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white dark:border-gray-900 shadow-md bg-white dark:bg-gray-800 flex items-center justify-center">
+                      <div className="w-32 h-32 rounded-2xl overflow-hidden border-4 border-white dark:border-gray-900 shadow-md bg-white dark:bg-gray-800 flex items-center justify-center">
                         {logoPreview ? (
                           <img
                             src={logoPreview}
                             alt="School Logo"
-                            className="w-full h-full object-contain"
+                            className="w-full h-full object-contain p-2"
                           />
                         ) : (
                           <div className="text-gray-400 dark:text-gray-600">

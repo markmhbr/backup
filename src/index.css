@@ -894,7 +894,7 @@ span.flatpickr-weekday,
     break-after: page !important;
     page-break-after: always !important;
     align-content: start !important;
-    gap: 0.2cm 0.4cm !important;
+    gap: 0.5cm 0.4cm !important;
   }
 }
 

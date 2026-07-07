@@ -692,12 +692,19 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
         title: "Berhasil",
         text: "Pengajuan perbaikan data berhasil dikirim dan menunggu persetujuan.",
         icon: "success",
-        confirmButtonColor: "#465FFF"
+        timer: 2000,
+        showConfirmButton: false
       });
       setIsFormPengajuanOpen(false);
       setSelectedFields([]);
     } catch (err: any) {
-      Swal.fire("Error", err.response?.data?.message || "Gagal mengirim pengajuan perbaikan data", "error");
+      Swal.fire({
+        title: "Error",
+        text: err.response?.data?.message || "Gagal mengirim pengajuan perbaikan data",
+        icon: "error",
+        timer: 2500,
+        showConfirmButton: false
+      });
     } finally {
       setLoading(false);
     }
@@ -1201,12 +1208,24 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
       };
 
       await dapodikService.updateGtk(id, updatePayload);
-      Swal.fire({ title: "Berhasil", text: "Data Berhasil disimpan", icon: "success", confirmButtonColor: "#465FFF" });
+      Swal.fire({
+        title: "Berhasil",
+        text: "Data Berhasil disimpan",
+        icon: "success",
+        timer: 2000,
+        showConfirmButton: false,
+      });
       if (!profileId) {
         navigate(`/${role}/gtk-data`);
       }
     } catch (error) {
-      Swal.fire("Error", "Gagal menyimpan data", "error");
+      Swal.fire({
+        title: "Error",
+        text: "Gagal menyimpan data",
+        icon: "error",
+        timer: 2500,
+        showConfirmButton: false,
+      });
     } finally {
       setLoading(false);
     }
@@ -1338,9 +1357,10 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
               className="px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] transition-colors flex items-center gap-2"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
               </svg>
-              Cetak Kartu ID
+              Kartu ID
             </button>
             <button
               onClick={handleCheckPengajuan}
@@ -1503,8 +1523,8 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                       className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.agama_id ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                     >
                       <option value="">Pilih Agama</option>
-                      {(refOptions?.agama || []).map((a: any) => (
-                        <option key={a.agama_id || a.id} value={a.agama_id || a.id}>{a.nama || a.agama}</option>
+                      {(refOptions?.agama || []).map((a: any, idx: number) => (
+                        <option key={a.agama_id || a.id || idx} value={a.agama_id || a.id}>{a.nama || a.agama}</option>
                       ))}
                     </select>
                   </div>
@@ -1538,8 +1558,8 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                       className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.pekerjaanPasangan ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                     >
                       <option value="">Pilih Pekerjaan Pasangan</option>
-                      {(refOptions?.pekerjaan || refOptions?.mst_pekerjaan || []).map((o: any) => (
-                        <option key={o.pekerjaan_id || o.id} value={o.pekerjaan_id || o.id}>{o.nama || o.pekerjaan}</option>
+                      {(refOptions?.pekerjaan || refOptions?.mst_pekerjaan || []).map((o: any, idx: number) => (
+                        <option key={o.pekerjaan_id || o.id || idx} value={o.pekerjaan_id || o.id}>{o.nama || o.pekerjaan}</option>
                       ))}
                     </select>
                   </div>
@@ -1627,8 +1647,8 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                     className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.provinsi ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                   >
                     <option value="">{formData.provinsi || "Pilih Provinsi"}</option>
-                    {addrProvinces.map((prov) => (
-                      <option key={prov.kode_wilayah} value={prov.kode_wilayah}>{prov.nama}</option>
+                    {addrProvinces.map((prov, idx) => (
+                      <option key={prov.kode_wilayah || idx} value={prov.kode_wilayah}>{prov.nama}</option>
                     ))}
                   </select>
                 </div>
@@ -1643,8 +1663,8 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                     className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.kotaKabupaten ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                   >
                     <option value="">{formData.kotaKabupaten || "Pilih Kabupaten/Kota"}</option>
-                    {addrKabupatens.map((kab) => (
-                      <option key={kab.kode_wilayah} value={kab.kode_wilayah}>{kab.nama}</option>
+                    {addrKabupatens.map((kab, idx) => (
+                      <option key={kab.kode_wilayah || idx} value={kab.kode_wilayah}>{kab.nama}</option>
                     ))}
                   </select>
                 </div>
@@ -1658,8 +1678,8 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                     className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.kecamatan ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                   >
                     <option value="">{formData.kecamatan || "Pilih Kecamatan"}</option>
-                    {addrKecamatans.map((kec) => (
-                      <option key={kec.kode_wilayah} value={kec.kode_wilayah}>{kec.nama}</option>
+                    {addrKecamatans.map((kec, idx) => (
+                      <option key={kec.kode_wilayah || idx} value={kec.kode_wilayah}>{kec.nama}</option>
                     ))}
                   </select>
                 </div>
@@ -1673,8 +1693,8 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                     className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.desaKelurahan ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                   >
                     <option value="">{formData.desaKelurahan || "Pilih Desa/Kelurahan"}</option>
-                    {addrDesas.map((desa) => (
-                      <option key={desa.nama} value={desa.nama}>{desa.nama}</option>
+                    {addrDesas.map((desa, idx) => (
+                      <option key={desa.nama || idx} value={desa.nama}>{desa.nama}</option>
                     ))}
                   </select>
                 </div>
@@ -1773,8 +1793,8 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                       className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.sumber_gaji_id ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                     >
                       <option value="">Pilih Sumber Gaji</option>
-                      {(refOptions?.sumber_gaji || refOptions?.sumber_gaji_id || []).map((o: any) => (
-                        <option key={o.sumber_gaji_id || o.id} value={o.sumber_gaji_id || o.id}>{o.nama || o.sumber_gaji}</option>
+                      {(refOptions?.sumber_gaji || refOptions?.sumber_gaji_id || []).map((o: any, idx: number) => (
+                        <option key={o.sumber_gaji_id || o.id || idx} value={o.sumber_gaji_id || o.id}>{o.nama || o.sumber_gaji}</option>
                       ))}
                     </select>
                   </div>
@@ -2387,8 +2407,8 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                         { agama_id: 4, nama: "Hindu" },
                         { agama_id: 5, nama: "Buddha" },
                         { agama_id: 6, nama: "Khonghucu" }
-                      ]).map((r: any) => (
-                        <option key={r.agama_id || r.id} value={r.agama_id || r.id}>
+                      ]).map((r: any, idx: number) => (
+                        <option key={r.agama_id || r.id || idx} value={r.agama_id || r.id}>
                           {r.nama || r.nama_agama || r.agama_nama}
                         </option>
                       ))}
@@ -2414,8 +2434,8 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                         className="w-full px-3 py-2.5 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl text-sm text-gray-800 dark:text-white/90 outline-none"
                       >
                         <option value="">Pilih Provinsi</option>
-                        {provinces.map((p: any) => (
-                          <option key={p.kode_wilayah} value={p.kode_wilayah}>
+                        {provinces.map((p: any, idx: number) => (
+                          <option key={p.kode_wilayah || idx} value={p.kode_wilayah}>
                             {p.nama}
                           </option>
                         ))}
@@ -2432,8 +2452,8 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                         className="w-full px-3 py-2.5 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl text-sm text-gray-800 dark:text-white/90 outline-none disabled:opacity-50"
                       >
                         <option value="">Pilih Kabupaten/Kota</option>
-                        {kabupatens.map((k: any) => (
-                          <option key={k.kode_wilayah} value={k.kode_wilayah}>
+                        {kabupatens.map((k: any, idx: number) => (
+                          <option key={k.kode_wilayah || idx} value={k.kode_wilayah}>
                             {k.nama}
                           </option>
                         ))}
@@ -2450,8 +2470,8 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                         className="w-full px-3 py-2.5 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl text-sm text-gray-800 dark:text-white/90 outline-none disabled:opacity-50"
                       >
                         <option value="">Pilih Kecamatan</option>
-                        {kecamatans.map((kec: any) => (
-                          <option key={kec.kode_wilayah} value={kec.kode_wilayah}>
+                        {kecamatans.map((kec: any, idx: number) => (
+                          <option key={kec.kode_wilayah || idx} value={kec.kode_wilayah}>
                             {kec.nama}
                           </option>
                         ))}
@@ -2464,8 +2484,8 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                         className="w-full px-3 py-2.5 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl text-sm text-gray-800 dark:text-white/90 outline-none disabled:opacity-50"
                       >
                         <option value="">Pilih Desa/Kelurahan</option>
-                        {desas.map((d: any) => (
-                          <option key={d.kode_wilayah} value={d.nama}>
+                        {desas.map((d: any, idx: number) => (
+                          <option key={d.kode_wilayah || idx} value={d.nama}>
                             {d.nama}
                           </option>
                         ))}

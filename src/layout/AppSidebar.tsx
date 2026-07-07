@@ -14,7 +14,6 @@ import {
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
 import SidebarWidget from "./SidebarWidget";
-import { useSekolah } from "../context/SekolahContext";
 import { useAuth } from "../context/AuthContext";
 import { getRoleSlug } from "../services/roleUtils";
 import api from "../services/api";
@@ -427,7 +426,6 @@ const navItems: NavItem[] = [
 
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
-  const { sekolah } = useSekolah();
   const { user } = useAuth();
   const location = useLocation();
 
@@ -659,39 +657,22 @@ const AppSidebar: React.FC = () => {
         <Link to={rolePrefix || "/"} className="flex items-center gap-3">
           {isExpanded || isHovered || isMobileOpen ? (
             <>
-              {sekolah?.logo ? (
-                <img
-                  src={sekolah.logo}
-                  alt="Logo Sekolah"
-                  className="w-10 h-10 object-contain"
-                />
-              ) : (
-                <div className="w-10 h-10 bg-brand-500 rounded-lg flex items-center justify-center text-white font-bold text-xl">
-                  {sekolah?.nama?.charAt(0) || "S"}
-                </div>
-              )}
+              <div className="w-10 h-10 bg-brand-500 rounded-lg flex items-center justify-center text-white font-black text-2xl shadow-md">
+                S
+              </div>
               <div className="flex flex-col">
-                <span className="font-bold text-gray-900 dark:text-white leading-tight">
-                  {sekolah?.nama || "SIMAK"}
+                <span className="font-bold text-gray-900 dark:text-white leading-tight text-lg tracking-wide">
+                  SIMAK
                 </span>
-                <span className="text-xs text-gray-500 dark:text-gray-400">
-                  {sekolah?.npsn || "Sistem Informasi"}
+                <span className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight">
+                  Sistem Informasi Manajemen Akademik
                 </span>
               </div>
             </>
           ) : (
-            sekolah?.logo ? (
-              <img
-                src={sekolah.logo}
-                alt="Logo"
-                width={32}
-                height={32}
-              />
-            ) : (
-              <div className="w-8 h-8 bg-brand-500 rounded-lg flex items-center justify-center text-white font-bold text-lg">
-                {sekolah?.nama?.charAt(0) || "S"}
-              </div>
-            )
+            <div className="w-8 h-8 bg-brand-500 rounded-lg flex items-center justify-center text-white font-black text-xl shadow-md">
+              S
+            </div>
           )}
         </Link>
       </div>

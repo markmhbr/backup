@@ -732,12 +732,19 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
         title: "Berhasil",
         text: "Pengajuan perbaikan data berhasil dikirim dan menunggu persetujuan.",
         icon: "success",
-        confirmButtonColor: "#465FFF"
+        timer: 2000,
+        showConfirmButton: false
       });
       setIsFormPengajuanOpen(false);
       setSelectedFields([]);
     } catch (err: any) {
-      Swal.fire("Error", err.response?.data?.message || "Gagal mengirim pengajuan perbaikan data", "error");
+      Swal.fire({
+        title: "Error",
+        text: err.response?.data?.message || "Gagal mengirim pengajuan perbaikan data",
+        icon: "error",
+        timer: 2500,
+        showConfirmButton: false
+      });
     } finally {
       setLoading(false);
     }
@@ -1274,13 +1281,20 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
         title: "Berhasil",
         text: "Data Berhasil disimpan",
         icon: "success",
-        confirmButtonColor: "#465FFF",
+        timer: 2000,
+        showConfirmButton: false,
       });
       if (!profileId) {
         navigate(`/${role}/student-data`);
       }
     } catch (error) {
-      Swal.fire("Error", "Gagal menyimpan data", "error");
+      Swal.fire({
+        title: "Error",
+        text: "Gagal menyimpan data",
+        icon: "error",
+        timer: 2500,
+        showConfirmButton: false,
+      });
     } finally {
       setLoading(false);
     }
@@ -1416,9 +1430,10 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
               className="px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] transition-colors flex items-center gap-2"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
               </svg>
-              Cetak Kartu ID
+              Kartu ID
             </button>
             <button
               onClick={handleCheckPengajuan}
@@ -1647,8 +1662,8 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                           className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.agama_id ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                         >
                           <option value="">Pilih Agama</option>
-                          {(refOptions?.agama || []).map((a: any) => (
-                            <option key={a.agama_id || a.id} value={a.agama_id || a.id}>{a.nama || a.agama}</option>
+                          {(refOptions?.agama || []).map((a: any, idx: number) => (
+                            <option key={a.agama_id || a.id || idx} value={a.agama_id || a.id}>{a.nama || a.agama}</option>
                           ))}
                         </select>
                       </div>
@@ -1810,8 +1825,8 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                         className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.provinsi ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                       >
                         <option value="">{formData.provinsi || "Pilih Provinsi"}</option>
-                        {addrProvinces.map((p) => (
-                          <option key={p.kode_wilayah?.trim()} value={p.kode_wilayah?.trim()}>{p.nama}</option>
+                        {addrProvinces.map((p, idx) => (
+                          <option key={p.kode_wilayah?.trim() || idx} value={p.kode_wilayah?.trim()}>{p.nama}</option>
                         ))}
                       </select>
                     </div>
@@ -1828,8 +1843,8 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                         disabled={!formData.provinsi}
                       >
                         <option value="">{formData.kabupaten || "Pilih Kab./Kota"}</option>
-                        {addrKabupatens.map((k) => (
-                          <option key={k.kode_wilayah?.trim()} value={k.kode_wilayah?.trim()}>{k.nama}</option>
+                        {addrKabupatens.map((k, idx) => (
+                          <option key={k.kode_wilayah?.trim() || idx} value={k.kode_wilayah?.trim()}>{k.nama}</option>
                         ))}
                       </select>
                     </div>
@@ -1865,8 +1880,8 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                         disabled={!formData.kecamatan}
                       >
                         <option value="">{formData.desaKelurahan || "Pilih Desa/Kelurahan"}</option>
-                        {addrDesas.map((d) => (
-                          <option key={d.kode_wilayah?.trim()} value={d.kode_wilayah?.trim()}>{d.nama}</option>
+                        {addrDesas.map((d, idx) => (
+                          <option key={d.kode_wilayah?.trim() || idx} value={d.kode_wilayah?.trim()}>{d.nama}</option>
                         ))}
                       </select>
                     </div>
@@ -1895,8 +1910,8 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                         className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.jenisTinggalId ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                       >
                         <option value="">Pilih Tempat Tinggal</option>
-                        {(refOptions?.jenis_tinggal || []).map((t: any) => (
-                          <option key={t.jenis_tinggal_id || t.id} value={t.jenis_tinggal_id || t.id}>{t.nama || t.jenis_tinggal}</option>
+                        {(refOptions?.jenis_tinggal || []).map((t: any, idx: number) => (
+                          <option key={t.jenis_tinggal_id || t.id || idx} value={t.jenis_tinggal_id || t.id}>{t.nama || t.jenis_tinggal}</option>
                         ))}
                       </select>
                     </div>
@@ -1916,8 +1931,8 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                         className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${errors.alatTransportasiId ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                       >
                         <option value="">Pilih Alat Transportasi</option>
-                        {(refOptions?.alat_transportasi || []).map((t: any) => (
-                          <option key={t.alat_transportasi_id || t.id} value={t.alat_transportasi_id || t.id}>{t.nama || t.alat_transportasi}</option>
+                        {(refOptions?.alat_transportasi || []).map((t: any, idx: number) => (
+                          <option key={t.alat_transportasi_id || t.id || idx} value={t.alat_transportasi_id || t.id}>{t.nama || t.alat_transportasi}</option>
                         ))}
                       </select>
                     </div>
