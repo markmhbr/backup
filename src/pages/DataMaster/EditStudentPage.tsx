@@ -72,7 +72,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
 
   const apiBaseUrl = import.meta.env.VITE_API_URL 
     ? import.meta.env.VITE_API_URL.replace("/api", "") 
-    : "http://localhost:3000";
+    : (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
 
   const [formData, setFormData] = useState<any>({});
   const [loading, setLoading] = useState(!!id);
@@ -991,7 +991,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
         const result = await dapodikService.uploadSiswaFoto(id, file);
         if (result.status === "success" && result.data) {
           const relativePath = result.data.filePath;
-          const host = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace("/api", "") : "http://localhost:3000";
+          const host = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace("/api", "") : (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
           const fullUrl = `${host}${relativePath}`;
           setFormData((prev: any) => ({ ...prev, avatar: fullUrl }));
           Swal.fire({ title: "Berhasil", text: "Foto profil berhasil diperbarui", icon: "success", confirmButtonColor: "#465FFF" });

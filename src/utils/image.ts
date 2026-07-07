@@ -3,7 +3,7 @@ export const getFotoUrl = (path: string | null | undefined, fallback: string = "
   if (path.startsWith("http")) return path;
   const baseUrl = import.meta.env.VITE_API_URL 
     ? import.meta.env.VITE_API_URL.replace('/api', '') 
-    : 'http://localhost:3000';
+    : (import.meta.env.DEV ? 'http://localhost:3000' : window.location.origin);
   if (path.startsWith("/storage")) return `${baseUrl}${path}`;
   return `${baseUrl}/storage/${path}`;
 };

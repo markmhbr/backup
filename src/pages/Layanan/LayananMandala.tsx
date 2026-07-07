@@ -136,7 +136,7 @@ export default function LayananMandala() {
     if (!url) return "#";
     const baseUrl = import.meta.env.VITE_API_URL 
       ? import.meta.env.VITE_API_URL.replace(/\/api$/, '') 
-      : 'http://localhost:3000';
+      : (import.meta.env.DEV ? 'http://localhost:3000' : window.location.origin);
     return `${baseUrl}${url}`;
   };
 

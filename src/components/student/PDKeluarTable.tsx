@@ -116,7 +116,7 @@ export default function PDKeluarTable({ onSelectionChange, searchTerm, itemsPerP
                     {formatDateDMY(item.tanggal_lahir)}
                   </TableCell>
                   <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{item.jenis_pendaftaran_id_str || "-"}</TableCell>
-                  <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{item.jenis_keluar_id || "-"}</TableCell>
+                  <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{item.jenis_keluar_id_str || item.jenis_keluar_id || "-"}</TableCell>
                   <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400 min-w-[200px]">{item.ket_keluar || "-"}</TableCell>
                   <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">
                     {formatDateDMY(item.tanggal_keluar)}
