@@ -1327,12 +1327,7 @@ export const printGTKProfile = async (selectedGTKIds: string[]) => {
     printWindow.document.write(htmlContent);
     printWindow.document.close();
 
-    // Auto-trigger printing when images/styles are loaded
-    printWindow.onload = () => {
-      setTimeout(() => {
-        printWindow.print();
-      }, 500);
-    };
+    // Only open the preview, do not trigger printing automatically
 
   } catch (error) {
     Swal.close();

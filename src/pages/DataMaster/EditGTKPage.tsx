@@ -21,7 +21,123 @@ import { referenceService } from "../../services/referenceService";
 import Swal from "sweetalert2";
 import { getFotoUrl } from "../../utils/image";
 import { printGTKProfile } from "../../utils/printGTKProfile";
+import { loadMapScripts, initGoogleMapPicker } from "../../utils/map";
 import PrintGTKCardPreview from "../../components/gtk/PrintGTKCardPreview";
+
+interface SearchableSelectProps {
+  options: any[];
+  value: string;
+  onChange: (val: string) => void;
+  disabled?: boolean;
+  placeholder?: string;
+  error?: boolean;
+  labelKey?: string;
+  valueKey?: string;
+}
+
+const SearchableSelect: React.FC<SearchableSelectProps> = ({
+  options,
+  value,
+  onChange,
+  disabled,
+  placeholder,
+  error,
+  labelKey = "label",
+  valueKey = "value"
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  const selectedOption = options.find((opt) => String(opt[valueKey] || opt.id_bank || opt.id) === String(value));
+  const displayText = selectedOption ? (selectedOption[labelKey] || selectedOption.nm_bank || selectedOption.nama_bank || selectedOption.nama) : placeholder || "Pilih opsi...";
+
+  const filteredOptions = options.filter((opt) => {
+    const label = String(opt[labelKey] || opt.nm_bank || opt.nama_bank || opt.nama || "").toLowerCase();
+    return label.includes(searchTerm.toLowerCase());
+  });
+
+  return (
+    <div ref={dropdownRef} className="relative w-full">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => {
+          setIsOpen(!isOpen);
+          setSearchTerm("");
+        }}
+        className={`w-full flex justify-between items-center rounded-lg border p-3 text-sm text-left dark:bg-white/[0.03] dark:text-white ${
+          disabled ? "bg-gray-100 dark:bg-gray-800 dark:text-gray-500 cursor-not-allowed" : "bg-white cursor-pointer"
+        } ${error ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500"}`}
+      >
+        <span className="truncate">{displayText}</span>
+        <svg
+          className={`w-4 h-4 ml-2 transition-transform text-gray-500 ${isOpen ? "rotate-180" : ""}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {isOpen && (
+        <div className="absolute z-[999] mt-1 w-full rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg max-h-[300px] flex flex-col overflow-hidden">
+          <div className="p-2 border-b border-gray-100 dark:border-white/[0.05] bg-gray-50 dark:bg-white/[0.02]">
+            <input
+              type="text"
+              autoFocus
+              placeholder="Cari..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full rounded-md border border-gray-200 dark:border-gray-800 p-2 text-xs bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:border-brand-500"
+            />
+          </div>
+
+          <ul className="flex-1 overflow-y-auto max-h-[220px] divide-y divide-gray-50 dark:divide-white/[0.02] custom-scrollbar">
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((opt) => {
+                const optValue = String(opt[valueKey] || opt.id_bank || opt.id);
+                const isSelected = String(value) === optValue;
+                const optLabel = opt[labelKey] || opt.nm_bank || opt.nama_bank || opt.nama;
+                return (
+                  <li
+                    key={optValue}
+                    onClick={() => {
+                      onChange(optValue);
+                      setIsOpen(false);
+                    }}
+                    className={`px-3 py-2.5 text-sm cursor-pointer hover:bg-brand-50 dark:hover:bg-brand-500/10 truncate transition-colors ${
+                      isSelected ? "text-brand-600 dark:text-brand-400 font-semibold bg-brand-50/50 dark:bg-brand-500/5" : "text-gray-700 dark:text-gray-300"
+                    }`}
+                  >
+                    {optLabel}
+                  </li>
+                );
+              })
+            ) : (
+              <li className="px-3 py-3 text-xs text-gray-500 text-center dark:text-gray-400">
+                Opsi tidak ditemukan
+              </li>
+            )}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+};
 
 
 const format3Digits = (value: string | number | null | undefined): string => {
@@ -131,7 +247,7 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
       return !!(errors.kk || errors.agama_id || errors.statusPerkawinan || (isMarried && (errors.namaPasangan || errors.pekerjaanPasangan)) || errors.namaWajibPajak || errors.npwp);
     }
     if (tabId === "alamat") {
-      return !!(errors.kampungJalan || errors.rt || errors.rw || errors.dusun || errors.desaKelurahan || errors.provinsi || errors.kotaKabupaten || errors.kecamatan || errors.kodePos || errors.lintang || errors.bujur);
+      return !!(errors.kampungJalan || errors.rt || errors.rw || errors.desaKelurahan || errors.provinsi || errors.kotaKabupaten || errors.kecamatan || errors.kodePos || errors.lintang || errors.bujur);
     }
     if (tabId === "kepegawaian") {
       return !!(errors.sumber_gaji_id);
@@ -173,7 +289,6 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
       { key: 'kampungJalan', label: 'Alamat Jalan' },
       { key: 'rt', label: 'RT' },
       { key: 'rw', label: 'RW' },
-      { key: 'dusun', label: 'Nama Dusun' },
       { key: 'desaKelurahan', label: 'Desa/Kelurahan' },
       { key: 'provinsi', label: 'Provinsi' },
       { key: 'kotaKabupaten', label: 'Kabupaten/Kota' },
@@ -402,51 +517,7 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
   };
 
   const handleCheckPengajuan = async () => {
-    try {
-      Swal.fire({
-        title: "Memeriksa...",
-        allowOutsideClick: false,
-        didOpen: () => {
-          Swal.showLoading();
-        },
-      });
-
-      const sch = await dapodikService.getSekolah();
-      if (!sch?.data?.sekolah_id) {
-        Swal.close();
-        Swal.fire("Error", "Gagal mengidentifikasi sekolah Anda.", "error");
-        return;
-      }
-
-      const settings = await dapodikService.getPengaturanUmum(sch.data.sekolah_id);
-      Swal.close();
-
-      if (!settings?.data?.waktu_mulai_pengajuan || !settings?.data?.waktu_sampai_pengajuan) {
-        Swal.fire("Pengajuan Ditutup", "Pengajuan perbaikan belum dibuka oleh sekolah (waktu pengajuan belum diatur).", "info");
-        return;
-      }
-
-      const now = new Date();
-      const currentDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(now); // "YYYY-MM-DD"
-      
-      const start = settings.data.waktu_mulai_pengajuan;
-      const end = settings.data.waktu_sampai_pengajuan;
-
-      if (currentDateStr < start || currentDateStr > end) {
-        Swal.fire(
-          "Pengajuan Ditutup",
-          `Pengajuan perbaikan ditutup. Hanya diperbolehkan dari tanggal ${start} s.d ${end}. Saat ini tanggal ${currentDateStr}.`,
-          "warning"
-        );
-        return;
-      }
-
-      setIsPengajuanModalOpen(true);
-    } catch (err) {
-      console.error(err);
-      Swal.close();
-      Swal.fire("Error", "Gagal memeriksa waktu pengajuan.", "error");
-    }
+    setIsPengajuanModalOpen(true);
   };
 
 
@@ -888,32 +959,26 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
 
     let fileToUpload = docFile;
     const ext = docFile.name.substring(docFile.name.lastIndexOf('.')).toLowerCase();
-    const isImage = ['.jpg', '.jpeg', '.png', '.webp'].includes(ext);
-    const maxSize = 500 * 1024; // Naikkan ke 500KB agar dokumen tajam & terbaca jelas
+    const maxSize = 200 * 1024; // 200KB
     
+    if (ext !== '.pdf') {
+      Swal.fire({
+        title: "Format Berkas Salah",
+        text: "Hanya berkas format PDF yang diperbolehkan untuk diunggah.",
+        icon: "error",
+        confirmButtonColor: "#465FFF",
+      });
+      return;
+    }
+
     if (fileToUpload.size > maxSize) {
-      if (isImage) {
-        Swal.fire({
-          title: "Mengompres Gambar...",
-          text: "Ukuran berkas melebihi 500Kb. Sedang mengompres gambar otomatis...",
-          allowOutsideClick: false,
-          didOpen: () => {
-            Swal.showLoading();
-          }
-        });
-        fileToUpload = await compressImage(docFile, maxSize);
-        Swal.close();
-      }
-      
-      if (fileToUpload.size > maxSize) {
-        Swal.fire({
-          title: "File Terlalu Besar",
-          text: `Ukuran maksimal file adalah 500Kb. Silakan kompres terlebih dahulu.`,
-          icon: "error",
-          confirmButtonColor: "#465FFF",
-        });
-        return;
-      }
+      Swal.fire({
+        title: "Berkas PDF Terlalu Besar",
+        text: `Ukuran berkas PDF Anda (${(fileToUpload.size / 1024).toFixed(1)}Kb) melebihi batas maksimal 200Kb. Harap kompres berkas PDF Anda terlebih dahulu sebelum mengunggah.`,
+        icon: "error",
+        confirmButtonColor: "#465FFF",
+      });
+      return;
     }
 
     setLoading(true);
@@ -973,95 +1038,18 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
 
   const handleCheckCoordinates = () => {
     setIsMapModalOpen(true);
-    
-    // Load Leaflet and Geosearch dynamically
-    if (!document.getElementById("leaflet-css")) {
-      const link = document.createElement("link");
-      link.id = "leaflet-css";
-      link.rel = "stylesheet";
-      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-      document.head.appendChild(link);
-    }
-
-    if (!document.getElementById("geosearch-css")) {
-      const link = document.createElement("link");
-      link.id = "geosearch-css";
-      link.rel = "stylesheet";
-      link.href = "https://unpkg.com/leaflet-geosearch@3.11.0/dist/geosearch.css";
-      document.head.appendChild(link);
-    }
-
-    if (!window.hasOwnProperty("L")) {
-      const script = document.createElement("script");
-      script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-      script.onload = () => loadGeosearch();
-      document.head.appendChild(script);
-    } else {
-      loadGeosearch();
-    }
-  };
-
-  const loadGeosearch = () => {
-    if (!(window as any).GeoSearch) {
-      const script = document.createElement("script");
-      script.src = "https://unpkg.com/leaflet-geosearch@3.11.0/dist/bundle.min.js";
-      script.onload = () => initMap();
-      document.head.appendChild(script);
-    } else {
-      setTimeout(initMap, 100);
-    }
+    loadMapScripts(() => initMap());
   };
 
   const initMap = () => {
-    const L = (window as any).L;
-    const GeoSearch = (window as any).GeoSearch;
-    if (!L || !GeoSearch) return;
-
-    const container = document.getElementById("map-picker-container");
-    if (!container) return;
-    
-    // @ts-ignore
-    if (container._leaflet_id) { container._leaflet_id = null; container.innerHTML = ""; }
-
     const initialLat = parseFloat(formData.lintang || "-6.200000");
     const initialLng = parseFloat(formData.bujur || "106.816666");
 
-    const map = L.map("map-picker-container").setView([initialLat, initialLng], 15);
-
-    const streetLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: '&copy; OpenStreetMap' });
-    const satelliteLayer = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { attribution: "Tiles &copy; Esri" });
-
-    satelliteLayer.addTo(map);
-    const baseMaps = { "Satelit": satelliteLayer, "Jalan": streetLayer };
-    L.control.layers(baseMaps).addTo(map);
-
-    const searchControl = new (GeoSearch.GeoSearchControl)({
-      provider: new GeoSearch.OpenStreetMapProvider(),
-      style: 'bar',
-      showMarker: false,
-      autoClose: true,
-      searchLabel: 'Cari alamat atau tempat...',
-    });
-    map.addControl(searchControl);
-
-    let marker = L.marker([initialLat, initialLng], { draggable: true }).addTo(map);
-    setTempCoords({ lat: initialLat.toFixed(6), lng: initialLng.toFixed(6) });
-
-    map.on("click", (e: any) => {
-      const { lat, lng } = e.latlng;
-      marker.setLatLng([lat, lng]);
-      setTempCoords({ lat: lat.toFixed(6), lng: lng.toFixed(6) });
-    });
-
-    marker.on("dragend", (e: any) => {
-      const { lat, lng } = e.target.getLatLng();
-      setTempCoords({ lat: lat.toFixed(6), lng: lng.toFixed(6) });
-    });
-
-    map.on('geosearch/showlocation', (result: any) => {
-      const { x, y } = result.location;
-      marker.setLatLng([y, x]);
-      setTempCoords({ lat: y.toFixed(6), lng: x.toFixed(6) });
+    initGoogleMapPicker({
+      containerId: "map-picker-container",
+      initialLat,
+      initialLng,
+      onCoordsChange: (coords) => setTempCoords(coords),
     });
   };
 
@@ -1106,7 +1094,6 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
     if (!formData.kampungJalan) { newErrors.kampungJalan = true; hasError = true; }
     if (!formData.rt) { newErrors.rt = true; hasError = true; }
     if (!formData.rw) { newErrors.rw = true; hasError = true; }
-    if (!formData.dusun) { newErrors.dusun = true; hasError = true; }
     if (!formData.desaKelurahan) { newErrors.desaKelurahan = true; hasError = true; }
     if (!formData.provinsi) { newErrors.provinsi = true; hasError = true; }
     if (!formData.kotaKabupaten) { newErrors.kotaKabupaten = true; hasError = true; }
@@ -1239,6 +1226,59 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
     );
   }
 
+  // Completeness warning banner configurations
+  const getBannerConfig = () => {
+    const pct = completenessPercentage;
+    if (pct < 80) {
+      return {
+        container: "border-red-200 bg-red-50 dark:border-red-900/30 dark:bg-red-900/10",
+        iconContainer: "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400",
+        titleClass: "text-red-800 dark:text-red-300",
+        descClass: "text-red-700 dark:text-red-400",
+        btnClass: "bg-red-600 hover:bg-red-700 active:bg-red-800",
+        title: `Persentase Kelengkapan Profil Anda: ${pct}% (Belum Lengkap)`,
+        desc: `Terdapat ${emptyCount} kolom wajib yang masih belum terisi di profil Anda. Klik tombol di kanan untuk melihat kolom yang kosong.`,
+        icon: (
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        )
+      };
+    } else if (pct < 100) {
+      return {
+        container: "border-warning-200 bg-warning-50 dark:border-warning-900/30 dark:bg-warning-900/10",
+        iconContainer: "bg-warning-100 dark:bg-warning-900/30 text-warning-600 dark:text-warning-400",
+        titleClass: "text-warning-800 dark:text-warning-300",
+        descClass: "text-warning-700 dark:text-warning-400",
+        btnClass: "bg-warning-600 hover:bg-warning-700 active:bg-warning-800",
+        title: `Persentase Kelengkapan Profil Anda: ${pct}% (Hampir Lengkap)`,
+        desc: `Terdapat ${emptyCount} kolom wajib yang masih belum terisi di profil Anda. Klik tombol di kanan untuk melihat kolom yang kosong.`,
+        icon: (
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        )
+      };
+    } else {
+      return {
+        container: "border-emerald-200 bg-emerald-50 dark:border-emerald-900/30 dark:bg-emerald-900/10",
+        iconContainer: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400",
+        titleClass: "text-emerald-800 dark:text-emerald-300",
+        descClass: "text-emerald-700 dark:text-emerald-400",
+        btnClass: "",
+        title: "Persentase Kelengkapan Profil Anda: 100% (Lengkap)",
+        desc: "Selamat! Profil Anda telah terisi lengkap 100%.",
+        icon: (
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        )
+      };
+    }
+  };
+
+  const banner = getBannerConfig();
+
   return (
     <>
       <PageMeta
@@ -1315,21 +1355,17 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
         </div>
 
         {profileId && (
-          <div className="p-5 rounded-2xl border border-warning-200 bg-warning-50 dark:border-warning-900/30 dark:bg-warning-900/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print shadow-sm">
+          <div className={`p-5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print shadow-sm ${banner.container}`}>
             <div className="flex gap-4">
-              <div className="p-2.5 bg-warning-100 dark:bg-warning-900/30 rounded-xl text-warning-600 dark:text-warning-400 self-start">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
+              <div className={`p-2.5 rounded-xl self-start ${banner.iconContainer}`}>
+                {banner.icon}
               </div>
               <div>
-                <h4 className="font-bold text-warning-800 dark:text-warning-300 text-base">
-                  Persentase Kelengkapan Profil Anda: {completenessPercentage}%
+                <h4 className={`font-bold text-base ${banner.titleClass}`}>
+                  {banner.title}
                 </h4>
-                <p className="text-sm text-warning-700 dark:text-warning-400 mt-1">
-                  {emptyCount > 0
-                    ? `Terdapat ${emptyCount} kolom wajib yang masih belum terisi di profil Anda. Klik tombol di kanan untuk melihat kolom yang kosong.`
-                    : "Selamat! Profil Anda telah terisi lengkap 100%."}
+                <p className={`text-sm mt-1 ${banner.descClass}`}>
+                  {banner.desc}
                 </p>
               </div>
             </div>
@@ -1337,7 +1373,7 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
               <button
                 type="button"
                 onClick={() => setIsCompletenessModalOpen(true)}
-                className="px-5 py-2.5 text-sm font-bold text-white bg-warning-600 hover:bg-warning-700 active:bg-warning-800 rounded-xl transition-colors shadow-sm whitespace-nowrap self-start sm:self-center"
+                className={`px-5 py-2.5 text-sm font-bold text-white rounded-xl transition-colors shadow-sm whitespace-nowrap self-start sm:self-center ${banner.btnClass}`}
               >
                 Lihat Kolom Kosong
               </button>
@@ -1387,7 +1423,7 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
               {/* Photo Column */}
               <div className="w-full lg:w-1/3 flex flex-col items-center pr-8 lg:border-r lg:border-gray-100 dark:lg:border-white/[0.05]">
                 <div className="relative group">
-                  <div className="w-48 h-48 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-800 flex items-center justify-center overflow-hidden bg-gray-50 dark:bg-white/[0.02]">
+                  <div className="w-48 h-64 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-800 flex items-center justify-center overflow-hidden bg-gray-50 dark:bg-white/[0.02]">
                     {formData.avatar ? (
                       <img src={getFotoUrl(formData.avatar)} alt="Profile" className="w-full h-full object-cover" />
                     ) : (
@@ -1418,8 +1454,8 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                       <div className="mt-1 text-xs text-blue-800 dark:text-blue-400/80 leading-relaxed">
                         <ul className="list-disc pl-4 space-y-1 font-medium">
                           <li>Gunakan foto formal dengan latar belakang merah atau biru</li>
-                          <li>Pastikan wajah terlihat jelas and tegak lurus</li>
-                          <li>Pastikan pencahayaan cukup and tidak buram</li>
+                          <li>Pastikan wajah terlihat jelas dan tegak lurus</li>
+                          <li>Pastikan pencahayaan cukup dan tidak buram</li>
                           <li>Ukuran Foto 3 x 4 atau 4 x 6</li>
                         </ul>
                       </div>
@@ -1572,7 +1608,7 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Dusun <span className="text-red-500">*</span></Label>
+                  <Label>Dusun</Label>
                   <Input 
                     error={errors.dusun}
                     value={formData.dusun || ""} 
@@ -2043,19 +2079,16 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Nama Bank {hasSertifikasi && <span className="text-red-500">*</span>}</Label>
-                        <select
+                        <SearchableSelect
+                          options={bankList}
                           value={formData.namaBank || ""}
-                          onChange={(e) => handleInputChange("namaBank", e.target.value)}
+                          onChange={(value) => handleInputChange("namaBank", value)}
                           disabled={!hasSertifikasi}
-                          className={`w-full rounded-lg border p-3 text-sm dark:bg-white/[0.03] dark:text-white ${!hasSertifikasi ? "bg-gray-100 dark:bg-gray-800 dark:text-gray-500 cursor-not-allowed" : ""} ${errors.namaBank ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"}`}
-                        >
-                          <option value="">Pilih Bank</option>
-                          {bankList.map((b: any) => (
-                            <option key={b.id_bank || b.id} value={b.id_bank || b.id}>
-                              {b.nm_bank || b.nama_bank || b.nama}
-                            </option>
-                          ))}
-                        </select>
+                          placeholder="Pilih Bank"
+                          error={errors.namaBank}
+                          labelKey="nm_bank"
+                          valueKey="id_bank"
+                        />
                       </div>
                        <div className="space-y-2">
                         <Label>Cabang Bank {hasSertifikasi && <span className="text-red-500">*</span>}</Label>
@@ -2116,6 +2149,7 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                       <Label>Pilih File</Label>
                       <input 
                         type="file" 
+                        accept="application/pdf"
                         ref={docFileInputRef}
                         className="w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 dark:file:bg-white/[0.05] dark:file:text-white dark:hover:file:bg-white/[0.1] border border-gray-200 dark:border-gray-800 rounded-lg h-11 px-2"
                         onChange={(e) => setDocFile(e.target.files ? e.target.files[0] : null)}
@@ -2197,7 +2231,27 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
         <div className="w-full h-[500px] relative"><div id="map-picker-container" className="w-full h-full"></div></div>
         <div className="px-6 py-4 border-t bg-gray-50 dark:bg-white/[0.02] flex justify-between items-center">
            <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Terpilih: <span className="text-brand-500">{tempCoords?.lat}, {tempCoords?.lng}</span></div>
-           <div className="flex gap-3"><button onClick={() => setIsMapModalOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-400">Batal</button><Button variant="primary" size="sm" onClick={handleUseLocation}>Gunakan Lokasi Ini</Button></div>
+           <div className="flex gap-3">
+             <button onClick={() => setIsMapModalOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-400">Batal</button>
+             <Button 
+               variant="outline" 
+               size="sm" 
+               type="button"
+               onClick={() => {
+                 const container = document.getElementById("map-picker-container") as any;
+                 if (container && typeof container.triggerGPS === "function") {
+                   container.triggerGPS();
+                 }
+               }}
+             >
+               <svg className="w-4 h-4 mr-1 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+               </svg>
+               Cari Lokasi Saya
+             </Button>
+             <Button variant="primary" size="sm" onClick={handleUseLocation}>Gunakan Lokasi Ini</Button>
+           </div>
         </div>
       </Modal>
 
@@ -2340,18 +2394,14 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                       ))}
                     </select>
                   ) : fieldKey === "id_bank" ? (
-                    <select
+                    <SearchableSelect
+                      options={bankList}
                       value={pengajuanForm[fieldKey] || ""}
-                      onChange={(e) => handlePengajuanInputChange(fieldKey, e.target.value)}
-                      className="w-full px-3 py-2.5 bg-white dark:bg-white/[0.03] border border-gray-300 dark:border-gray-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl text-sm text-gray-800 dark:text-white/90 outline-none"
-                    >
-                      <option value="">Pilih Bank</option>
-                      {bankList.map((b: any) => (
-                        <option key={b.id_bank || b.id} value={b.id_bank || b.id}>
-                          {b.nm_bank || b.nama_bank || b.nama || b.bank_nama}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(value) => handlePengajuanInputChange(fieldKey, value)}
+                      placeholder="Pilih Bank"
+                      labelKey="nm_bank"
+                      valueKey="id_bank"
+                    />
                   ) : fieldKey === "wilayah" ? (
                     <div className="space-y-2">
                       <select

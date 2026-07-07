@@ -18,6 +18,7 @@ import Zoom from "yet-another-react-lightbox/plugins/zoom";
 import { Modal } from "../../components/ui/modal";
 import { dapodikService } from "../../services/dapodikService";
 import { getFotoUrl } from "../../utils/image";
+import { loadMapScripts, initGoogleMapPicker } from "../../utils/map";
 import { referenceService } from "../../services/referenceService";
 import { printStudentProfile } from "../../utils/printStudentProfile";
 import PrintPDCardPreview from "../../components/student/PrintPDCardPreview";
@@ -80,6 +81,8 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+  const [tempCoords, setTempCoords] = useState<{lat: string, lng: string} | null>(null);
 
   const getImageSlides = () => {
     const slides: any[] = [];
@@ -135,7 +138,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
       return !!(errors.agama_id || errors.noKK || errors.noAkte || errors.anakKe || errors.noHp || errors.noWa || errors.emailAktif);
     }
     if (tabId === "alamat") {
-      return !!(errors.jalan || errors.dusun || errors.rt || errors.rw || errors.desaKelurahan || errors.provinsi || errors.kabupaten || errors.kecamatan || errors.kodePos || errors.jenisTinggalId || errors.alatTransportasiId || errors.lintang || errors.bujur);
+      return !!(errors.jalan || errors.rt || errors.rw || errors.desaKelurahan || errors.provinsi || errors.kabupaten || errors.kecamatan || errors.kodePos || errors.jenisTinggalId || errors.alatTransportasiId || errors.lintang || errors.bujur);
     }
     if (tabId === "periodik") {
       return !!(errors.tinggiBadan || errors.beratBadan || errors.lingkarKepala || errors.jarakRumah || errors.waktuTempuh || errors.menitTempuh || errors.jumlahSaudara);
@@ -160,19 +163,18 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
       { key: 'tempatLahir', label: 'Tempat Lahir' },
       { key: 'tanggalLahir', label: 'Tanggal Lahir' },
       { key: 'agama_id', label: 'Agama' },
-      { key: 'kk', label: 'No. Kartu Keluarga' },
-      { key: 'reg_akta_lahir', label: 'Register Akta Lahir' },
-      { key: 'anak_keberapa', label: 'Anak ke-' },
+      { key: 'noKK', label: 'No. Kartu Keluarga' },
+      { key: 'noAkte', label: 'Register Akta Lahir' },
+      { key: 'anakKe', label: 'Anak ke-' },
       { key: 'noHp', label: 'Nomor HP' },
       { key: 'noWa', label: 'Nomor WhatsApp' },
       { key: 'emailAktif', label: 'Email Aktif' },
-      { key: 'kampungJalan', label: 'Alamat Jalan' },
+      { key: 'jalan', label: 'Alamat Jalan' },
       { key: 'rt', label: 'RT' },
       { key: 'rw', label: 'RW' },
-      { key: 'dusun', label: 'Nama Dusun' },
       { key: 'desaKelurahan', label: 'Desa/Kelurahan' },
       { key: 'provinsi', label: 'Provinsi' },
-      { key: 'kabupatenKota', label: 'Kabupaten/Kota' },
+      { key: 'kabupaten', label: 'Kabupaten/Kota' },
       { key: 'kecamatan', label: 'Kecamatan' },
       { key: 'kodePos', label: 'Kode Pos' },
       { key: 'jenisTinggalId', label: 'Jenis Tinggal' },
@@ -207,10 +209,10 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
     ];
 
     const checkFilled = (field: any) => {
-      if (field.key === 'provinsi' || field.key === 'kabupatenKota' || field.key === 'kecamatan') {
+      if (field.key === 'provinsi' || field.key === 'kabupaten' || field.key === 'kecamatan') {
         const desa = formData['desaKelurahan'] || formData['desaKelurahanCode'];
         const prov = formData['provinsi'];
-        const kab = formData['kabupatenKota'] || formData['kabupatenKotaName'];
+        const kab = formData['kabupaten'] || formData['kabupatenName'];
         const kec = formData['kecamatan'] || formData['kecamatanName'];
         return !!((desa && desa !== '-' && desa !== '') || (prov && prov !== '-' && prov !== '') || (kab && kab !== '-' && kab !== '') || (kec && kec !== '-' && kec !== ''));
       }
@@ -572,51 +574,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
   };
 
   const handleCheckPengajuan = async () => {
-    try {
-      Swal.fire({
-        title: "Memeriksa...",
-        allowOutsideClick: false,
-        didOpen: () => {
-          Swal.showLoading();
-        },
-      });
-
-      const sch = await dapodikService.getSekolah();
-      if (!sch?.data?.sekolah_id) {
-        Swal.close();
-        Swal.fire("Error", "Gagal mengidentifikasi sekolah Anda.", "error");
-        return;
-      }
-
-      const settings = await dapodikService.getPengaturanUmum(sch.data.sekolah_id);
-      Swal.close();
-
-      if (!settings?.data?.waktu_mulai_pengajuan || !settings?.data?.waktu_sampai_pengajuan) {
-        Swal.fire("Pengajuan Ditutup", "Pengajuan perbaikan belum dibuka oleh sekolah (waktu pengajuan belum diatur).", "info");
-        return;
-      }
-
-      const now = new Date();
-      const currentDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(now); // "YYYY-MM-DD"
-      
-      const start = settings.data.waktu_mulai_pengajuan;
-      const end = settings.data.waktu_sampai_pengajuan;
-
-      if (currentDateStr < start || currentDateStr > end) {
-        Swal.fire(
-          "Pengajuan Ditutup",
-          `Pengajuan perbaikan ditutup. Hanya diperbolehkan dari tanggal ${start} s.d ${end}. Saat ini tanggal ${currentDateStr}.`,
-          "warning"
-        );
-        return;
-      }
-
-      setIsPengajuanModalOpen(true);
-    } catch (err) {
-      console.error(err);
-      Swal.close();
-      Swal.fire("Error", "Gagal memeriksa waktu pengajuan.", "error");
-    }
+    setIsPengajuanModalOpen(true);
   };
 
 
@@ -1009,32 +967,26 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
     
     let fileToUpload = file;
     const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
-    const isImage = ['.jpg', '.jpeg', '.png', '.webp'].includes(ext);
-    const maxSize = 500 * 1024; // Naikkan ke 500KB agar dokumen tajam & terbaca jelas
+    const maxSize = 200 * 1024; // 200KB
     
+    if (ext !== '.pdf') {
+      Swal.fire({
+        title: "Format Berkas Salah",
+        text: "Hanya berkas format PDF yang diperbolehkan untuk diunggah.",
+        icon: "error",
+        confirmButtonColor: "#465FFF",
+      });
+      return;
+    }
+
     if (fileToUpload.size > maxSize) {
-      if (isImage) {
-        Swal.fire({
-          title: "Mengompres Gambar...",
-          text: "Ukuran berkas melebihi 500Kb. Sedang mengompres gambar otomatis...",
-          allowOutsideClick: false,
-          didOpen: () => {
-            Swal.showLoading();
-          }
-        });
-        fileToUpload = await compressImage(file, maxSize);
-        Swal.close();
-      }
-      
-      if (fileToUpload.size > maxSize) {
-        Swal.fire({
-          title: "File Terlalu Besar",
-          text: `Ukuran maksimal file adalah 500Kb. Silakan kompres terlebih dahulu.`,
-          icon: "error",
-          confirmButtonColor: "#465FFF",
-        });
-        return;
-      }
+      Swal.fire({
+        title: "Berkas PDF Terlalu Besar",
+        text: `Ukuran berkas PDF Anda (${(fileToUpload.size / 1024).toFixed(1)}Kb) melebihi batas maksimal 200Kb. Harap kompres berkas PDF Anda terlebih dahulu sebelum mengunggah.`,
+        icon: "error",
+        confirmButtonColor: "#465FFF",
+      });
+      return;
     }
 
     setLoading(true);
@@ -1083,12 +1035,57 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
     }
   };
 
+  const handleCheckCoordinates = () => {
+    setIsMapModalOpen(true);
+    loadMapScripts(() => initMap());
+  };
+
+  const initMap = () => {
+    const initialLat = parseFloat(formData.lintang || "-6.200000");
+    const initialLng = parseFloat(formData.bujur || "106.816666");
+
+    initGoogleMapPicker({
+      containerId: "map-picker-container",
+      initialLat,
+      initialLng,
+      onCoordsChange: (coords) => setTempCoords(coords),
+    });
+  };
+
+  const handleUseLocation = () => {
+    if (tempCoords) {
+      handleInputChange("lintang", tempCoords.lat);
+      handleInputChange("bujur", tempCoords.lng);
+    }
+    setIsMapModalOpen(false);
+  };
+
+  useEffect(() => {
+    if (isMapModalOpen) {
+      setTimeout(initMap, 200);
+    }
+  }, [isMapModalOpen]);
+
   const handleSave = async () => {
     if (!id) return;
 
     // --- Validation ---
     const newErrors: any = {};
-    const v = (key: string) => !formData[key] || String(formData[key]).trim() === "" || String(formData[key]).trim() === "-" || String(formData[key]).trim() === "0";
+    const v = (key: string) => {
+      const val = formData[key];
+      const isZeroAllowed = [
+        "jumlahSaudara",
+        "waktuTempuh",
+        "menitTempuh",
+        "jarakRumahKm",
+        "lingkarKepala"
+      ].includes(key);
+
+      if (isZeroAllowed && (val === 0 || val === "0" || (typeof val === "string" && val.trim() === "0"))) {
+        return false;
+      }
+      return !val || String(val).trim() === "" || String(val).trim() === "-" || String(val).trim() === "0";
+    };
 
     // Profil
     if (v("agama_id")) newErrors.agama_id = true;
@@ -1102,7 +1099,6 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
 
     // Alamat
     if (v("jalan")) newErrors.jalan = true;
-    if (v("dusun")) newErrors.dusun = true;
     if (v("rt")) newErrors.rt = true;
     if (v("rw")) newErrors.rw = true;
     if (v("provinsi")) newErrors.provinsi = true;
@@ -1120,7 +1116,12 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
     if (v("beratBadan")) newErrors.beratBadan = true;
     if (v("lingkarKepala")) newErrors.lingkarKepala = true;
     if (v("jarakRumah")) newErrors.jarakRumah = true;
-    if (v("jarakRumahKm")) newErrors.jarakRumahKm = true;
+    if (String(formData.jarakRumah) === "2") {
+      const kmVal = Number(formData.jarakRumahKm);
+      if (!formData.jarakRumahKm || isNaN(kmVal) || kmVal <= 0) {
+        newErrors.jarakRumahKm = true;
+      }
+    }
     if (v("waktuTempuh")) newErrors.waktuTempuh = true;
     if (v("menitTempuh")) newErrors.menitTempuh = true;
     if (v("jumlahSaudara")) newErrors.jumlahSaudara = true;
@@ -1158,7 +1159,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
       // Determine which tab to switch to
       if (newErrors.agama_id || newErrors.noKK || newErrors.noAkte || newErrors.anakKe || newErrors.noHp || newErrors.noWa || newErrors.emailAktif || newErrors.noTelpRumah) {
         setActiveTab("profil");
-      } else if (newErrors.jalan || newErrors.dusun || newErrors.rt || newErrors.rw || newErrors.provinsi || newErrors.kabupaten || newErrors.kecamatan || newErrors.desaKelurahan || newErrors.kodePos || newErrors.jenisTinggalId || newErrors.alatTransportasiId || newErrors.lintang || newErrors.bujur) {
+      } else if (newErrors.jalan || newErrors.rt || newErrors.rw || newErrors.provinsi || newErrors.kabupaten || newErrors.kecamatan || newErrors.desaKelurahan || newErrors.kodePos || newErrors.jenisTinggalId || newErrors.alatTransportasiId || newErrors.lintang || newErrors.bujur) {
         setActiveTab("alamat");
       } else if (newErrors.tinggiBadan || newErrors.beratBadan || newErrors.lingkarKepala || newErrors.jarakRumah || newErrors.jarakRumahKm || newErrors.waktuTempuh || newErrors.menitTempuh || newErrors.jumlahSaudara || newErrors.idHobby || newErrors.idCita) {
         setActiveTab("periodik");
@@ -1303,6 +1304,59 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
     );
   }
 
+  // Completeness warning banner configurations
+  const getBannerConfig = () => {
+    const pct = completenessPercentage;
+    if (pct < 80) {
+      return {
+        container: "border-red-200 bg-red-50 dark:border-red-900/30 dark:bg-red-900/10",
+        iconContainer: "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400",
+        titleClass: "text-red-800 dark:text-red-300",
+        descClass: "text-red-700 dark:text-red-400",
+        btnClass: "bg-red-600 hover:bg-red-700 active:bg-red-800",
+        title: `Persentase Kelengkapan Profil Anda: ${pct}% (Belum Lengkap)`,
+        desc: `Terdapat ${emptyCount} kolom wajib yang masih belum terisi di profil Anda. Klik tombol di kanan untuk melihat kolom yang kosong.`,
+        icon: (
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        )
+      };
+    } else if (pct < 100) {
+      return {
+        container: "border-warning-200 bg-warning-50 dark:border-warning-900/30 dark:bg-warning-900/10",
+        iconContainer: "bg-warning-100 dark:bg-warning-900/30 text-warning-600 dark:text-warning-400",
+        titleClass: "text-warning-800 dark:text-warning-300",
+        descClass: "text-warning-700 dark:text-warning-400",
+        btnClass: "bg-warning-600 hover:bg-warning-700 active:bg-warning-800",
+        title: `Persentase Kelengkapan Profil Anda: ${pct}% (Hampir Lengkap)`,
+        desc: `Terdapat ${emptyCount} kolom wajib yang masih belum terisi di profil Anda. Klik tombol di kanan untuk melihat kolom yang kosong.`,
+        icon: (
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        )
+      };
+    } else {
+      return {
+        container: "border-emerald-200 bg-emerald-50 dark:border-emerald-900/30 dark:bg-emerald-900/10",
+        iconContainer: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400",
+        titleClass: "text-emerald-800 dark:text-emerald-300",
+        descClass: "text-emerald-700 dark:text-emerald-400",
+        btnClass: "",
+        title: "Persentase Kelengkapan Profil Anda: 100% (Lengkap)",
+        desc: "Selamat! Profil Anda telah terisi lengkap 100%.",
+        icon: (
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        )
+      };
+    }
+  };
+
+  const banner = getBannerConfig();
+
   return (
     <>
       <PageMeta
@@ -1379,29 +1433,25 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
         </div>
 
         {profileId && (
-          <div className="p-5 rounded-2xl border border-warning-200 bg-warning-50 dark:border-warning-900/30 dark:bg-warning-900/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print shadow-sm">
+          <div className={`p-5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print shadow-sm ${banner.container}`}>
             <div className="flex gap-4">
-              <div className="p-2.5 bg-warning-100 dark:bg-warning-900/30 rounded-xl text-warning-600 dark:text-warning-400 self-start">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
+              <div className={`p-2.5 rounded-xl self-start ${banner.iconContainer}`}>
+                {banner.icon}
               </div>
               <div>
-                <h4 className="font-bold text-warning-800 dark:text-warning-300 text-base">
-                  Persentase Kelengkapan Profil Anda: {completenessPercentage}%
+                <h4 className={`font-bold text-base ${banner.titleClass}`}>
+                  {banner.title}
                 </h4>
-                <p className="text-sm text-warning-700 dark:text-warning-400 mt-1">
-                  {emptyCount > 0 
-                    ? `Terdapat ${emptyCount} kolom wajib yang masih belum terisi di profil Anda. Klik tombol di kanan untuk melihat kolom yang kosong.` 
-                    : "Selamat! Profil Anda telah terisi lengkap 100%."}
+                <p className={`text-sm mt-1 ${banner.descClass}`}>
+                  {banner.desc}
                 </p>
               </div>
             </div>
             {emptyCount > 0 && (
-              <button 
+              <button
                 type="button"
                 onClick={() => setIsCompletenessModalOpen(true)}
-                className="px-5 py-2.5 text-sm font-bold text-white bg-warning-600 hover:bg-warning-700 active:bg-warning-800 rounded-xl transition-colors shadow-sm whitespace-nowrap self-start sm:self-center"
+                className={`px-5 py-2.5 text-sm font-bold text-white rounded-xl transition-colors shadow-sm whitespace-nowrap self-start sm:self-center ${banner.btnClass}`}
               >
                 Lihat Kolom Kosong
               </button>
@@ -1451,7 +1501,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
               {/* Photo Upload area */}
               <div className="w-full lg:w-1/4 flex flex-col items-center">
                 <div className="relative group">
-                  <div className="w-48 h-48 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-800 flex items-center justify-center overflow-hidden bg-gray-50 dark:bg-white/[0.02]">
+                  <div className="w-48 h-64 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-800 flex items-center justify-center overflow-hidden bg-gray-50 dark:bg-white/[0.02]">
                     {formData.avatar ? (
                       <img src={getFotoUrl(formData.avatar)} alt="Profile" className="w-full h-full object-cover" />
                     ) : (
@@ -1474,6 +1524,27 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                 <Button variant="outline" size="sm" className="mt-4 w-full text-gray-800 dark:text-gray-200" onClick={() => fileInputRef.current?.click()}>
                   Ganti Foto
                 </Button>
+
+                <div className="mt-6 w-full">
+                  <div className="flex p-4 rounded-xl bg-blue-50 dark:bg-blue-500/5 border border-blue-100 dark:border-blue-500/10">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-xs font-semibold text-blue-900 dark:text-blue-400">Petunjuk Upload</h3>
+                      <div className="mt-1 text-xs text-blue-800 dark:text-blue-400/80 leading-relaxed">
+                        <ul className="list-disc pl-4 space-y-1 font-medium">
+                          <li>Gunakan foto formal dengan latar belakang merah atau biru</li>
+                          <li>Pastikan wajah terlihat jelas dan tegak lurus</li>
+                          <li>Pastikan pencahayaan cukup dan tidak buram</li>
+                          <li>Ukuran Foto 3 x 4 atau 4 x 6</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Form inputs column */}
@@ -1719,7 +1790,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label>Nama Dusun <span className="text-red-500">*</span></Label>
+                      <Label>Nama Dusun</Label>
                       <Input 
                         error={errors.dusun}
                         value={formData.dusun || ""} 
@@ -1869,6 +1940,20 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                           onChange={(e) => handleInputChange("bujur", e.target.value)} 
                         />
                       </div>
+                      <div className="col-span-full pt-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="border-gray-200 text-gray-700 hover:bg-gray-50" 
+                          type="button"
+                          onClick={handleCheckCoordinates}
+                        >
+                          <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.4 2.4a1 1 0 01-1.4-1.1V6a1 1 0 01.6-1L9 3l6 2.4 5.4-2.4a1 1 0 011.4 1.1V18a1 1 0 01-.6 1L15 21l-6-2.4zM9 3v17m6-17v17" />
+                          </svg>
+                          Cek Koordinat / Cari Alamat
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1925,51 +2010,88 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Jarak Rumah ke Sekolah (m) <span className="text-red-500">*</span></Label>
-                    <Input 
-                      type="number" 
-                      error={errors.jarakRumah}
-                      value={formData.jarakRumah || ""} 
-                      placeholder="Masukkan Jarak Rumah" 
-                      onChange={(e) => handleInputChange("jarakRumah", e.target.value)} 
-                    />
+                    <Label>Jarak Rumah ke Sekolah <span className="text-red-500">*</span></Label>
+                    <div className="flex flex-col space-y-2 mt-2">
+                      <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700 dark:text-gray-300">
+                        <input 
+                          type="radio" 
+                          name="jarakRumah" 
+                          value="1" 
+                          checked={String(formData.jarakRumah) === "1"}
+                          onChange={() => {
+                            handleInputChange("jarakRumah", "1");
+                            handleInputChange("jarakRumahKm", "0");
+                          }}
+                          className="text-brand-500 focus:ring-brand-500 h-4 w-4 border-gray-300 dark:border-gray-800 bg-transparent"
+                        />
+                        kurang dari 1 km
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700 dark:text-gray-300">
+                        <input 
+                          type="radio" 
+                          name="jarakRumah" 
+                          value="2" 
+                          checked={String(formData.jarakRumah) === "2"}
+                          onChange={() => {
+                            handleInputChange("jarakRumah", "2");
+                            if (formData.jarakRumahKm === "0" || !formData.jarakRumahKm) {
+                              handleInputChange("jarakRumahKm", "");
+                            }
+                          }}
+                          className="text-brand-500 focus:ring-brand-500 h-4 w-4 border-gray-300 dark:border-gray-800 bg-transparent"
+                        />
+                        lebih dari 1 km
+                      </label>
+                    </div>
+                    {errors.jarakRumah && <span className="text-xs text-red-500 block">Jarak rumah wajib dipilih</span>}
                   </div>
                   <div className="space-y-2">
-                    <Label>Jarak Rumah ke Sekolah (km) <span className="text-red-500">*</span></Label>
+                    <Label>Sebutkan (dalam kilometer) {String(formData.jarakRumah) === "2" && <span className="text-red-500">*</span>}</Label>
                     <Input 
-                      type="number" 
+                      type="number"
+                      disabled={String(formData.jarakRumah) !== "2"}
                       error={errors.jarakRumahKm}
-                      value={formData.jarakRumahKm || ""} 
-                      placeholder="Masukkan Jarak Rumah (KM)" 
+                      value={String(formData.jarakRumah) === "1" ? "0" : (formData.jarakRumahKm !== undefined && formData.jarakRumahKm !== null ? formData.jarakRumahKm : "")} 
+                      placeholder={String(formData.jarakRumah) === "1" ? "0" : "Masukkan jarak dalam KM"} 
                       onChange={(e) => handleInputChange("jarakRumahKm", e.target.value)} 
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Waktu Tempuh (jam/menit) <span className="text-red-500">*</span></Label>
-                    <Input 
-                      type="number" 
-                      error={errors.waktuTempuh}
-                      value={formData.waktuTempuh || ""} 
-                      placeholder="Masukkan Waktu Tempuh (jam)" 
-                      onChange={(e) => handleInputChange("waktuTempuh", e.target.value)} 
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Menit Tempuh (menit) <span className="text-red-500">*</span></Label>
-                    <Input 
-                      type="number" 
-                      error={errors.menitTempuh}
-                      value={formData.menitTempuh || ""} 
-                      placeholder="Masukkan Waktu Tempuh (menit)" 
-                      onChange={(e) => handleInputChange("menitTempuh", e.target.value)} 
-                    />
+                    <Label>Waktu Tempuh ke Sekolah (jam / menit) <span className="text-red-500">*</span></Label>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <Input 
+                          type="number"
+                          min="0"
+                          error={errors.waktuTempuh}
+                          value={formData.waktuTempuh !== undefined && formData.waktuTempuh !== null ? formData.waktuTempuh : ""} 
+                          placeholder="Jam" 
+                          onChange={(e) => handleInputChange("waktuTempuh", e.target.value)} 
+                        />
+                      </div>
+                      <span className="text-gray-400 font-bold">/</span>
+                      <div className="flex-1">
+                        <Input 
+                          type="number"
+                          min="0"
+                          max="59"
+                          error={errors.menitTempuh}
+                          value={formData.menitTempuh !== undefined && formData.menitTempuh !== null ? formData.menitTempuh : ""} 
+                          placeholder="Menit" 
+                          onChange={(e) => handleInputChange("menitTempuh", e.target.value)} 
+                        />
+                      </div>
+                    </div>
+                    {(errors.waktuTempuh || errors.menitTempuh) && (
+                      <span className="text-xs text-red-500 block">Waktu tempuh wajib diisi</span>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>Jumlah Saudara Kandung <span className="text-red-500">*</span></Label>
                     <Input 
                       type="number" 
                       error={errors.jumlahSaudara}
-                      value={formData.jumlahSaudara || ""} 
+                      value={formData.jumlahSaudara !== undefined && formData.jumlahSaudara !== null ? formData.jumlahSaudara : ""} 
                       placeholder="Masukkan Jumlah Saudara Kandung" 
                       onChange={(e) => handleInputChange("jumlahSaudara", e.target.value)} 
                     />
@@ -2473,7 +2595,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                     <div>
                       <Label className="font-semibold text-gray-700 dark:text-gray-300">{docType.name}</Label>
                       <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                        Format: PDF, JPG, JPEG, PNG (Maks 100Kb untuk Gambar, 200Kb untuk PDF)
+                        Format: PDF (Maksimal 200Kb)
                       </p>
                     </div>
                     {existingFile ? (
@@ -2521,7 +2643,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                           id={`file-${docType.key}`}
                           className="hidden"
                           onChange={(e) => handleUploadDoc(docType.name, e.target.files?.[0])}
-                          accept=".pdf,.jpg,.jpeg,.png,.webp"
+                          accept="application/pdf"
                         />
                         <label 
                           htmlFor={`file-${docType.key}`}
@@ -2545,6 +2667,39 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
 
 
       </div>
+
+      {/* Leaflet Map Modal (popup coordinate picker) */}
+      <Modal isOpen={isMapModalOpen} onClose={() => setIsMapModalOpen(false)} className="max-w-[900px] p-0 overflow-hidden">
+        <div className="px-6 py-4 border-b flex justify-between items-center bg-white dark:bg-gray-900">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">Cari & Pilih Lokasi</h3>
+          <button onClick={() => setIsMapModalOpen(false)} className="text-gray-500 hover:text-gray-700 dark:hover:text-white"><svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
+        </div>
+        <div className="w-full h-[500px] relative"><div id="map-picker-container" className="w-full h-full"></div></div>
+        <div className="px-6 py-4 border-t bg-gray-50 dark:bg-white/[0.02] flex justify-between items-center">
+           <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Terpilih: <span className="text-brand-500">{tempCoords?.lat}, {tempCoords?.lng}</span></div>
+           <div className="flex gap-3">
+             <button onClick={() => setIsMapModalOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-400">Batal</button>
+             <Button 
+               variant="outline" 
+               size="sm" 
+               type="button"
+               onClick={() => {
+                 const container = document.getElementById("map-picker-container") as any;
+                 if (container && typeof container.triggerGPS === "function") {
+                   container.triggerGPS();
+                 }
+               }}
+             >
+               <svg className="w-4 h-4 mr-1 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+               </svg>
+               Cari Lokasi Saya
+             </Button>
+             <Button variant="primary" size="sm" onClick={handleUseLocation}>Gunakan Lokasi Ini</Button>
+           </div>
+         </div>
+      </Modal>
 
       {/* Modal Checklist Pengajuan Perbaikan */}
       <Modal isOpen={isPengajuanModalOpen} onClose={() => setIsPengajuanModalOpen(false)} className="max-w-[600px] p-6 overflow-hidden">
