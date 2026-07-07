@@ -9,17 +9,15 @@ PassengerStartupFile server.js
 RewriteEngine On
 RewriteBase /
 
-# 1. Jika request mengarah ke file nyata (termasuk yang sudah di-rewrite ke /dist/ atau file API/backend lainnya), jangan di-rewrite lagi
-RewriteCond %{REQUEST_FILENAME} -f [OR]
-RewriteCond %{REQUEST_FILENAME} -d
+# 1. Jika request mengarah ke file nyata, jangan di-rewrite (langsung serve)
+RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^ - [L]
 
-# 2. Jika file yang dicari ada di dalam folder /dist/, rewrite ke folder /dist/
-RewriteCond %{DOCUMENT_ROOT}/dist/$1 -f [OR]
-RewriteCond %{DOCUMENT_ROOT}/dist/$1 -d
+# 2. Jika file yang dicari ada di dalam folder /dist/, serve dari /dist/
+RewriteCond %{DOCUMENT_ROOT}/dist/$1 -f
 RewriteRule ^(.*)$ dist/$1 [L]
 
-# 3. SPA Fallback: Kirim semua request rute lainnya ke dist/index.html agar React Router yang menangani
+# 3. SPA Fallback: Semua request lainnya ke dist/index.html agar React Router yang menangani
 RewriteRule ^(.*)$ dist/index.html [L]
 
 <IfModule mod_headers.c>
