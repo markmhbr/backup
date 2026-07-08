@@ -901,3 +901,18 @@ span.flatpickr-weekday,
 .print-only {
   display: none;
 }
+
+/* Fix select option background color in dark mode */
+.dark select,
+html.dark select,
+:is(.dark) select {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+}
+
+.dark select option,
+html.dark select option,
+:is(.dark) select option {
+  background-color: #0f172a !important;
+  color: #cbd5e1 !important;
+}

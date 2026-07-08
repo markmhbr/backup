@@ -250,13 +250,12 @@ const PrintPDCardPreview: React.FC<PrintPDCardPreviewProps> = ({ isOpen, onClose
                     backgroundPosition: 'center',
                   }}
                 >
-                  {/* Photo Area */}
                   <div 
                     className="w-28 h-28 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full overflow-hidden"
                     style={{
                       backgroundImage: `url(${getFotoUrl(singleStudent.foto)})`,
                       backgroundSize: 'cover',
-                      backgroundPosition: 'center',
+                      backgroundPosition: 'top center',
                       backgroundRepeat: 'no-repeat'
                     }}
                   />
@@ -318,7 +317,7 @@ const PrintPDCardPreview: React.FC<PrintPDCardPreviewProps> = ({ isOpen, onClose
                 style={{
                   backgroundImage: `url(${getFotoUrl(singleStudent.foto)})`,
                   backgroundSize: 'cover',
-                  backgroundPosition: 'center',
+                  backgroundPosition: 'top center',
                   backgroundRepeat: 'no-repeat'
                 }}
               />
@@ -393,7 +392,7 @@ const PrintPDCardPreview: React.FC<PrintPDCardPreviewProps> = ({ isOpen, onClose
                         style={{
                           backgroundImage: `url(${getFotoUrl(student.foto)})`,
                           backgroundSize: 'cover',
-                          backgroundPosition: 'center',
+                          backgroundPosition: 'top center',
                           backgroundRepeat: 'no-repeat'
                         }}
                       />

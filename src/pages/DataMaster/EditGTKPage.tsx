@@ -187,6 +187,7 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
     { id: "pendidikan", label: "Pendidikan" },
     { id: "sertifikasi", label: "Sertifikasi & Rekening" },
     { id: "kontak", label: "Kontak" },
+    { id: "anak", label: "Data Anak" },
     { id: "dokumen", label: "Berkas Dokumen" },
   ];
 
@@ -197,6 +198,10 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
   const [formData, setFormData] = useState<any>({});
   const [loading, setLoading] = useState(!!id);
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+  const [isAnakModalOpen, setIsAnakModalOpen] = useState(false);
+  const [editingAnakId, setEditingAnakId] = useState<string | null>(null);
+  const [anakForm, setAnakForm] = useState<any>({ nama: "", nik: "", nisn: "", jenis_kelamin: "L", tempat_lahir: "", tanggal_lahir: "", status_anak_id: "1", jenjang_pendidikan_id: "0", tahun_masuk: "" });
+  const [anakErrors, setAnakErrors] = useState<any>({});
   const [tempCoords, setTempCoords] = useState<{lat: string, lng: string} | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -783,6 +788,8 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                 tst: formatDateToIndonesian(t.tst_tambahan),
                 jumlahJam: t.jumlah_jam_diakui !== undefined ? Number(t.jumlah_jam_diakui) : (t.jumlah_jam !== null && t.jumlah_jam !== undefined ? Number(t.jumlah_jam) : 0),
               })) : [],
+
+              anak: data.anak || [],
               
               pendidikanTerakhir: data.pendidikan_terakhir || "",
               bidangStudi: data.bidang_studi_terakhir || "",
@@ -1228,6 +1235,145 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEditAnakClick = (a: any) => {
+    setEditingAnakId(a.anak_id);
+    setAnakForm({
+      nama: a.nama || "",
+      nik: a.nik || "",
+      nisn: a.nisn || "",
+      jenis_kelamin: a.jenis_kelamin || "L",
+      tempat_lahir: a.tempat_lahir || "",
+      tanggal_lahir: a.tanggal_lahir ? a.tanggal_lahir.split('T')[0] : "",
+      status_anak_id: String(a.status_anak_id || "1"),
+      jenjang_pendidikan_id: String(a.jenjang_pendidikan_id || "0"),
+      tahun_masuk: String(a.tahun_masuk || ""),
+    });
+    setAnakErrors({});
+    setIsAnakModalOpen(true);
+  };
+
+  const handleDeleteAnakClick = async (anakId: string) => {
+    Swal.fire({
+      title: "Hapus Data Anak?",
+      text: "Apakah Anda yakin ingin menghapus data anak ini?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#EF4444",
+      cancelButtonColor: "#6B7280",
+      confirmButtonText: "Ya, Hapus!",
+      cancelButtonText: "Batal"
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          Swal.fire({
+            title: "Sedang menghapus...",
+            allowOutsideClick: false,
+            didOpen: () => {
+              Swal.showLoading();
+            }
+          });
+
+          await dapodikService.deleteGtkAnak(id!, anakId);
+
+          Swal.fire({
+            icon: "success",
+            title: "Berhasil",
+            text: "Data anak berhasil dihapus!",
+            timer: 2000,
+            showConfirmButton: false
+          });
+
+          const refreshedData = await dapodikService.getGtkDetail(id!);
+          if (refreshedData.status === "success" && refreshedData.data) {
+            setFormData((prev: any) => ({
+              ...prev,
+              anak: refreshedData.data.anak || []
+            }));
+          }
+        } catch (err: any) {
+          Swal.fire({
+            icon: "error",
+            title: "Gagal",
+            text: err.response?.data?.message || "Gagal menghapus data anak.",
+            timer: 2500,
+            showConfirmButton: false
+          });
+        }
+      }
+    });
+  };
+
+  const handleSaveAnak = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const errors: any = {};
+    if (!anakForm.nama) errors.nama = "Nama anak wajib diisi";
+    if (!anakForm.tanggal_lahir) errors.tanggal_lahir = "Tanggal lahir wajib diisi";
+    if (anakForm.nik && anakForm.nik.length !== 16) errors.nik = "NIK harus tepat 16 digit";
+    if (anakForm.nisn && anakForm.nisn.length !== 10) errors.nisn = "NISN harus tepat 10 digit";
+
+    if (Object.keys(errors).length > 0) {
+      setAnakErrors(errors);
+      return;
+    }
+
+    try {
+      Swal.fire({
+        title: "Sedang menyimpan...",
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+
+      const payload = {
+        nama: anakForm.nama,
+        nik: anakForm.nik || null,
+        nisn: anakForm.nisn || null,
+        jenis_kelamin: anakForm.jenis_kelamin,
+        tempat_lahir: anakForm.tempat_lahir || null,
+        tanggal_lahir: anakForm.tanggal_lahir,
+        status_anak_id: Number(anakForm.status_anak_id),
+        jenjang_pendidikan_id: Number(anakForm.jenjang_pendidikan_id),
+        tahun_masuk: anakForm.tahun_masuk ? Number(anakForm.tahun_masuk) : null,
+      };
+
+      let response;
+      if (editingAnakId) {
+        response = await dapodikService.updateGtkAnak(id!, editingAnakId, payload);
+      } else {
+        response = await dapodikService.createGtkAnak(id!, payload);
+      }
+
+      if (response) {
+        Swal.fire({
+          icon: "success",
+          title: "Berhasil",
+          text: editingAnakId ? "Data anak berhasil diperbarui!" : "Data anak berhasil ditambahkan!",
+          timer: 2000,
+          showConfirmButton: false
+        });
+
+        setIsAnakModalOpen(false);
+        setEditingAnakId(null);
+        const refreshedData = await dapodikService.getGtkDetail(id!);
+        if (refreshedData.status === "success" && refreshedData.data) {
+          setFormData((prev: any) => ({
+            ...prev,
+            anak: refreshedData.data.anak || []
+          }));
+        }
+      }
+    } catch (err: any) {
+      Swal.fire({
+        icon: "error",
+        title: "Gagal",
+        text: err.response?.data?.message || "Gagal menyimpan data anak.",
+        timer: 2500,
+        showConfirmButton: false
+      });
     }
   };
 
@@ -2146,6 +2292,100 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
           </div>
           )}
 
+          {/* Card: Anak */}
+          {activeTab === "anak" && (
+            <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6">
+              <div className="border-b border-gray-100 dark:border-white/[0.05] pb-3 flex justify-between items-center">
+                <h4 className="text-lg font-bold text-gray-800 dark:text-white/90">
+                  Data Anak
+                </h4>
+                <Button size="sm" onClick={() => {
+                  setAnakForm({ nama: "", nik: "", nisn: "", jenis_kelamin: "L", tempat_lahir: "", tanggal_lahir: "", status_anak_id: "1", jenjang_pendidikan_id: "0", tahun_masuk: "" });
+                  setAnakErrors({});
+                  setEditingAnakId(null);
+                  setIsAnakModalOpen(true);
+                }}>
+                  Tambah Anak
+                </Button>
+              </div>
+              
+              <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+                <div className="max-w-full overflow-x-auto custom-scrollbar">
+                  <Table className="min-w-full">
+                    <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
+                      <TableRow>
+                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Nama</TableCell>
+                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">NIK</TableCell>
+                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">NISN</TableCell>
+                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Jenis Kelamin</TableCell>
+                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Tempat, Tgl Lahir</TableCell>
+                         <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Jenjang Pendidikan</TableCell>
+                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Status Anak</TableCell>
+                        <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-center text-theme-xs dark:text-gray-400">Aksi</TableCell>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
+                      {formData.anak && formData.anak.length > 0 ? (
+                        formData.anak.map((a: any, i: number) => (
+                          <TableRow key={i} className={Number(a.soft_delete || 0) === 1 ? "opacity-60 bg-gray-50/50 dark:bg-white/[0.01]" : ""}>
+                            <TableCell className="px-5 py-4 text-gray-700 font-medium text-start text-theme-sm dark:text-gray-300">{a.nama || "-"}</TableCell>
+                            <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{a.nik?.trim() || "-"}</TableCell>
+                            <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{a.nisn?.trim() || "-"}</TableCell>
+                            <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">
+                              {a.jenis_kelamin === "L" ? "Laki-laki" : a.jenis_kelamin === "P" ? "Perempuan" : a.jenis_kelamin || "-"}
+                            </TableCell>
+                            <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">
+                              {a.tempat_lahir || "-"}, {a.tanggal_lahir ? formatDateToIndonesian(a.tanggal_lahir) : "-"}
+                            </TableCell>
+                            <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">
+                              {a.jenjang_pendidikan?.nama || a.jenjang_pendidikan_id || "-"}
+                            </TableCell>
+                            <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">
+                              {a.status_anak?.nama || a.status_anak_id || "-"}
+                              {Number(a.soft_delete || 0) === 1 && (
+                                <span className="ml-2 inline-flex items-center rounded-md bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-800 ring-1 ring-inset ring-amber-600/20 dark:bg-amber-500/10 dark:text-amber-400 dark:ring-amber-500/20">Non-Aktif</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="px-5 py-4 text-center text-theme-sm">
+                              {Number(a.soft_delete || 0) === 1 ? (
+                                <span className="text-gray-400 dark:text-gray-600">-</span>
+                              ) : (
+                                <div className="flex items-center justify-center gap-2">
+                                  <button
+                                    onClick={() => handleEditAnakClick(a)}
+                                    className="text-brand-500 hover:text-brand-700 dark:hover:text-brand-400 p-1"
+                                    title="Edit"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteAnakClick(a.anak_id)}
+                                    className="text-error-500 hover:text-error-700 dark:hover:text-error-400 p-1"
+                                    title="Hapus"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={8} className="px-5 py-10 text-center italic text-gray-500">Belum ada data anak</TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Card 8: Dokumen */}
           {activeTab === "dokumen" && (
             <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6">
@@ -2607,6 +2847,124 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
         onClose={() => setIsCardModalOpen(false)}
         person={selectedPersonForCard}
       />
+
+      {/* Modal: Tambah Anak */}
+      <Modal isOpen={isAnakModalOpen} onClose={() => { setIsAnakModalOpen(false); setEditingAnakId(null); }} className="max-w-[600px] p-6 overflow-hidden">
+        <div className="flex justify-between items-center border-b border-gray-100 dark:border-white/[0.05] pb-4 mb-4">
+          <h3 className="text-lg font-bold text-gray-800 dark:text-white/90">
+            {editingAnakId ? "Edit Data Anak" : "Tambah Data Anak"}
+          </h3>
+          <button onClick={() => { setIsAnakModalOpen(false); setEditingAnakId(null); }} className="text-gray-500 hover:text-gray-700 dark:hover:text-white">
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <form onSubmit={handleSaveAnak} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2 md:col-span-2">
+              <Label>Nama Anak <span className="text-red-500">*</span></Label>
+              <Input
+                value={anakForm.nama || ""}
+                onChange={(e) => setAnakForm((p: any) => ({ ...p, nama: e.target.value }))}
+                placeholder="Masukkan nama lengkap anak"
+                error={anakErrors.nama}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>NIK</Label>
+              <Input
+                value={anakForm.nik || ""}
+                onChange={(e) => setAnakForm((p: any) => ({ ...p, nik: e.target.value.substring(0, 16) }))}
+                placeholder="Masukkan 16 digit NIK"
+                error={anakErrors.nik}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>NISN</Label>
+              <Input
+                value={anakForm.nisn || ""}
+                onChange={(e) => setAnakForm((p: any) => ({ ...p, nisn: e.target.value.substring(0, 10) }))}
+                placeholder="Masukkan 10 digit NISN"
+                error={anakErrors.nisn}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Jenis Kelamin <span className="text-red-500">*</span></Label>
+              <select
+                value={anakForm.jenis_kelamin || "L"}
+                onChange={(e) => setAnakForm((p: any) => ({ ...p, jenis_kelamin: e.target.value }))}
+                className="w-full rounded-lg border p-3 text-sm dark:bg-gray-900 dark:text-white border-gray-200 dark:border-gray-800 focus:outline-none"
+              >
+                <option value="L">Laki-laki</option>
+                <option value="P">Perempuan</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>Tempat Lahir</Label>
+              <Input
+                value={anakForm.tempat_lahir || ""}
+                onChange={(e) => setAnakForm((p: any) => ({ ...p, tempat_lahir: e.target.value }))}
+                placeholder="Tempat lahir anak"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Tanggal Lahir <span className="text-red-500">*</span></Label>
+              <input
+                type="date"
+                value={anakForm.tanggal_lahir || ""}
+                onChange={(e) => setAnakForm((p: any) => ({ ...p, tanggal_lahir: e.target.value }))}
+                className={`w-full rounded-lg border p-3 text-sm dark:bg-gray-900 dark:text-white ${anakErrors.tanggal_lahir ? "border-red-500 focus:border-red-500" : "border-gray-200 dark:border-gray-800"} focus:outline-none`}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Tahun Masuk Sekolah</Label>
+              <Input
+                type="number"
+                value={anakForm.tahun_masuk || ""}
+                onChange={(e) => setAnakForm((p: any) => ({ ...p, tahun_masuk: e.target.value }))}
+                placeholder="Contoh: 2024"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Jenjang Pendidikan <span className="text-red-500">*</span></Label>
+              <select
+                value={anakForm.jenjang_pendidikan_id || "0"}
+                onChange={(e) => setAnakForm((p: any) => ({ ...p, jenjang_pendidikan_id: e.target.value }))}
+                className="w-full rounded-lg border p-3 text-sm dark:bg-gray-900 dark:text-white border-gray-200 dark:border-gray-800 focus:outline-none"
+              >
+                {(refOptions?.jenjang_pendidikan || []).map((p: any, idx: number) => (
+                  <option key={p.jenjang_pendidikan_id || p.id || idx} value={p.jenjang_pendidikan_id || p.id}>{p.nama || p.jenjang_pendidikan}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>Status Anak <span className="text-red-500">*</span></Label>
+              <select
+                value={anakForm.status_anak_id || "1"}
+                onChange={(e) => setAnakForm((p: any) => ({ ...p, status_anak_id: e.target.value }))}
+                className="w-full rounded-lg border p-3 text-sm dark:bg-gray-900 dark:text-white border-gray-200 dark:border-gray-800 focus:outline-none"
+              >
+                <option value="1">Anak Kandung</option>
+                <option value="2">Anak Tiri</option>
+                <option value="3">Anak Angkat</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 mt-6 border-t border-gray-100 dark:border-white/[0.05] pt-4">
+            <button
+              type="button"
+              onClick={() => setIsAnakModalOpen(false)}
+              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-400 border border-gray-200 dark:border-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-white/[0.02]"
+            >
+              Batal
+            </button>
+            <Button type="submit">Simpan</Button>
+          </div>
+        </form>
+      </Modal>
 
       <Lightbox
         open={lightboxOpen}

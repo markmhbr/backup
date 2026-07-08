@@ -276,6 +276,36 @@ export const dapodikService = {
     }
   },
 
+  createGtkAnak: async (id: string, data: any) => {
+    try {
+      const response = await api.post(`/dapodik/gtk/${id}/anak`, data);
+      return response.data;
+    } catch (error) {
+      console.error(`Error creating gtk anak for ${id}:`, error);
+      throw error;
+    }
+  },
+
+  updateGtkAnak: async (id: string, anakId: string, data: any) => {
+    try {
+      const response = await api.patch(`/dapodik/gtk/${id}/anak/${anakId}`, data);
+      return response.data;
+    } catch (error) {
+      console.error(`Error updating gtk anak ${anakId} for ${id}:`, error);
+      throw error;
+    }
+  },
+
+  deleteGtkAnak: async (id: string, anakId: string) => {
+    try {
+      const response = await api.delete(`/dapodik/gtk/${id}/anak/${anakId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error deleting gtk anak ${anakId} for ${id}:`, error);
+      throw error;
+    }
+  },
+
   getPesertaDidikDetail: async (id: string) => {
     try {
       const response = await api.get(`/dapodik/peserta-didik/${id}`);

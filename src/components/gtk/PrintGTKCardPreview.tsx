@@ -211,7 +211,7 @@ const PrintGTKCardPreview: React.FC<PrintGTKCardPreviewProps> = ({ isOpen, onClo
                   style={{
                     backgroundImage: `url(${person.avatar || "/images/default/profile.jpg"})`,
                     backgroundSize: 'cover',
-                    backgroundPosition: 'center',
+                    backgroundPosition: 'top center',
                     backgroundRepeat: 'no-repeat'
                   }}
                 />
@@ -273,7 +273,7 @@ const PrintGTKCardPreview: React.FC<PrintGTKCardPreviewProps> = ({ isOpen, onClo
               style={{
                 backgroundImage: `url(${person.avatar || "/images/default/profile.jpg"})`,
                 backgroundSize: 'cover',
-                backgroundPosition: 'center',
+                backgroundPosition: 'top center',
                 backgroundRepeat: 'no-repeat'
               }}
             />
