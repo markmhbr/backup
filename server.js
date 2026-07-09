@@ -31,6 +31,17 @@ const server = http.createServer((req, res) => {
   // Decode URI to handle spaces/special characters
   let safeUrl = decodeURIComponent(req.url.split('?')[0]);
   
+  // Storage fallback: Redirect requests for storage files to the central backend
+  if (safeUrl.startsWith('/storage/')) {
+    const envApiUrl = process.env.VITE_API_URL || 'https://centralsimak.smakniscjr.sch.id/api';
+    const baseBackendUrl = envApiUrl.replace(/\/api\/?$/, '');
+    const redirectUrl = baseBackendUrl + safeUrl;
+    
+    res.writeHead(302, { 'Location': redirectUrl });
+    res.end();
+    return;
+  }
+  
   // Resolve path
   let filePath = path.join(DIST_DIR, safeUrl);
 

@@ -104,6 +104,14 @@ if (isset($_GET['action']) && $_GET['action'] === 'setup') {
             exit;
         }
 
+        // MENCEGAH 1 SEKOLAH MEMILIKI 2 DOMAIN:
+        // Cari dan putuskan kaitan key ini jika sebelumnya pernah didaftarkan di host lain
+        foreach ($keys as $host => $key) {
+            if ($key === $apiKey && $host !== $currentHost) {
+                unset($keys[$host]); // Hapus kaitan dengan domain lama
+            }
+        }
+
         // Tambah/Update key untuk host saat ini
         $keys[$currentHost] = $apiKey;
         $keysContent = "<?php\n// Terproteksi\ndefined('SECURE_ACCESS') or die('No direct script access allowed');\nreturn " . var_export($keys, true) . ";\n";

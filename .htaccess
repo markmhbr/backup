@@ -19,7 +19,10 @@ RewriteRule ^(index\.html)?$ dist/index.html [L]
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^ - [L]
 
-# 2. API: Semua request ke api.php (termasuk sub-path seperti /api.php/auth/login) diarahkan ke dist/api.php
+# 2. Storage: Arahkan request /storage/... ke dist/storage.php
+RewriteRule ^storage/(.*)$ dist/storage.php?path=$1 [L,QSA]
+
+# 3. API: Semua request ke api.php (termasuk sub-path seperti /api.php/auth/login) diarahkan ke dist/api.php
 RewriteRule ^api\.php(/.*)?$ dist/api.php$1 [L,QSA]
 
 # 3. Jika file yang dicari ada di dalam folder /dist/, serve dari /dist/
