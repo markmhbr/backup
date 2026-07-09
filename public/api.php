@@ -7,7 +7,8 @@ header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 // Set Timeout agar PHP process tidak menumpuk jika backend pusat lambat
 define('CURL_TIMEOUT', 30);
 define('CURL_CONNECT_TIMEOUT', 10);
-define('KEY_FILE', __DIR__ . '/key.php');
+define('KEYS_FILE', __DIR__ . '/keys.php');
+define('SECURE_ACCESS', true);
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
@@ -57,6 +58,18 @@ function getBackendUrlFromEnv() {
 // Set URL Backend Pusat secara dinamis dari .env
 define('BACKEND_URL', getBackendUrlFromEnv());
 
+// Ambil domain/subdomain yang sedang diakses
+$currentHost = isset($_SERVER['HTTP_HOST']) ? strtolower($_SERVER['HTTP_HOST']) : 'default';
+
+// Load keys mapping
+$keys = [];
+if (file_exists(KEYS_FILE)) {
+    $keys = include KEYS_FILE;
+    if (!is_array($keys)) {
+        $keys = [];
+    }
+}
+
 // 1. Alur Setup Key (Menyimpan Key via POST JSON atau GET URL)
 if (isset($_GET['action']) && $_GET['action'] === 'setup') {
     $apiKey = '';
@@ -72,21 +85,43 @@ if (isset($_GET['action']) && $_GET['action'] === 'setup') {
     }
 
     if (!empty($apiKey)) {
-        $keyContent = "<?php\n// Terproteksi\ndefine('API_KEY', '" . addslashes($apiKey) . "');\n";
-        file_put_contents(KEY_FILE, $keyContent);
-        echo json_encode(["status" => "success", "message" => "API Key berhasil dihubungkan! Silakan refresh halaman login sekolah Anda."]);
+        // Probe check: Verifikasi apakah API Key valid ke Backend Pusat sebelum disimpan
+        $probeCh = curl_init(BACKEND_URL);
+        curl_setopt($probeCh, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($probeCh, CURLOPT_TIMEOUT, 10);
+        curl_setopt($probeCh, CURLOPT_CONNECTTIMEOUT, 5);
+        curl_setopt($probeCh, CURLOPT_HTTPHEADER, [
+            "x-api-key: " . $apiKey
+        ]);
+        curl_exec($probeCh);
+        $probeHttpCode = curl_getinfo($probeCh, CURLINFO_HTTP_CODE);
+        curl_close($probeCh);
+
+        // Jika backend pusat menolak dengan status 401 atau 403, key tidak valid
+        if ($probeHttpCode === 401 || $probeHttpCode === 403) {
+            http_response_code(400);
+            echo json_encode(["status" => "error", "message" => "API Key tidak valid atau ditolak oleh Backend Pusat."]);
+            exit;
+        }
+
+        // Tambah/Update key untuk host saat ini
+        $keys[$currentHost] = $apiKey;
+        $keysContent = "<?php\n// Terproteksi\ndefined('SECURE_ACCESS') or die('No direct script access allowed');\nreturn " . var_export($keys, true) . ";\n";
+        file_put_contents(KEYS_FILE, $keysContent);
+        
+        echo json_encode(["status" => "success", "message" => "API Key untuk domain " . htmlspecialchars($currentHost) . " berhasil dihubungkan! Silakan refresh halaman login sekolah Anda."]);
         exit;
     }
 }
 
-// 2. Cek apakah Key sudah di-setup
-if (!file_exists(KEY_FILE)) {
+// 2. Cek apakah Key sudah di-setup untuk domain ini
+if (!isset($keys[$currentHost])) {
     http_response_code(400);
-    echo json_encode(["status" => "error", "message" => "Sistem belum terhubung. Silakan hubungkan API Key terlebih dahulu."]);
+    echo json_encode(["status" => "error", "message" => "Sistem untuk domain " . htmlspecialchars($currentHost) . " belum terhubung. Silakan hubungkan API Key terlebih dahulu."]);
     exit;
 }
 
-require_once KEY_FILE;
+$activeApiKey = $keys[$currentHost];
 
 // 3. Meneruskan Request (Proxy) ke Backend Pusat
 $requestUri = $_SERVER['REQUEST_URI'];
@@ -118,7 +153,7 @@ foreach (getallheaders() as $name => $value) {
     
     $headers[] = "$name: $value";
 }
-$headers[] = "x-api-key: " . API_KEY; // Sisipkan API Key rahasia
+$headers[] = "x-api-key: " . $activeApiKey; // Sisipkan API Key dinamis sesuai domain
 
 // 4. Penanganan Body Request
 if ($isMultipart) {
@@ -166,6 +201,19 @@ $responseHeaders = substr($response, 0, $headerSize);
 $responseBody = substr($response, $headerSize);
 
 curl_close($ch);
+
+// Auto-cleanup jika API Key ditolak/diganti oleh backend pusat
+if ($httpCode === 401 || $httpCode === 403) {
+    if (isset($keys[$currentHost])) {
+        unset($keys[$currentHost]);
+        $keysContent = "<?php\n// Terproteksi\ndefined('SECURE_ACCESS') or die('No direct script access allowed');\nreturn " . var_export($keys, true) . ";\n";
+        file_put_contents(KEYS_FILE, $keysContent);
+    }
+    // Ganti response body agar user tahu sistem harus menghubungkan ulang key
+    http_response_code(400);
+    echo json_encode(["status" => "error", "message" => "API Key tidak valid atau telah diganti di backend pusat. Silakan hubungkan ulang API Key."]);
+    exit;
+}
 
 // Kirim header kembali ke browser
 http_response_code($httpCode);
