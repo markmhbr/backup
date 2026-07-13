@@ -11,6 +11,7 @@ import EkskulTable from "../../components/school/EkskulTable";
 import RekapRombelKategoriTable from "../../components/school/RekapRombelKategoriTable";
 import RekapRombelKompetensiTable from "../../components/school/RekapRombelKompetensiTable";
 import { dapodikService } from "../../services/dapodikService";
+import * as XLSX from "xlsx";
 
 export default function ClassData() {
   const [searchParams] = useSearchParams();
@@ -83,7 +84,7 @@ export default function ClassData() {
   const handleExport = async () => {
     Swal.fire({
       title: `Export Data ${activeTab === 'rekap' ? 'Rekap Rombel' : activeTab === 'ekskul' ? 'Ekskul' : 'Rombel'}?`,
-      text: `Data ${activeTab === 'rekap' ? 'Rekapitulasi' : activeTab === 'ekskul' ? 'Ekskul' : activeTab} akan diunduh dalam format CSV.`,
+      text: `Data ${activeTab === 'rekap' ? 'Rekapitulasi' : activeTab === 'ekskul' ? 'Ekskul' : activeTab} akan diunduh dalam format Excel.`,
       icon: "question",
       showCancelButton: true,
       confirmButtonColor: "#10b981",
@@ -118,29 +119,78 @@ export default function ClassData() {
             // 1. Kategori
             rows.push(["REKAP ROMBEL BERDASARKAN KATEGORI"]);
             rows.push(["Kategori Rombel", "Tingkat 10", "Tingkat 11", "Tingkat 12", "Total"]);
+            
+            let totalKategori10 = 0;
+            let totalKategori11 = 0;
+            let totalKategori12 = 0;
+            let totalKategoriAll = 0;
+
             dataKategori.forEach((item: any) => {
+              const t10 = item.tingkat10 || 0;
+              const t11 = item.tingkat11 || 0;
+              const t12 = item.tingkat12 || 0;
+              const tot = item.total || 0;
+
+              totalKategori10 += t10;
+              totalKategori11 += t11;
+              totalKategori12 += t12;
+              totalKategoriAll += tot;
+
               rows.push([
                 item.kategori || "",
-                String(item.tingkat10 || 0),
-                String(item.tingkat11 || 0),
-                String(item.tingkat12 || 0),
-                String(item.total || 0)
+                String(t10),
+                String(t11),
+                String(t12),
+                String(tot)
               ]);
             });
+
+            rows.push([
+              "Jumlah Total",
+              String(totalKategori10),
+              String(totalKategori11),
+              String(totalKategori12),
+              String(totalKategoriAll)
+            ]);
+
             rows.push([]); // blank separator
 
             // 2. Kompetensi
             rows.push(["REKAP ROMBEL BERDASARKAN KOMPETENSI KEAHLIAN"]);
             rows.push(["Kompetensi Keahlian", "Tingkat 10", "Tingkat 11", "Tingkat 12", "Total"]);
+
+            let totalKompetensi10 = 0;
+            let totalKompetensi11 = 0;
+            let totalKompetensi12 = 0;
+            let totalKompetensiAll = 0;
+
             dataKompetensi.forEach((item: any) => {
+              const t10 = item.tingkat10 || 0;
+              const t11 = item.tingkat11 || 0;
+              const t12 = item.tingkat12 || 0;
+              const tot = item.total || 0;
+
+              totalKompetensi10 += t10;
+              totalKompetensi11 += t11;
+              totalKompetensi12 += t12;
+              totalKompetensiAll += tot;
+
               rows.push([
                 item.kompetensi || "",
-                String(item.tingkat10 || 0),
-                String(item.tingkat11 || 0),
-                String(item.tingkat12 || 0),
-                String(item.total || 0)
+                String(t10),
+                String(t11),
+                String(t12),
+                String(tot)
               ]);
             });
+
+            rows.push([
+              "Jumlah Total",
+              String(totalKompetensi10),
+              String(totalKompetensi11),
+              String(totalKompetensi12),
+              String(totalKompetensiAll)
+            ]);
 
             // Generate Excel HTML
             let htmlContent = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">`;
@@ -166,16 +216,11 @@ export default function ClassData() {
                 htmlContent += `</tr>`;
               }
             });
-            htmlContent += `</table></body></html>`;
-
-            const blob = new Blob([htmlContent], { type: "application/vnd.ms-excel;charset=utf-8;" });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.setAttribute("href", url);
-            link.setAttribute("download", `Rekap_Rombel_${new Date().toISOString().split('T')[0]}.xls`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            // Generate Excel XLSX
+            const worksheet = XLSX.utils.aoa_to_sheet(rows);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Rekap Rombel");
+            XLSX.writeFile(workbook, `Rekap_Rombel_${new Date().toISOString().split('T')[0]}.xlsx`);
 
             Swal.fire({
               title: "Berhasil!",
@@ -204,36 +249,11 @@ export default function ClassData() {
               item.id_ruang_str || ""
             ]);
 
-            // Generate Excel HTML
-            let htmlContent = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">`;
-            htmlContent += `<head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Data Ekskul</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>`;
-            htmlContent += `<body><table border="1">`;
-            
-            // Header Row
-            htmlContent += `<tr style="background-color: #4f46e5; color: #ffffff; font-weight: bold;">`;
-            headers.forEach(header => {
-              htmlContent += `<td>${header}</td>`;
-            });
-            htmlContent += `</tr>`;
-
-            // Value Rows
-            rows.forEach((row: any) => {
-              htmlContent += `<tr>`;
-              row.forEach((cell: any) => {
-                htmlContent += `<td>${cell}</td>`;
-              });
-              htmlContent += `</tr>`;
-            });
-            htmlContent += `</table></body></html>`;
-
-            const blob = new Blob([htmlContent], { type: "application/vnd.ms-excel;charset=utf-8;" });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.setAttribute("href", url);
-            link.setAttribute("download", `Data_Ekskul_${new Date().toISOString().split('T')[0]}.xls`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            // Generate Excel XLSX
+            const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Data Ekskul");
+            XLSX.writeFile(workbook, `Data_Ekskul_${new Date().toISOString().split('T')[0]}.xlsx`);
 
             Swal.fire({
               title: "Berhasil!",
@@ -267,36 +287,11 @@ export default function ClassData() {
             item.kebutuhanKhusus || "Tidak"
           ]);
 
-          // Generate Excel HTML
-          let htmlContent = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">`;
-          htmlContent += `<head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Data Rombel</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>`;
-          htmlContent += `<body><table border="1">`;
-          
-          // Header Row
-          htmlContent += `<tr style="background-color: #4f46e5; color: #ffffff; font-weight: bold;">`;
-          headers.forEach(header => {
-            htmlContent += `<td>${header}</td>`;
-          });
-          htmlContent += `</tr>`;
-
-          // Value Rows
-          rows.forEach((row: any) => {
-            htmlContent += `<tr>`;
-            row.forEach((cell: any) => {
-              htmlContent += `<td>${cell}</td>`;
-            });
-            htmlContent += `</tr>`;
-          });
-          htmlContent += `</table></body></html>`;
-
-          const blob = new Blob([htmlContent], { type: "application/vnd.ms-excel;charset=utf-8;" });
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.setAttribute("href", url);
-          link.setAttribute("download", `Data_Rombel_${activeTab}_${new Date().toISOString().split('T')[0]}.xls`);
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
+          // Generate Excel XLSX
+          const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+          const workbook = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(workbook, worksheet, "Data Rombel");
+          XLSX.writeFile(workbook, `Data_Rombel_${activeTab}_${new Date().toISOString().split('T')[0]}.xlsx`);
 
           Swal.fire({
             title: "Berhasil!",

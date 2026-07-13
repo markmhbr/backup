@@ -19,16 +19,66 @@ interface RekapGTKUsia {
   totalStatus: number;
 }
 
-export default function RekapGTKUsiaTable() {
+export default function RekapGTKUsiaTable({ rekapType = "all" }: { rekapType?: "all" | "guru" | "tendik" }) {
   const [rekapData, setRekapData] = useState<RekapGTKUsia[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const result = await dapodikService.getGtkRekapUsia();
+        setLoading(true);
+        const typeFilter = rekapType === 'all' ? undefined : rekapType;
+        const result = await dapodikService.getGTK(10000, "", 1, typeFilter, 'aktif');
         if (result && result.status === "success" && Array.isArray(result.data)) {
-          setRekapData(result.data);
+          const list = result.data || [];
+          const isGuru = (j: string) => (j || '').toLowerCase().includes('guru');
+          const isAsn = (s: string) => ['pns', 'pppk'].some(x => (s || '').toLowerCase().includes(x));
+          const calculateAge = (birthDateStr: string | null) => {
+            if (!birthDateStr) return 0;
+            const birthDate = new Date(birthDateStr);
+            if (isNaN(birthDate.getTime())) return 0;
+            const today = new Date();
+            let age = today.getFullYear() - birthDate.getFullYear();
+            const m = today.getMonth() - birthDate.getMonth();
+            if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+              age--;
+            }
+            return age;
+          };
+
+          let filteredList = list;
+          if (rekapType === 'guru') {
+            filteredList = list.filter((i: any) => isGuru(i.jenis_ptk_id_str || i.jenisPtk || ''));
+          } else if (rekapType === 'tendik') {
+            filteredList = list.filter((i: any) => !isGuru(i.jenis_ptk_id_str || i.jenisPtk || ''));
+          }
+
+          const ageRanges = [
+            { label: "< 30 Tahun", min: 0, max: 30 },
+            { label: "31 - 40 Tahun", min: 31, max: 40 },
+            { label: "41 - 50 Tahun", min: 41, max: 50 },
+            { label: "> 50 Tahun", min: 51, max: 150 },
+          ];
+
+          const calculatedRekap = ageRanges.map((range, idx) => {
+            const subset = filteredList.filter((i: any) => {
+              const age = calculateAge(i.tanggal_lahir);
+              return age >= range.min && age <= range.max;
+            });
+
+            return {
+              id: idx + 1,
+              rentangUsia: range.label,
+              lakiLaki: subset.filter((i: any) => i.jenis_kelamin === 'L').length,
+              perempuan: subset.filter((i: any) => i.jenis_kelamin === 'P').length,
+              totalJK: subset.length,
+              asn: subset.filter((i: any) => isAsn(i.status_kepegawaian_id_str || i.status_kepegawaian || '')).length,
+              nonAsn: subset.filter((i: any) => !isAsn(i.status_kepegawaian_id_str || i.status_kepegawaian || '')).length,
+              totalStatus: subset.length
+            };
+          });
+
+          setRekapData(calculatedRekap);
         }
       } catch (err) {
         console.error("Gagal mengambil rekap usia GTK:", err);
@@ -37,7 +87,7 @@ export default function RekapGTKUsiaTable() {
       }
     };
     fetchData();
-  }, []);
+  }, [rekapType]);
 
   const safeRekapData = Array.isArray(rekapData) ? rekapData : [];
 

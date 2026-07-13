@@ -19,16 +19,55 @@ interface RekapGTKPendidikan {
   totalStatus: number;
 }
 
-export default function RekapGTKPendidikanTable() {
+export default function RekapGTKPendidikanTable({ rekapType = "all" }: { rekapType?: "all" | "guru" | "tendik" }) {
   const [rekapData, setRekapData] = useState<RekapGTKPendidikan[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const result = await dapodikService.getGtkRekapPendidikan();
+        setLoading(true);
+        const typeFilter = rekapType === 'all' ? undefined : rekapType;
+        const result = await dapodikService.getGTK(10000, "", 1, typeFilter, 'aktif');
         if (result && result.status === "success" && Array.isArray(result.data)) {
-          setRekapData(result.data);
+          const list = result.data || [];
+          const isGuru = (j: string) => (j || '').toLowerCase().includes('guru');
+          const isAsn = (s: string) => ['pns', 'pppk'].some(x => (s || '').toLowerCase().includes(x));
+
+          let filteredList = list;
+          if (rekapType === 'guru') {
+            filteredList = list.filter((i: any) => isGuru(i.jenis_ptk_id_str || i.jenisPtk || ''));
+          } else if (rekapType === 'tendik') {
+            filteredList = list.filter((i: any) => !isGuru(i.jenis_ptk_id_str || i.jenisPtk || ''));
+          }
+
+          const educationCategories = [
+            { label: "S2/Pasca Sarjana", keys: ["S2"] },
+            { label: "S1/Sarjana", keys: ["S1", null, ""] },
+            { label: "D3/Diploma", keys: ["D3"] },
+            { label: "SMA/Sederajat", keys: ["SMA", "SMK"] },
+          ];
+
+          const calculatedRekap = educationCategories.map((cat, idx) => {
+            const subset = filteredList.filter((i: any) => {
+              const ped = i.pendidikan_terakhir || '';
+              if (cat.keys.includes(null) && !ped) return true;
+              return cat.keys.some(k => k && ped.toUpperCase().startsWith(k.toUpperCase()));
+            });
+
+            return {
+              id: idx + 1,
+              pendidikan: cat.label,
+              lakiLaki: subset.filter((i: any) => i.jenis_kelamin === 'L').length,
+              perempuan: subset.filter((i: any) => i.jenis_kelamin === 'P').length,
+              totalJK: subset.length,
+              asn: subset.filter((i: any) => isAsn(i.status_kepegawaian_id_str || i.status_kepegawaian || '')).length,
+              nonAsn: subset.filter((i: any) => !isAsn(i.status_kepegawaian_id_str || i.status_kepegawaian || '')).length,
+              totalStatus: subset.length
+            };
+          });
+
+          setRekapData(calculatedRekap);
         }
       } catch (err) {
         console.error("Gagal mengambil rekap pendidikan GTK:", err);
@@ -37,7 +76,7 @@ export default function RekapGTKPendidikanTable() {
       }
     };
     fetchData();
-  }, []);
+  }, [rekapType]);
 
   const safeRekapData = Array.isArray(rekapData) ? rekapData : [];
 

@@ -19,16 +19,60 @@ interface RekapGTK {
   totalStatus: number;
 }
 
-export default function RekapGTKTable({ searchTerm = "" }: { searchTerm?: string }) {
+export default function RekapGTKTable({ searchTerm = "", rekapType = "all" }: { searchTerm?: string; rekapType?: "all" | "guru" | "tendik" }) {
   const [rekapData, setRekapData] = useState<RekapGTK[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const result = await dapodikService.getGtkRekapKategori();
+        setLoading(true);
+        const typeFilter = rekapType === 'all' ? undefined : rekapType;
+        const result = await dapodikService.getGTK(10000, "", 1, typeFilter, 'aktif');
         if (result && result.status === "success" && Array.isArray(result.data)) {
-          setRekapData(result.data);
+          const list = result.data || [];
+          const isGuru = (j: string) => (j || '').toLowerCase().includes('guru');
+          const isAsn = (s: string) => ['pns', 'pppk'].some(x => (s || '').toLowerCase().includes(x));
+
+          let filteredList = list;
+          if (rekapType === 'guru') {
+            filteredList = list.filter((i: any) => isGuru(i.jenis_ptk_id_str || i.jenisPtk || ''));
+          } else if (rekapType === 'tendik') {
+            filteredList = list.filter((i: any) => !isGuru(i.jenis_ptk_id_str || i.jenisPtk || ''));
+          }
+
+          const guruList = filteredList.filter((i: any) => isGuru(i.jenis_ptk_id_str || i.jenisPtk || ''));
+          const tendikList = filteredList.filter((i: any) => !isGuru(i.jenis_ptk_id_str || i.jenisPtk || ''));
+
+          const calculatedRekap: RekapGTK[] = [];
+          
+          if (rekapType === 'all' || rekapType === 'guru') {
+            calculatedRekap.push({
+              id: 1,
+              kategori: "Guru",
+              lakiLaki: guruList.filter((i: any) => i.jenis_kelamin === 'L').length,
+              perempuan: guruList.filter((i: any) => i.jenis_kelamin === 'P').length,
+              totalJK: guruList.length,
+              asn: guruList.filter((i: any) => isAsn(i.status_kepegawaian_id_str || i.status_kepegawaian || '')).length,
+              nonAsn: guruList.filter((i: any) => !isAsn(i.status_kepegawaian_id_str || i.status_kepegawaian || '')).length,
+              totalStatus: guruList.length
+            });
+          }
+          
+          if (rekapType === 'all' || rekapType === 'tendik') {
+            calculatedRekap.push({
+              id: 2,
+              kategori: "Tendik",
+              lakiLaki: tendikList.filter((i: any) => i.jenis_kelamin === 'L').length,
+              perempuan: tendikList.filter((i: any) => i.jenis_kelamin === 'P').length,
+              totalJK: tendikList.length,
+              asn: tendikList.filter((i: any) => isAsn(i.status_kepegawaian_id_str || i.status_kepegawaian || '')).length,
+              nonAsn: tendikList.filter((i: any) => !isAsn(i.status_kepegawaian_id_str || i.status_kepegawaian || '')).length,
+              totalStatus: tendikList.length
+            });
+          }
+
+          setRekapData(calculatedRekap);
         }
       } catch (err) {
         console.error("Gagal mengambil rekap GTK:", err);
@@ -37,11 +81,11 @@ export default function RekapGTKTable({ searchTerm = "" }: { searchTerm?: string
       }
     };
     fetchData();
-  }, []);
+  }, [rekapType]);
 
   const safeRekapData = Array.isArray(rekapData) ? rekapData : [];
 
-  const filteredData = safeRekapData.filter(item => 
+  const filteredData = safeRekapData.filter(item =>
     (item.kategori || "").toLowerCase().includes((searchTerm || "").toLowerCase())
   ).sort((a, b) => (a.kategori || "").localeCompare(b.kategori || ""));
 

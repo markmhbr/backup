@@ -1,24 +1,11 @@
 import { useState } from "react";
 import PageMeta from "../../components/common/PageMeta";
-import Button from "../../components/ui/button/Button";
 import Input from "../../components/form/input/InputField";
-import { SearchIcon, PrinterIcon } from "../../icons";
-import Swal from "sweetalert2";
+import { SearchIcon } from "../../icons";
 import PDCardTable from "../../components/student/PDCardTable";
 
 export default function PDCardPage() {
   const [searchQuery, setSearchQuery] = useState("");
-
-  const handlePrintAll = () => {
-    Swal.fire({
-      title: "Cetak Semua Kartu?",
-      text: "Menyiapkan cetak kartu ID untuk seluruh siswa aktif.",
-      icon: "info",
-      showCancelButton: true,
-      confirmButtonColor: "#465fff",
-      confirmButtonText: "Ya, Cetak!",
-    });
-  };
 
   return (
     <>
@@ -36,17 +23,6 @@ export default function PDCardPage() {
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
               Cetak kartu identitas resmi siswa berdasarkan Rombongan Belajar.
             </p>
-          </div>
-          <div>
-            <Button 
-                variant="outline" 
-                size="sm" 
-                className="min-w-[110px]"
-                onClick={handlePrintAll}
-                startIcon={<PrinterIcon className="size-4" />}
-            >
-              Cetak Semua
-            </Button>
           </div>
         </div>
 

@@ -84,7 +84,78 @@ export const printStudentProfile = async (selectedStudentIds: string[]) => {
       };
 
       const fotoUrl = getFotoUrl(siswa.foto);
-      const namaKelas = siswa.nama_rombel || 'Belum Masuk Kelas';
+      const namaKelas = siswa.rombongan_belajar_nama || 
+                        siswa.nama_rombel || 
+                        siswa.rombongan_belajar?.nama || 
+                        siswa.anggota_rombel?.[0]?.rombongan_belajar?.nama || 
+                        'Belum Masuk Kelas';
+
+      const rombel = siswa.rombongan_belajar || siswa.anggota_rombel?.[0]?.rombongan_belajar;
+      const currentTingkat = rombel?.tingkat_pendidikan_id ? Number(rombel.tingkat_pendidikan_id) : 10;
+      
+      const getDiterimaDiKelas = () => {
+        const entryDate = siswa.tanggal_masuk_sekolah ? new Date(siswa.tanggal_masuk_sekolah) : null;
+        if (!entryDate) return namaKelas || 'Belum Masuk Kelas';
+        
+        const currentStudentSemester = currentTingkat === 12 ? 6 : currentTingkat === 11 ? 4 : 2;
+        
+        const entryMonth = entryDate.getMonth() + 1; // 1-indexed
+        const entrySemester = (entryMonth >= 7 && entryMonth <= 12) ? 'Ganjil' : 'Genap';
+        
+        const entryYear = entryDate.getFullYear();
+        const entrySchoolStartYear = entrySemester === 'Ganjil' ? entryYear : entryYear - 1;
+        
+        const currentSemesterId = String(rombel?.semester_id || '20252');
+        const currentSchoolStartYear = parseInt(currentSemesterId.substring(0, 4), 10);
+        const currentSemester = (currentSemesterId.substring(4, 5) === '1' ? 'Ganjil' : 'Genap') as 'Ganjil' | 'Genap';
+        
+        const diffYears = currentSchoolStartYear - entrySchoolStartYear;
+        let diffSemesters = diffYears * 2;
+        if (entrySemester === 'Ganjil' && currentSemester === 'Genap') {
+          diffSemesters += 1;
+        } else if (entrySemester === 'Genap' && currentSemester === 'Ganjil') {
+          diffSemesters -= 1;
+        }
+        
+        const entryStudentSemester = Math.max(1, currentStudentSemester - diffSemesters);
+        const entryTingkat = entryStudentSemester <= 2 ? 10 : entryStudentSemester <= 4 ? 11 : 12;
+        
+        const romawiMap: { [key: number]: string } = { 10: 'X', 11: 'XI', 12: 'XII' };
+        const entryRomawi = romawiMap[entryTingkat] || 'X';
+        const currentRomawi = romawiMap[currentTingkat] || String(currentTingkat);
+        
+        let classSuffix = '';
+        if (namaKelas && namaKelas !== 'Belum Masuk Kelas') {
+          if (namaKelas.startsWith(currentRomawi)) {
+            classSuffix = namaKelas.substring(currentRomawi.length).trim();
+          } else if (namaKelas.startsWith(String(currentTingkat))) {
+            classSuffix = namaKelas.substring(String(currentTingkat).length).trim();
+          } else {
+            classSuffix = namaKelas;
+          }
+        } else {
+          classSuffix = siswa.jurusan_sp_nama || siswa.jurusan_nama || siswa.kompetensi_keahlian || '';
+        }
+        
+        classSuffix = classSuffix.replace(/\s+\d+$/, '').trim();
+        
+        return classSuffix ? `${entryRomawi} ${classSuffix}` : entryRomawi;
+      };
+      
+      const diterimaDiKelasVal = getDiterimaDiKelas();
+
+      const statusSiswaVal = siswa.jenis_pendaftaran_id_str || 
+                             siswa.jenis_pendaftaran_nama || 
+                             (siswa.jenis_pendaftaran_id === 1 || String(siswa.jenis_pendaftaran_id) === "1" ? "Siswa Baru" : 
+                              siswa.jenis_pendaftaran_id === 2 || String(siswa.jenis_pendaftaran_id) === "2" ? "Pindahan" : 
+                              "Siswa Baru");
+
+      const formatWaktuTempuh = (jam: any, menit: any) => {
+        const h = jam && jam !== '0' && jam !== 0 ? `${jam} jam ` : '';
+        const m = menit && menit !== '0' && menit !== 0 ? `${menit} menit` : '';
+        if (!h && !m) return '-';
+        return `${h}${m}`.trim();
+      };
 
       // Page 1: Identitas Pribadi & Transport
       const page1Content = `
@@ -121,11 +192,12 @@ export const printStudentProfile = async (selectedStudentIds: string[]) => {
                       <tr><td class="label">NIPD / NISN</td><td class="sep">:</td><td class="val">${siswa.nipd || '-'} / ${siswa.nisn || '-'}</td></tr>
                       <tr><td class="label">NIK</td><td class="sep">:</td><td class="val">${siswa.nik || '-'}</td></tr>
                       <tr><td class="label">No. KK</td><td class="sep">:</td><td class="val">${siswa.no_kk || '-'}</td></tr>
+                      <tr><td class="label">No. Register Akte Lahir</td><td class="sep">:</td><td class="val">${siswa.reg_akta_lahir || '-'}</td></tr>
                       <tr><td class="label">Tempat, Tgl Lahir</td><td class="sep">:</td><td class="val">${siswa.tempat_lahir || '-'}, ${formatIndoDate(siswa.tanggal_lahir)}</td></tr>
                       <tr><td class="label">Jenis Kelamin</td><td class="sep">:</td><td class="val">${formatSex(siswa.jenis_kelamin)}</td></tr>
-                      <tr><td class="label">Agama</td><td class="sep">:</td><td class="val">${siswa.agama_id_str || '-'}</td></tr>
+                      <tr><td class="label">Agama</td><td class="sep">:</td><td class="val">${siswa.agama_nama || siswa.agama_id_str || '-'}</td></tr>
                       <tr><td class="label">Kewarganegaraan</td><td class="sep">:</td><td class="val">${siswa.kewarganegaraan || 'Indonesia'}</td></tr>
-                      <tr><td class="label">Kebutuhan Khusus</td><td class="sep">:</td><td class="val">${siswa.kebutuhan_khusus || 'Tidak Ada'}</td></tr>
+                      <tr><td class="label">Kebutuhan Khusus</td><td class="sep">:</td><td class="val">${siswa.kebutuhan_khusus_nama || siswa.kebutuhan_khusus || 'Tidak Ada'}</td></tr>
                       <tr><td class="label">Tinggi / Berat Badan</td><td class="sep">:</td><td class="val">${formatWeightHeight(siswa.tinggi_badan, 'cm')} / ${formatWeightHeight(siswa.berat_badan, 'kg')}</td></tr>
                       <tr><td class="label">Lingkar Kepala</td><td class="sep">:</td><td class="val">${formatWeightHeight(siswa.lingkar_kepala, 'cm')}</td></tr>
                       <tr><td class="label">Anak ke</td><td class="sep">:</td><td class="val">${formatAnakKe(siswa.anak_keberapa, siswa.jumlah_saudara_kandung)}</td></tr>
@@ -137,15 +209,15 @@ export const printStudentProfile = async (selectedStudentIds: string[]) => {
                               ${siswa.dusun || siswa.nama_dusun ? 'Dsn. ' + (siswa.dusun || siswa.nama_dusun) : ''}
                               RT ${siswa.rt || '-'} / RW ${siswa.rw || '-'} <br>
                               ${siswa.desa_kelurahan || '-'}, ${siswa.kecamatan || '-'} <br>
-                              ${siswa.kabupaten_kota || '-'} - ${siswa.kode_pos || '-'}
+                              ${siswa.kabupaten || siswa.kabupaten_kota || '-'}, ${siswa.provinsi || '-'} - ${siswa.kode_pos || '-'}
                           </td>
                       </tr>
                       <tr><td class="label">No. Handphone</td><td class="sep">:</td><td class="val">${siswa.nomor_telepon_seluler || '-'}</td></tr>
-                      <tr><td class="label">No. WA</td><td class="sep">:</td><td class="val">${siswa.no_wa || '-'}</td></tr>
+                      <tr><td class="label">No. WA</td><td class="sep">:</td><td class="val">${siswa.no_whatsapp || '-'}</td></tr>
                       <tr><td class="label">Email Akun</td><td class="sep">:</td><td class="val">${siswa.penggunas?.[0]?.email || '-'}</td></tr>
                       <tr><td class="label">Email Aktif</td><td class="sep">:</td><td class="val">${siswa.email || '-'}</td></tr>
-                      <tr><td class="label">Hobi</td><td class="sep">:</td><td class="val">${siswa.hobi || '-'}</td></tr>
-                      <tr><td class="label">Cita-cita</td><td class="sep">:</td><td class="val">${siswa.cita_cita || '-'}</td></tr>
+                      <tr><td class="label">Hobi</td><td class="sep">:</td><td class="val">${siswa.jenis_hobby_nama || siswa.hobi || '-'}</td></tr>
+                      <tr><td class="label">Cita-cita</td><td class="sep">:</td><td class="val">${siswa.jenis_cita_nama || siswa.cita_cita || '-'}</td></tr>
                   </table>
               </td>
               <td class="photo-wrapper" style="width: 25%; text-align: center; vertical-align: top; padding-top: 5px;">
@@ -153,16 +225,16 @@ export const printStudentProfile = async (selectedStudentIds: string[]) => {
               </td>
           </tr>
       </table>
-
+ 
       <div class="section-title" style="margin-top: 15px;">B. KETERANGAN TEMPAT TINGGAL & TRANSPORT</div>
       <table class="data-table" style="width: 100%;">
-          <tr><td class="label">Tempat Tinggal</td><td class="sep">:</td><td class="val">${siswa.jenis_tinggal_id_str || '-'}</td></tr>
-          <tr><td class="label">Alat Transportasi</td><td class="sep">:</td><td class="val">${siswa.alat_transportasi_id_str || '-'}</td></tr>
+          <tr><td class="label">Tempat Tinggal</td><td class="sep">:</td><td class="val">${siswa.jenis_tinggal_nama || siswa.jenis_tinggal_id_str || '-'}</td></tr>
+          <tr><td class="label">Alat Transportasi</td><td class="sep">:</td><td class="val">${siswa.alat_transportasi_nama || siswa.alat_transportasi_id_str || '-'}</td></tr>
           <tr><td class="label">Jarak ke Sekolah</td><td class="sep">:</td><td class="val">${siswa.jarak_rumah_ke_sekolah_km ? siswa.jarak_rumah_ke_sekolah_km + ' km' : '-'}</td></tr>
-          <tr><td class="label">Waktu Tempuh</td><td class="sep">:</td><td class="val">${siswa.waktu_tempuh_menit ? siswa.waktu_tempuh_menit + ' menit' : '-'}</td></tr>
+          <tr><td class="label">Waktu Tempuh</td><td class="sep">:</td><td class="val">${formatWaktuTempuh(siswa.waktu_tempuh_ke_sekolah, siswa.menit_tempuh_ke_sekolah)}</td></tr>
       </table>
       `;
-
+ 
       // Page 2: Orang Tua / Wali & Akademik/Bantuan
       const page2Content = `
       <div class="section-title">C. KETERANGAN ORANG TUA / WALI</div>
@@ -174,10 +246,9 @@ export const printStudentProfile = async (selectedStudentIds: string[]) => {
                       <tr><td class="label-half" style="width: 35%; font-weight: bold;">Nama</td><td class="sep-half" style="width: 5%; text-align: center;">:</td><td class="val-half" style="width: 60%;">${siswa.nama_ayah || '-'}</td></tr>
                       <tr><td class="label-half" style="width: 35%; font-weight: bold;">NIK</td><td class="sep-half" style="width: 5%; text-align: center;">:</td><td class="val-half" style="width: 60%;">${siswa.nik_ayah || '-'}</td></tr>
                       <tr><td class="label-half" style="width: 35%; font-weight: bold;">Tahun Lahir</td><td class="sep-half" style="width: 5%; text-align: center;">:</td><td class="val-half" style="width: 60%;">${siswa.tahun_lahir_ayah || '-'}</td></tr>
-                      <tr><td class="label-half" style="width: 35%; font-weight: bold;">Pendidikan</td><td class="sep-half" style="width: 5%; text-align: center;">:</td><td class="val-half" style="width: 60%;">${siswa.pendidikan_ayah_id_str || '-'}</td></tr>
-                      <tr><td class="label-half" style="width: 35%; font-weight: bold;">Pekerjaan</td><td class="sep-half" style="width: 5%; text-align: center;">:</td><td class="val-half" style="width: 60%;">${siswa.pekerjaan_ayah_id_str || '-'}</td></tr>
-                      <tr><td class="label-half" style="width: 35%; font-weight: bold;">Penghasilan</td><td class="sep-half" style="width: 5%; text-align: center;">:</td><td class="val-half" style="width: 60%;">${siswa.penghasilan_ayah_id_str || '-'}</td></tr>
-                      <tr><td class="label-half" style="width: 35%; font-weight: bold;">No. WA</td><td class="sep-half" style="width: 5%; text-align: center;">:</td><td class="val-half" style="width: 60%;">${siswa.no_wa_ayah || '-'}</td></tr>
+                      <tr><td class="label-half" style="width: 35%; font-weight: bold;">Pendidikan</td><td class="sep-half" style="width: 5%; text-align: center;">:</td><td class="val-half" style="width: 60%;">${siswa.jenjang_pendidikan_ayah_nama || siswa.pendidikan_ayah_id_str || '-'}</td></tr>
+                      <tr><td class="label-half" style="width: 35%; font-weight: bold;">Pekerjaan</td><td class="sep-half" style="width: 5%; text-align: center;">:</td><td class="val-half" style="width: 60%;">${siswa.pekerjaan_ayah_nama || siswa.pekerjaan_ayah_id_str || '-'}</td></tr>
+                      <tr><td class="label-half" style="width: 35%; font-weight: bold;">Penghasilan</td><td class="sep-half" style="width: 5%; text-align: center;">:</td><td class="val-half" style="width: 60%;">${siswa.penghasilan_ayah_nama || siswa.penghasilan_ayah_id_str || '-'}</td></tr>
                   </table>
               </td>
               <td style="width: 50%; padding-left: 15px; vertical-align: top;">
@@ -186,15 +257,14 @@ export const printStudentProfile = async (selectedStudentIds: string[]) => {
                       <tr><td class="label-half" style="width: 35%; font-weight: bold;">Nama</td><td class="sep-half" style="width: 5%; text-align: center;">:</td><td class="val-half" style="width: 60%;">${siswa.nama_ibu_kandung || siswa.nama_ibu || '-'}</td></tr>
                       <tr><td class="label-half" style="width: 35%; font-weight: bold;">NIK</td><td class="sep-half" style="width: 5%; text-align: center;">:</td><td class="val-half" style="width: 60%;">${siswa.nik_ibu || '-'}</td></tr>
                       <tr><td class="label-half" style="width: 35%; font-weight: bold;">Tahun Lahir</td><td class="sep-half" style="width: 5%; text-align: center;">:</td><td class="val-half" style="width: 60%;">${siswa.tahun_lahir_ibu || '-'}</td></tr>
-                      <tr><td class="label-half" style="width: 35%; font-weight: bold;">Pendidikan</td><td class="sep-half" style="width: 5%; text-align: center;">:</td><td class="val-half" style="width: 60%;">${siswa.pendidikan_ibu_id_str || '-'}</td></tr>
-                      <tr><td class="label-half" style="width: 35%; font-weight: bold;">Pekerjaan</td><td class="sep-half" style="width: 5%; text-align: center;">:</td><td class="val-half" style="width: 60%;">${siswa.pekerjaan_ibu_id_str || '-'}</td></tr>
-                      <tr><td class="label-half" style="width: 35%; font-weight: bold;">Penghasilan</td><td class="sep-half" style="width: 5%; text-align: center;">:</td><td class="val-half" style="width: 60%;">${siswa.penghasilan_ibu_id_str || '-'}</td></tr>
-                      <tr><td class="label-half" style="width: 35%; font-weight: bold;">No. WA</td><td class="sep-half" style="width: 5%; text-align: center;">:</td><td class="val-half" style="width: 60%;">${siswa.no_wa_ibu || '-'}</td></tr>
+                      <tr><td class="label-half" style="width: 35%; font-weight: bold;">Pendidikan</td><td class="sep-half" style="width: 5%; text-align: center;">:</td><td class="val-half" style="width: 60%;">${siswa.jenjang_pendidikan_ibu_nama || siswa.pendidikan_ibu_id_str || '-'}</td></tr>
+                      <tr><td class="label-half" style="width: 35%; font-weight: bold;">Pekerjaan</td><td class="sep-half" style="width: 5%; text-align: center;">:</td><td class="val-half" style="width: 60%;">${siswa.pekerjaan_ibu_nama || siswa.pekerjaan_ibu_id_str || '-'}</td></tr>
+                      <tr><td class="label-half" style="width: 35%; font-weight: bold;">Penghasilan</td><td class="sep-half" style="width: 5%; text-align: center;">:</td><td class="val-half" style="width: 60%;">${siswa.penghasilan_ibu_nama || siswa.penghasilan_ibu_id_str || '-'}</td></tr>
                   </table>
               </td>
           </tr>
       </table>
-
+ 
       <table class="data-table" style="margin-top: 15px; width: 100%;">
           <tr>
               <td style="width: 100%;">
@@ -203,25 +273,104 @@ export const printStudentProfile = async (selectedStudentIds: string[]) => {
                       <tr><td class="label-half" style="width: 35%; font-weight: bold;">Nama Wali</td><td class="sep-half" style="width: 5%; text-align: center;">:</td><td class="val-half" style="width: 60%;">${siswa.nama_wali || '-'}</td></tr>
                       <tr><td class="label-half" style="width: 35%; font-weight: bold;">NIK</td><td class="sep-half" style="width: 5%; text-align: center;">:</td><td class="val-half" style="width: 60%;">${siswa.nik_wali || '-'}</td></tr>
                       <tr><td class="label-half" style="width: 35%; font-weight: bold;">Tahun Lahir</td><td class="sep-half" style="width: 5%; text-align: center;">:</td><td class="val-half" style="width: 60%;">${siswa.tahun_lahir_wali || '-'}</td></tr>
-                      <tr><td class="label-half" style="width: 35%; font-weight: bold;">Pendidikan</td><td class="sep-half" style="width: 5%; text-align: center;">:</td><td class="val-half" style="width: 60%;">${siswa.pendidikan_wali_id_str || '-'}</td></tr>
-                      <tr><td class="label-half" style="width: 35%; font-weight: bold;">Pekerjaan</td><td class="sep-half" style="width: 5%; text-align: center;">:</td><td class="val-half" style="width: 60%;">${siswa.pekerjaan_wali_id_str || '-'}</td></tr>
-                      <tr><td class="label-half" style="width: 35%; font-weight: bold;">Penghasilan</td><td class="sep-half" style="width: 5%; text-align: center;">:</td><td class="val-half" style="width: 60%;">${siswa.penghasilan_wali_id_str || '-'}</td></tr>
-                      <tr><td class="label-half" style="width: 35%; font-weight: bold;">No. WA</td><td class="sep-half" style="width: 5%; text-align: center;">:</td><td class="val-half" style="width: 60%;">${siswa.no_wa_wali || '-'}</td></tr>
+                      <tr><td class="label-half" style="width: 35%; font-weight: bold;">Pendidikan</td><td class="sep-half" style="width: 5%; text-align: center;">:</td><td class="val-half" style="width: 60%;">${siswa.jenjang_pendidikan_wali_nama || siswa.pendidikan_wali_id_str || '-'}</td></tr>
+                      <tr><td class="label-half" style="width: 35%; font-weight: bold;">Pekerjaan</td><td class="sep-half" style="width: 5%; text-align: center;">:</td><td class="val-half" style="width: 60%;">${siswa.pekerjaan_wali_nama || siswa.pekerjaan_wali_id_str || '-'}</td></tr>
+                      <tr><td class="label-half" style="width: 35%; font-weight: bold;">Penghasilan</td><td class="sep-half" style="width: 5%; text-align: center;">:</td><td class="val-half" style="width: 60%;">${siswa.penghasilan_wali_nama || siswa.penghasilan_wali_id_str || '-'}</td></tr>
                   </table>
               </td>
           </tr>
       </table>
-
+ 
       <div class="section-title" style="margin-top: 15px;">D. DATA AKADEMIK & BANTUAN SOSIAL</div>
       <table class="data-table" style="width: 100%;">
-          <tr><td class="label">Sekolah Asal</td><td class="sep">:</td><td class="val">${siswa.sekolah_asal || '-'} (NPSN: ${siswa.npsn_sekolah_asal || '-'})</td></tr>
+          <tr><td class="label">Sekolah Asal</td><td class="sep">:</td><td class="val">${siswa.sekolah_asal || '-'}</td></tr>
           <tr><td class="label">No. Ijazah SMP</td><td class="sep">:</td><td class="val">${siswa.no_seri_ijazah || '-'}</td></tr>
-          <tr><td class="label">No. SKHUN</td><td class="sep">:</td><td class="val">${siswa.no_seri_skhun || '-'}</td></tr>
-          <tr><td class="label">No. Peserta UN</td><td class="sep">:</td><td class="val">${siswa.no_ujian_nasional || '-'}</td></tr>
-          <tr><td class="label">Diterima di Kelas</td><td class="sep">:</td><td class="val">${namaKelas}</td></tr>
+          <tr><td class="label">No. SKHUN</td><td class="sep">:</td><td class="val">${siswa.no_skhun || '-'}</td></tr>
+          <tr><td class="label">No. Peserta Ujian</td><td class="sep">:</td><td class="val">${siswa.no_peserta_ujian || '-'}</td></tr>
+          <tr><td class="label">Diterima di Kelas</td><td class="sep">:</td><td class="val">${diterimaDiKelasVal}</td></tr>
           <tr><td class="label">Tanggal Masuk</td><td class="sep">:</td><td class="val">${formatIndoDate(siswa.tanggal_masuk_sekolah)}</td></tr>
-          <tr><td class="label">Status Siswa</td><td class="sep">:</td><td class="val">${siswa.status || 'Aktif'}</td></tr>
+          <tr><td class="label">Status Siswa</td><td class="sep">:</td><td class="val">${statusSiswaVal}</td></tr>
       </table>
+      `;
+
+      // Page 3: Meninggalkan Sekolah, Lain-lain & TTD
+      const page3Content = `
+      <div class="section-title">E. MENINGGALKAN SEKOLAH</div>
+      <table class="data-table" style="width: 100%;">
+          <tr>
+              <td style="width: 30%;">Tamat Belajar</td>
+              <td class="sep">:</td>
+              <td class="val">
+                  Tanggal: ${siswa.status === 'Lulus' ? formatIndoDate(siswa.tanggal_keluar) : '.................'} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                  No. Ijazah: ${siswa.no_ijazah_keluar || '.................'}
+              </td>
+          </tr>
+          <tr>
+              <td style="padding-left: 20px;">Melanjutkan sekolah ke</td>
+              <td class="sep">:</td>
+              <td class="val">${siswa.lanjut_ke || ''}</td>
+          </tr>
+          <tr>
+              <td style="padding-left: 20px;">Alamat</td>
+              <td class="sep">:</td>
+              <td class="val">${siswa.alamat_lanjut || ''}</td>
+          </tr>
+          <tr>
+              <td style="padding-top: 10px;">Pindah sekolah ke</td>
+              <td class="sep" style="padding-top: 10px;">:</td>
+              <td class="val" style="padding-top: 10px;">${(siswa.status === 'Mutasi' || siswa.status === 'Pindah') ? (siswa.pindah_ke || '') : ''}</td>
+          </tr>
+          <tr>
+              <td style="padding-left: 20px;">Tanggal pindah</td>
+              <td class="sep">:</td>
+              <td class="val">
+                  Tanggal: ${(siswa.status === 'Mutasi' || siswa.status === 'Pindah') && siswa.tanggal_keluar ? formatIndoDate(siswa.tanggal_keluar) : '.................'} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                  dari kelas: ${namaKelas}
+              </td>
+          </tr>
+          <tr>
+              <td style="padding-left: 20px;">Alamat sekolah</td>
+              <td class="sep">:</td>
+              <td class="val">${siswa.alamat_sekolah_pindah || ''}</td>
+          </tr>
+          <tr>
+              <td style="padding-left: 20px;">Alamat pindah</td>
+              <td class="sep">:</td>
+              <td class="val">${siswa.alamat_rumah_pindah || ''}</td>
+          </tr>
+          <tr>
+              <td style="padding-top: 10px;">Putus sekolah</td>
+              <td class="sep" style="padding-top: 10px;">:</td>
+              <td class="val" style="padding-top: 10px;">
+                  Tanggal: ${['Putus Sekolah', 'Dikeluarkan', 'Mengundurkan Diri'].includes(siswa.status) ? formatIndoDate(siswa.tanggal_keluar) : '.................'} <br>
+                  Alasan: ${['Putus Sekolah', 'Dikeluarkan', 'Mengundurkan Diri'].includes(siswa.status) ? (siswa.alasan_keluar || '-') : '.................'}
+              </td>
+          </tr>
+      </table>
+
+      <div class="section-wrapper" style="margin-top: 15px;">
+          <div class="section-title">F. LAIN-LAIN</div>
+          <div style="padding: 5px 0;">
+              <strong>Catatan penting selama siswa belajar di sekolah ini:</strong>
+              <div style="margin-top: 10px;">
+                  <div style="border-bottom: 1px dotted #000; width: 100%; height: 15px; margin-bottom: 3px;"></div>
+                  <div style="border-bottom: 1px dotted #000; width: 100%; height: 15px; margin-bottom: 3px;"></div>
+                  <div style="border-bottom: 1px dotted #000; width: 100%; height: 15px; margin-bottom: 3px;"></div>
+                  <div style="border-bottom: 1px dotted #000; width: 100%; height: 15px; margin-bottom: 3px;"></div>
+                  <div style="border-bottom: 1px dotted #000; width: 100%; height: 15px; margin-bottom: 3px;"></div>
+              </div>
+          </div>
+      </div>
+
+      <div class="signature-wrapper" style="margin-top: 20px; position: absolute; bottom: 1.8cm; right: 2cm; left: 2cm;">
+          <div class="signature-box" style="text-align: center; width: 250px; float: right;">
+              <p style="margin: 0 0 5px 0;">${sekolah.kabupaten_kota || 'Bandung'}, ${todayFormatted}</p>
+              <p style="margin: 0 0 45px 0;">Siswa yang bersangkutan,</p>
+              <p style="font-weight: bold; text-decoration: underline; margin: 0 0 2px 0;">${siswa.nama || ''}</p>
+              <p style="margin: 0;">NISN: ${siswa.nisn || '...........................'}</p>
+          </div>
+          <div style="clear: both;"></div>
+      </div>
       `;
 
       pagesHtml += `
@@ -235,7 +384,7 @@ export const printStudentProfile = async (selectedStudentIds: string[]) => {
 
       thumbnailsHtml += `
 <div class="thumbnail-wrapper" onclick="goToPage(${globalPageIndex})">
-    <div class="thumbnail-container">
+    <div class="thumbnail-container ${globalPageIndex === 1 ? 'active' : ''}">
         <div class="thumbnail-page">
             <div class="page-container">
                 ${page1Content}
@@ -263,6 +412,30 @@ export const printStudentProfile = async (selectedStudentIds: string[]) => {
         <div class="thumbnail-page">
             <div class="page-container">
                 ${page2Content}
+            </div>
+        </div>
+    </div>
+    <div class="thumbnail-number">${globalPageIndex}</div>
+</div>
+      `;
+
+      globalPageIndex++;
+
+      pagesHtml += `
+<div id="page-container-${globalPageIndex}" class="page-container">
+    ${page3Content}
+    <div class="page-footer">
+        Dicetak melalui Sistem Informasi Sekolah pada ${nowFormatted} | Hal <span class="page-number"></span>
+    </div>
+</div>
+      `;
+
+      thumbnailsHtml += `
+<div class="thumbnail-wrapper" onclick="goToPage(${globalPageIndex})">
+    <div class="thumbnail-container">
+        <div class="thumbnail-page">
+            <div class="page-container">
+                ${page3Content}
             </div>
         </div>
     </div>

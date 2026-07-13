@@ -64,35 +64,43 @@ export default function TahunPelajaranTable({ searchTerm, itemsPerPage }: TahunP
         <Table className="min-w-[800px]">
           <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
             <TableRow>
-              <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Semester</TableCell>
+              <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Kode</TableCell>
               <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Tahun Pelajaran</TableCell>
+              <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Semester</TableCell>
               <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-center text-theme-xs dark:text-gray-400">Status</TableCell>
             </TableRow>
           </TableHeader>
           <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={3} className="px-5 py-10 text-center text-gray-500 dark:text-gray-400">
+                <TableCell colSpan={4} className="px-5 py-10 text-center text-gray-500 dark:text-gray-400">
                   Loading...
                 </TableCell>
               </TableRow>
-            ) : currentData.length > 0 ? currentData.map((item) => (
-              <TableRow key={item.semester_id}>
-                <TableCell className="px-5 py-4 text-start font-medium text-gray-800 dark:text-white/90">
-                  {item.semester_id} ({item.semester})
-                </TableCell>
-                <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                  {item.tahun_pelajaran}
-                </TableCell>
-                <TableCell className="px-5 py-4 text-center">
-                  <Badge size="sm" color={item.status === "Aktif" ? "success" : "light"}>
-                    {item.status}
-                  </Badge>
-                </TableCell>
-              </TableRow>
-            )) : (
+            ) : currentData.length > 0 ? currentData.map((item) => {
+              const formattedTahunPelajaran = item.tahun_pelajaran.replace("/", "-");
+              const semesterLabel = item.semester_id.endsWith("1") ? "Ganjil" : (item.semester_id.endsWith("2") ? "Genap" : item.semester);
+              return (
+                <TableRow key={item.semester_id}>
+                  <TableCell className="px-5 py-4 text-start font-medium text-gray-800 dark:text-white/90">
+                    {item.semester_id}
+                  </TableCell>
+                  <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">
+                    {formattedTahunPelajaran}
+                  </TableCell>
+                  <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">
+                    {semesterLabel}
+                  </TableCell>
+                  <TableCell className="px-5 py-4 text-center">
+                    <Badge size="sm" color={item.status === "Aktif" ? "success" : "light"}>
+                      {item.status}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              );
+            }) : (
               <TableRow>
-                <TableCell colSpan={3} className="px-5 py-10 text-center text-gray-500 dark:text-gray-400">
+                <TableCell colSpan={4} className="px-5 py-10 text-center text-gray-500 dark:text-gray-400">
                   Tidak ada data tahun pelajaran ditemukan
                 </TableCell>
               </TableRow>

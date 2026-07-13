@@ -22,6 +22,8 @@ import { loadMapScripts, initGoogleMapPicker } from "../../utils/map";
 import { referenceService } from "../../services/referenceService";
 import { printStudentProfile } from "../../utils/printStudentProfile";
 import PrintPDCardPreview from "../../components/student/PrintPDCardPreview";
+import Alert from "../../components/ui/alert/Alert";
+import { PrinterIcon, EyeIcon } from "../../icons";
 
 const format3Digits = (value: string | number | null | undefined): string => {
   if (value === null || value === undefined || value === "") return "";
@@ -68,7 +70,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
     { id: "alamat", label: "Alamat & Tempat Tinggal" },
     { id: "periodik", label: "Data Periodik" },
     { id: "orangtua", label: "Orang Tua & Wali" },
-    { id: "dokumen", label: "Berkas Dokumen" },
+    { id: "dokumen", label: "Upload Dokumen" },
   ];
 
   const apiBaseUrl = import.meta.env.VITE_API_URL 
@@ -957,7 +959,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
         if (result.status === "success" && result.data) {
           const relativePath = result.data.filePath;
           const host = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace("/api", "") : (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
-          const fullUrl = `${host}${relativePath}`;
+          const fullUrl = `${host}${relativePath}?t=${Date.now()}`;
           setFormData((prev: any) => ({ ...prev, avatar: fullUrl }));
           Swal.fire({ title: "Berhasil", text: "Foto profil berhasil diperbarui", icon: "success", confirmButtonColor: "#465FFF" });
         }
@@ -1034,7 +1036,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
       if (result.status === "success" && result.data) {
         setUploadedDocs(result.data.uploaded_docs || []);
       }
-      Swal.fire({ title: "Berhasil", text: "Dokumen berhasil dihapus", icon: "success", confirmButtonColor: "#465FFF" });
+      Swal.fire({ title: "Berhasil", text: `Dokumen "${docLabel}" berhasil dihapus`, icon: "success", confirmButtonColor: "#465FFF" });
     } catch (error: any) {
       Swal.fire("Error", error.response?.data?.message || "Gagal menghapus dokumen", "error");
     } finally {
@@ -1044,7 +1046,9 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
 
   const handleCheckCoordinates = () => {
     setIsMapModalOpen(true);
-    loadMapScripts(() => initMap());
+    setTimeout(() => {
+      loadMapScripts(() => initMap());
+    }, 100);
   };
 
   const initMap = () => {
@@ -1409,39 +1413,38 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
           </div>
           <div className="flex flex-wrap items-center gap-2 md:gap-3">
             {!profileId && (
-              <button
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => navigate(`/${role}/student-data`)}
-                className="px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] transition-colors"
               >
                 Batal
-              </button>
+              </Button>
             )}
-            <button
+            <Button
+              variant="error-outline"
+              size="sm"
               onClick={handlePrintBiodata}
-              className="px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] transition-colors flex items-center gap-2"
+              startIcon={<PrinterIcon className="size-4" />}
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
               Cetak Biodata
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="info-outline"
+              size="sm"
               onClick={handlePrintCard}
-              className="px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] transition-colors flex items-center gap-2"
+              startIcon={<EyeIcon className="size-4 fill-current" />}
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
               Kartu ID
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="warning-outline"
+              size="sm"
               onClick={handleCheckPengajuan}
-              className="px-4 py-2.5 rounded-lg border border-brand-500 text-sm font-semibold text-brand-500 hover:bg-brand-50/50 dark:hover:bg-brand-500/10 transition-colors"
             >
               Pengajuan Perbaikan
-            </button>
-            <Button variant="outline" onClick={handleSave} disabled={loading}>
+            </Button>
+            <Button variant="primary-outline" size="sm" onClick={handleSave} disabled={loading}>
               Simpan Perubahan
             </Button>
           </div>
@@ -1518,9 +1521,9 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                 <div className="relative group">
                   <div className="w-48 h-64 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-800 flex items-center justify-center overflow-hidden bg-gray-50 dark:bg-white/[0.02]">
                     {formData.avatar ? (
-                      <img src={getFotoUrl(formData.avatar)} alt="Profile" className="w-full h-full object-cover" />
+                      <img src={getFotoUrl(formData.avatar)} alt="Profile" className="w-full h-full object-cover object-top" />
                     ) : (
-                      <img src="/images/default/profile.jpg" alt="Profile Fallback" className="w-full h-full object-cover opacity-60" />
+                      <img src="/images/default/profile.jpg" alt="Profile Fallback" className="w-full h-full object-cover object-top opacity-60" />
                     )}
                   </div>
                   <button
@@ -1707,7 +1710,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                         onChange={(e) => handleInputChange("noHp", e.target.value.replace(/\D/g, ''))} 
                       />
                     </div>
-                    <div className="space-y-2"><Label>No. Whatsapp <span className="text-red-500">*</span></Label><Input error={errors.noWa} value={formData.noWa || ""} placeholder="0812XXXXXXXX" onChange={(e) => handleInputChange("noWa", e.target.value)} /></div>
+                    <div className="space-y-2"><Label>No. Whatsapp <span className="text-red-500">*</span></Label><Input error={errors.noWa} value={formData.noWa || ""} placeholder="0812XXXXXXXX" onChange={(e) => handleInputChange("noWa", e.target.value.replace(/\D/g, ''))} /></div>
                     <div className="space-y-2"><Label>Email Aktif <span className="text-red-500">*</span></Label><Input error={errors.emailAktif} type="email" value={formData.emailAktif || ""} placeholder="nama@email.com" onChange={(e) => handleInputChange("emailAktif", e.target.value)} /></div>
                     <div className="space-y-2">
                       <Label>Email Akun</Label>
@@ -2594,11 +2597,17 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
             <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6">
             <div className="border-b border-gray-100 dark:border-white/[0.05] pb-3">
               <h4 className="text-lg font-bold text-gray-800 dark:text-white/90">
-                Berkas Dokumen
+                Upload Dokumen
               </h4>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Alert
+              variant="warning"
+              title="Informasi Upload Dokumen"
+              message="Dokumen yang diunggah harus memiliki format PDF dan ukuran maksimal 200 KB."
+            />
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {studentDocTypes.map((docType) => {
                 const existingFile = uploadedDocs.find(f => f.startsWith(docType.key));
                 const fileUrl = existingFile 
@@ -2609,17 +2618,34 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                   <div key={docType.key} className="space-y-3 border border-gray-200 dark:border-white/[0.05] p-5 rounded-xl bg-gray-50/30 dark:bg-white/[0.01] flex flex-col justify-between">
                     <div>
                       <Label className="font-semibold text-gray-700 dark:text-gray-300">{docType.name}</Label>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                        Format: PDF (Maksimal 200Kb)
-                      </p>
                     </div>
                     {existingFile ? (
                       <div className="flex flex-col gap-3 bg-white dark:bg-gray-950 p-3 rounded-lg border border-gray-150 dark:border-white/[0.05] shadow-theme-xs mt-2">
-                        <div className="flex items-center gap-2.5 truncate">
+                        <div className="flex items-center gap-2.5">
                           {existingFile.toLowerCase().endsWith('.pdf') ? (
-                            <svg className="w-8 h-8 text-red-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                            </svg>
+                            <div className="relative w-9 h-11 shrink-0 mr-1">
+                              <svg className="w-full h-full" viewBox="0 0 40 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path
+                                  d="M4 44V4H26L36 14V44H4Z"
+                                  stroke="#EF4444"
+                                  strokeWidth="4"
+                                  strokeLinejoin="round"
+                                  fill="white"
+                                />
+                                <path
+                                  d="M26 4V14H36"
+                                  stroke="#EF4444"
+                                  strokeWidth="4"
+                                  strokeLinejoin="round"
+                                />
+                                <line x1="10" y1="20" x2="30" y2="20" stroke="#9CA3AF" strokeWidth="3" strokeLinecap="round" />
+                                <line x1="10" y1="28" x2="30" y2="28" stroke="#9CA3AF" strokeWidth="3" strokeLinecap="round" />
+                                <line x1="10" y1="36" x2="22" y2="36" stroke="#9CA3AF" strokeWidth="3" strokeLinecap="round" />
+                              </svg>
+                              <div className="absolute -bottom-1 -left-1 bg-red-600 text-white text-[8px] font-extrabold px-1 py-0.2 rounded border border-white leading-none">
+                                PDF
+                              </div>
+                            </div>
                           ) : (
                             <svg className="w-8 h-8 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />

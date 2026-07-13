@@ -90,7 +90,7 @@ export default function CompletenessProgress() {
                 {metric.title}
               </span>
               <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">
-                {metric.completedCount} dari {metric.totalCount} {metric.entityLabel} (100% Lengkap)
+                {metric.completedCount} dari {metric.totalCount} {metric.entityLabel} ({metric.percentage}% Lengkap)
               </span>
             </div>
             <div className="relative w-full h-2 mt-3 bg-gray-100 rounded-full dark:bg-gray-800">

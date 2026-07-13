@@ -9,6 +9,7 @@ import { SearchIcon, DownloadIcon } from "../../icons";
 import Button from "../../components/ui/button/Button";
 import Swal from "sweetalert2";
 import { dapodikService } from "../../services/dapodikService";
+import * as XLSX from "xlsx";
 
 export default function SarprasData() {
   const [activeTab, setActiveTab] = useState<"tanah" | "bangunan" | "ruang">("tanah");
@@ -70,36 +71,11 @@ export default function SarprasData() {
               item.alamat_jalan || "-"
             ]);
 
-            // Generate Excel HTML
-            let htmlContent = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">`;
-            htmlContent += `<head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Data Tanah</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>`;
-            htmlContent += `<body><table border="1">`;
-            
-            // Header Row
-            htmlContent += `<tr style="background-color: #4f46e5; color: #ffffff; font-weight: bold;">`;
-            headers.forEach(header => {
-              htmlContent += `<td>${header}</td>`;
-            });
-            htmlContent += `</tr>`;
-
-            // Value Rows
-            rows.forEach((row: any) => {
-              htmlContent += `<tr>`;
-              row.forEach((cell: any) => {
-                htmlContent += `<td>${cell}</td>`;
-              });
-              htmlContent += `</tr>`;
-            });
-            htmlContent += `</table></body></html>`;
-
-            const blob = new Blob([htmlContent], { type: "application/vnd.ms-excel;charset=utf-8;" });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.setAttribute("href", url);
-            link.setAttribute("download", `Data_Tanah_${new Date().toISOString().split('T')[0]}.xls`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            // Generate Excel XLSX
+            const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Data Tanah");
+            XLSX.writeFile(workbook, `Data_Tanah_${new Date().toISOString().split('T')[0]}.xlsx`);
 
             Swal.fire({
               title: "Berhasil!",
@@ -133,36 +109,11 @@ export default function SarprasData() {
               `Rp ${Number(item.nilai_perolehan_aset || 0).toLocaleString('id-ID')}`
             ]);
 
-            // Generate Excel HTML
-            let htmlContent = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">`;
-            htmlContent += `<head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Data Bangunan</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>`;
-            htmlContent += `<body><table border="1">`;
-            
-            // Header Row
-            htmlContent += `<tr style="background-color: #4f46e5; color: #ffffff; font-weight: bold;">`;
-            headers.forEach(header => {
-              htmlContent += `<td>${header}</td>`;
-            });
-            htmlContent += `</tr>`;
-
-            // Value Rows
-            rows.forEach((row: any) => {
-              htmlContent += `<tr>`;
-              row.forEach((cell: any) => {
-                htmlContent += `<td>${cell}</td>`;
-              });
-              htmlContent += `</tr>`;
-            });
-            htmlContent += `</table></body></html>`;
-
-            const blob = new Blob([htmlContent], { type: "application/vnd.ms-excel;charset=utf-8;" });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.setAttribute("href", url);
-            link.setAttribute("download", `Data_Bangunan_${new Date().toISOString().split('T')[0]}.xls`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            // Generate Excel XLSX
+            const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Data Bangunan");
+            XLSX.writeFile(workbook, `Data_Bangunan_${new Date().toISOString().split('T')[0]}.xlsx`);
 
             Swal.fire({
               title: "Berhasil!",
@@ -196,36 +147,11 @@ export default function SarprasData() {
               String(item.kapasitas || 0)
             ]);
 
-            // Generate Excel HTML
-            let htmlContent = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">`;
-            htmlContent += `<head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Data Ruangan</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>`;
-            htmlContent += `<body><table border="1">`;
-            
-            // Header Row
-            htmlContent += `<tr style="background-color: #4f46e5; color: #ffffff; font-weight: bold;">`;
-            headers.forEach(header => {
-              htmlContent += `<td>${header}</td>`;
-            });
-            htmlContent += `</tr>`;
-
-            // Value Rows
-            rows.forEach((row: any) => {
-              htmlContent += `<tr>`;
-              row.forEach((cell: any) => {
-                htmlContent += `<td>${cell}</td>`;
-              });
-              htmlContent += `</tr>`;
-            });
-            htmlContent += `</table></body></html>`;
-
-            const blob = new Blob([htmlContent], { type: "application/vnd.ms-excel;charset=utf-8;" });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.setAttribute("href", url);
-            link.setAttribute("download", `Data_Ruangan_${new Date().toISOString().split('T')[0]}.xls`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            // Generate Excel XLSX
+            const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Data Ruangan");
+            XLSX.writeFile(workbook, `Data_Ruangan_${new Date().toISOString().split('T')[0]}.xlsx`);
 
             Swal.fire({
               title: "Berhasil!",

@@ -15,71 +15,180 @@ interface MenuRoleMapping {
   peran_nama: string;
 }
 
-// Flat list of all configurable menu items from our AppSidebar definition
-const menuDefinition = [
-  { id: "profil-sekolah", name: "Data Master - Profil Sekolah" },
-  { id: "gtk", name: "Data Master - GTK" },
-  { id: "gtk-guru", name: "Data Master - GTK - Guru" },
-  { id: "gtk-tendik", name: "Data Master - GTK - Tendik" },
-  { id: "gtk-rekap", name: "Data Master - GTK - Rekap GTK" },
-  { id: "gtk-kartu", name: "Data Master - GTK - Kartu ID" },
-  { id: "gtk-perbaikan", name: "Data Master - GTK - Pengajuan Perbaikan" },
-  { id: "gtk-nonaktif", name: "Data Master - GTK - GTK Non Aktif" },
-  { id: "gtk-buku-induk", name: "Data Master - GTK - Buku Induk" },
-  { id: "peserta-didik", name: "Data Master - Peserta Didik" },
-  { id: "pd-aktif", name: "Data Master - PD - Peserta Didik" },
-  { id: "pd-rekap", name: "Data Master - PD - Rekap PD" },
-  { id: "pd-kartu", name: "Data Master - PD - Kartu ID PD" },
-  { id: "pd-perbaikan", name: "Data Master - PD - Pengajuan Perbaikan" },
-  { id: "pd-keluar", name: "Data Master - PD - PD Keluar" },
-  { id: "pd-buku-induk", name: "Data Master - PD - Buku Induk" },
-  { id: "rombongan-belajar", name: "Data Master - Rombongan Belajar" },
-  { id: "rombel-reguler", name: "Data Master - Rombel - Reguler" },
-  { id: "rombel-praktik", name: "Data Master - Rombel - Praktik" },
-  { id: "rombel-ekskul", name: "Data Master - Rombel - Ekskul" },
-  { id: "rombel-pilihan", name: "Data Master - Rombel - Matpel Pilihan" },
-  { id: "rombel-wali", name: "Data Master - Rombel - Wali" },
-  { id: "rombel-rekap", name: "Data Master - Rombel - Rekap Rombel" },
-  { id: "tugas-tambahan", name: "Data Master - Rombel - Tugas Tambahan" },
-  { id: "mata-pelajaran", name: "Data Master - Mata Pelajaran" },
-  { id: "sarpras", name: "Data Master - Sarpras" },
-  { id: "akademik", name: "Akademik (Parent Menu)" },
-  { id: "akademik-tahun-pelajaran", name: "Akademik - Tahun Pelajaran" },
-  { id: "akademik-kompetensi", name: "Akademik - Kompetensi Keahlian" },
-  { id: "gtk-card", name: "Akademik - Kartu ID GTK" },
-  { id: "student-card", name: "Akademik - Kartu ID PD" },
-  { id: "kurikulum", name: "Kurikulum (Parent Menu)" },
-  { id: "kurikulum-pengaturan-jam", name: "Kurikulum - Pengaturan Jam" },
-  { id: "kurikulum-jadwal-pelajaran", name: "Kurikulum - Jadwal Pelajaran" },
-  { id: "kurikulum-presensi", name: "Kurikulum - Presensi (Parent Menu)" },
-  { id: "presensi-scanner", name: "Kurikulum - Presensi - Scanner QR" },
-  { id: "presensi-pd", name: "Kurikulum - Presensi - Presensi Peserta Didik" },
-  { id: "presensi-gtk", name: "Kurikulum - Presensi - Presensi GTK" },
-  { id: "presensi-mapel", name: "Kurikulum - Presensi - Presensi Mapel" },
-  { id: "presensi-izin", name: "Kurikulum - Presensi - Izin" },
-  { id: "presensi-hari-libur", name: "Kurikulum - Presensi - Hari Libur" },
-  { id: "indisipliner", name: "Indisipliner (Parent Menu)" },
-  { id: "indisipliner-pd", name: "Indisipliner - Peserta Didik" },
-  { id: "indisipliner-gtk", name: "Indisipliner - GTK" },
-  { id: "keuangan", name: "Keuangan (Parent Menu)" },
-  { id: "keuangan-pengaturan", name: "Keuangan - Pengaturan Tagihan" },
-  { id: "keuangan-tagihan", name: "Keuangan - Tagihan SPP" },
-  { id: "keuangan-laporan", name: "Keuangan - Laporan & Rekap" },
-  { id: "administrasi-surat", name: "Administrasi Surat (Parent Menu)" },
-  { id: "surat-pengaturan-nomor", name: "Administrasi Surat - Pengaturan Nomor" },
-  { id: "surat-template", name: "Administrasi Surat - Template Surat" },
-  { id: "surat-masuk", name: "Administrasi Surat - Surat Masuk" },
-  { id: "surat-keluar", name: "Administrasi Surat - Surat Keluar" },
-  { id: "surat-arsip", name: "Administrasi Surat - Arsip Surat" },
-  { id: "layanan-mandala", name: "Layanan Mandala (Parent Menu)" },
-  { id: "layanan-gtk", name: "Layanan Mandala - GTK" },
-  { id: "layanan-pd", name: "Layanan Mandala - Peserta Didik" },
-  { id: "layanan-pelaporan", name: "Layanan Mandala - Pelaporan Dokumen" },
-  { id: "pengaturan", name: "Pengaturan (Parent Menu)" },
-  { id: "pengaturan-menu", name: "Pengaturan - Menu" },
-  { id: "pengaturan-backup", name: "Pengaturan - Backup" },
-  { id: "pengaturan-umum", name: "Pengaturan - Umum" }
+// Tree-structured menu definition mirroring AppSidebar
+interface MenuNode {
+  id: string;
+  name: string;
+  children?: MenuNode[];
+}
+
+const menuTree: MenuNode[] = [
+  {
+    id: "data-master",
+    name: "Data Master",
+    children: [
+      { id: "profil-sekolah", name: "Profil Sekolah" },
+      {
+        id: "gtk",
+        name: "GTK",
+        children: [
+          { id: "gtk-guru", name: "Guru" },
+          { id: "gtk-tendik", name: "Tendik" },
+          { id: "gtk-tugas", name: "Tugas GTK" },
+          { id: "gtk-buku-induk", name: "Buku Induk" },
+          { id: "gtk-rekap", name: "Rekap GTK" },
+          { id: "gtk-kartu", name: "Kartu ID" },
+          { id: "gtk-perbaikan", name: "Pengajuan Perbaikan" },
+          { id: "gtk-nonaktif", name: "GTK Non Aktif" },
+        ],
+      },
+      {
+        id: "peserta-didik",
+        name: "Peserta Didik",
+        children: [
+          { id: "pd-aktif", name: "Peserta Didik" },
+          { id: "pd-tugas", name: "Tugas PD" },
+          { id: "pd-buku-induk", name: "Buku Induk" },
+          { id: "pd-rekap", name: "Rekap PD" },
+          { id: "pd-kartu", name: "Kartu ID PD" },
+          { id: "pd-perbaikan", name: "Pengajuan Perbaikan" },
+          { id: "pd-keluar", name: "PD Keluar" },
+        ],
+      },
+      {
+        id: "rombongan-belajar",
+        name: "Rombongan Belajar",
+        children: [
+          { id: "rombel-reguler", name: "Reguler" },
+          { id: "rombel-praktik", name: "Praktik" },
+          { id: "rombel-ekskul", name: "Ekskul" },
+          { id: "rombel-pilihan", name: "Matpel Pilihan" },
+          { id: "rombel-wali", name: "Wali" },
+          { id: "rombel-rekap", name: "Rekap Rombel" },
+        ],
+      },
+      { id: "mata-pelajaran", name: "Mata Pelajaran" },
+      { id: "sarpras", name: "Sarpras" },
+    ],
+  },
+  {
+    id: "akademik",
+    name: "Akademik",
+    children: [
+      { id: "akademik-tahun-pelajaran", name: "Tahun Pelajaran" },
+      { id: "akademik-kompetensi", name: "Kompetensi Keahlian" },
+      { id: "gtk-card", name: "Kartu ID GTK" },
+      { id: "student-card", name: "Kartu ID PD" },
+    ],
+  },
+  {
+    id: "kurikulum",
+    name: "Kurikulum",
+    children: [
+      { id: "kurikulum-pengaturan-jam", name: "Pengaturan Jam" },
+      { id: "kurikulum-jadwal-pelajaran", name: "Jadwal Pelajaran" },
+      {
+        id: "kurikulum-presensi",
+        name: "Presensi",
+        children: [
+          { id: "presensi-scanner", name: "Scanner QR" },
+          { id: "presensi-pd", name: "Presensi Peserta Didik" },
+          { id: "presensi-gtk", name: "Presensi GTK" },
+          { id: "presensi-mapel", name: "Presensi Mapel" },
+          { id: "presensi-izin", name: "Izin" },
+          { id: "presensi-hari-libur", name: "Hari Libur" },
+        ],
+      },
+    ],
+  },
+  {
+    id: "indisipliner",
+    name: "Indisipliner",
+    children: [
+      { id: "indisipliner-pd", name: "Peserta Didik" },
+      { id: "indisipliner-gtk", name: "GTK" },
+    ],
+  },
+  {
+    id: "keuangan",
+    name: "Keuangan",
+    children: [
+      { id: "keuangan-pengaturan", name: "Pengaturan Tagihan" },
+      { id: "keuangan-tagihan", name: "Tagihan SPP" },
+      { id: "keuangan-laporan", name: "Laporan & Rekap" },
+    ],
+  },
+  {
+    id: "administrasi-surat",
+    name: "Administrasi Surat",
+    children: [
+      { id: "surat-pengaturan-nomor", name: "Pengaturan Nomor" },
+      { id: "surat-template", name: "Template Surat" },
+      { id: "surat-masuk", name: "Surat Masuk" },
+      { id: "surat-keluar", name: "Surat Keluar" },
+      { id: "surat-arsip", name: "Arsip Surat" },
+    ],
+  },
+  {
+    id: "layanan-mandala",
+    name: "Layanan Mandala",
+    children: [
+      { id: "layanan-gtk", name: "GTK" },
+      { id: "layanan-pd", name: "Peserta Didik" },
+      { id: "layanan-pelaporan", name: "Pelaporan Dokumen" },
+    ],
+  },
+  {
+    id: "pengaturan",
+    name: "Pengaturan",
+    children: [
+      { id: "pengaturan-menu", name: "Menu" },
+      { id: "pengaturan-backup", name: "Backup" },
+      { id: "pengaturan-umum", name: "Umum" },
+    ],
+  },
 ];
+
+// Flatten tree to get all leaf + parent IDs for save operations
+function getAllIds(nodes: MenuNode[]): string[] {
+  const ids: string[] = [];
+  for (const node of nodes) {
+    ids.push(node.id);
+    if (node.children) {
+      ids.push(...getAllIds(node.children));
+    }
+  }
+  return ids;
+}
+
+// Get all child IDs (including nested) of a node
+function getDescendantIds(node: MenuNode): string[] {
+  const ids: string[] = [];
+  if (node.children) {
+    for (const child of node.children) {
+      ids.push(child.id);
+      ids.push(...getDescendantIds(child));
+    }
+  }
+  return ids;
+}
+
+const allMenuIds = getAllIds(menuTree);
+
+// Chevron icon component
+const ChevronIcon = ({ open }: { open: boolean }) => (
+  <svg
+    className={`w-4 h-4 transition-transform duration-200 ${open ? "rotate-90" : ""}`}
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2}
+  >
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+  </svg>
+);
+
+
 
 export default function MenuSettings() {
   const [roles, setRoles] = useState<Role[]>([]);
@@ -88,13 +197,13 @@ export default function MenuSettings() {
   const [loading, setLoading] = useState(false);
   const [mappings, setMappings] = useState<MenuRoleMapping[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const fetchRoles = async () => {
       try {
         const res = await api.get("/dapodik/roles");
         if (res.data && res.data.data) {
-          // Filter out Operator Sekolah from config since it always bypasses
           const list = (res.data.data as Role[]).filter(
             (r) => r.peran_nama !== "Operator Sekolah" && r.peran_id !== 10
           );
@@ -133,16 +242,57 @@ export default function MenuSettings() {
     }
   }, [selectedRole, mappings]);
 
-  const handleCheckboxChange = (id: string, checked: boolean) => {
-    if (checked) {
-      setCheckedMenus((prev) => [...prev, id]);
-    } else {
-      setCheckedMenus((prev) => prev.filter((item) => item !== id));
-    }
+  // Expand all parent nodes by default
+  useEffect(() => {
+    const allParentIds = new Set<string>();
+    const collectParents = (nodes: MenuNode[]) => {
+      for (const node of nodes) {
+        if (node.children && node.children.length > 0) {
+          allParentIds.add(node.id);
+          collectParents(node.children);
+        }
+      }
+    };
+    collectParents(menuTree);
+    setExpandedNodes(allParentIds);
+  }, []);
+
+  const toggleExpand = (id: string) => {
+    setExpandedNodes((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleCheckboxChange = (node: MenuNode, checked: boolean) => {
+    setCheckedMenus((prev) => {
+      const next = new Set(prev);
+      // Toggle self
+      if (checked) {
+        next.add(node.id);
+      } else {
+        next.delete(node.id);
+      }
+      // Toggle all descendants
+      const descendants = getDescendantIds(node);
+      for (const d of descendants) {
+        if (checked) {
+          next.add(d);
+        } else {
+          next.delete(d);
+        }
+      }
+      return Array.from(next);
+    });
   };
 
   const handleSelectAll = () => {
-    setCheckedMenus(menuDefinition.map((m) => m.id));
+    setCheckedMenus([...allMenuIds]);
   };
 
   const handleClearAll = () => {
@@ -159,7 +309,6 @@ export default function MenuSettings() {
         menuIds: checkedMenus,
       });
 
-      // Refresh mapping local state
       const res = await api.get("/dapodik/menu-roles");
       if (res.data && res.data.data) {
         setMappings(res.data.data);
@@ -184,6 +333,94 @@ export default function MenuSettings() {
     role.peran_nama.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Check states for parent nodes
+  const getCheckState = (node: MenuNode): "checked" | "indeterminate" | "unchecked" => {
+    if (!node.children || node.children.length === 0) {
+      return checkedMenus.includes(node.id) ? "checked" : "unchecked";
+    }
+    const descendants = getDescendantIds(node);
+    const checkedCount = descendants.filter((d) => checkedMenus.includes(d)).length;
+    if (checkedCount === 0 && !checkedMenus.includes(node.id)) return "unchecked";
+    if (checkedCount === descendants.length) return "checked";
+    return "indeterminate";
+  };
+
+  // Render a menu tree node recursively
+  const renderNode = (node: MenuNode, depth: number = 0) => {
+    const hasChildren = node.children && node.children.length > 0;
+    const isExpanded = expandedNodes.has(node.id);
+    const checkState = getCheckState(node);
+    const isChecked = checkState === "checked";
+    const isIndeterminate = checkState === "indeterminate";
+
+    return (
+      <div key={node.id}>
+        <div
+          className={`flex items-center gap-2 py-2 px-3 rounded-lg transition-colors group ${
+            hasChildren
+              ? "hover:bg-gray-100 dark:hover:bg-white/[0.04]"
+              : "hover:bg-gray-50 dark:hover:bg-white/[0.02]"
+          }`}
+          style={{ paddingLeft: `${depth * 20 + 12}px` }}
+        >
+          {/* Expand/Collapse toggle for parents */}
+          {hasChildren ? (
+            <button
+              type="button"
+              onClick={() => toggleExpand(node.id)}
+              className="p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex-shrink-0"
+            >
+              <ChevronIcon open={isExpanded} />
+            </button>
+          ) : (
+            <span className="w-5 flex-shrink-0" />
+          )}
+
+          {/* Checkbox */}
+          <label className="flex items-center gap-2.5 cursor-pointer flex-1 min-w-0">
+            <input
+              type="checkbox"
+              checked={isChecked}
+              ref={(el) => {
+                if (el) el.indeterminate = isIndeterminate;
+              }}
+              onChange={(e) => handleCheckboxChange(node, e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-900 flex-shrink-0"
+            />
+
+            {/* Label */}
+            <span
+              className={`text-sm truncate ${
+                hasChildren
+                  ? "font-semibold text-gray-800 dark:text-white/90"
+                  : "font-medium text-gray-600 dark:text-gray-300"
+              }`}
+            >
+              {node.name}
+            </span>
+            {/* Child count badge */}
+            {hasChildren && (
+              <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 dark:bg-white/[0.06] dark:text-gray-400 flex-shrink-0">
+                {node.children!.length}
+              </span>
+            )}
+          </label>
+        </div>
+
+        {/* Children */}
+        {hasChildren && isExpanded && (
+          <div className="border-l border-gray-100 dark:border-gray-800" style={{ marginLeft: `${depth * 20 + 24}px` }}>
+            {node.children!.map((child) => renderNode(child, depth + 1))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Calculate stats
+  const totalMenus = allMenuIds.length;
+  const activeMenus = checkedMenus.length;
+
   return (
     <>
       <PageMeta
@@ -207,14 +444,16 @@ export default function MenuSettings() {
               Pilih Peran Pengguna
             </h4>
             
-            {/* Search Box */}
             <div className="relative">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
               <input
                 type="text"
                 placeholder="Cari peran..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-800 placeholder-gray-400 focus:bg-white focus:border-brand-500 focus:outline-none dark:border-gray-800 dark:bg-white/[0.02] dark:text-white"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-800 placeholder-gray-400 focus:bg-white focus:border-brand-500 focus:outline-none dark:border-gray-800 dark:bg-white/[0.02] dark:text-white"
               />
             </div>
 
@@ -226,11 +465,16 @@ export default function MenuSettings() {
                     onClick={() => setSelectedRole(role)}
                     className={`w-full text-left px-4 py-3 rounded-xl border text-sm font-medium transition-all ${
                       selectedRole?.peran_id === role.peran_id
-                        ? "border-brand-500 bg-brand-50 text-brand-600 dark:bg-brand-950/20 dark:text-brand-400"
+                        ? "border-brand-500 bg-brand-50 text-brand-600 dark:bg-brand-950/20 dark:text-brand-400 shadow-sm"
                         : "border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.02]"
                     }`}
                   >
-                    {role.peran_nama}
+                    <div className="flex items-center gap-3">
+                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                        selectedRole?.peran_id === role.peran_id ? "bg-brand-500" : "bg-gray-300 dark:bg-gray-600"
+                      }`} />
+                      {role.peran_nama}
+                    </div>
                   </button>
                 ))
               ) : (
@@ -241,8 +485,8 @@ export default function MenuSettings() {
             </div>
           </div>
 
-          {/* Right Column: Menu Checklist */}
-          <div className="lg:col-span-2 rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 flex flex-col space-y-6">
+          {/* Right Column: Menu Tree */}
+          <div className="lg:col-span-2 rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 flex flex-col space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h4 className="font-semibold text-gray-800 dark:text-white/90">
@@ -252,48 +496,43 @@ export default function MenuSettings() {
                   </span>
                 </h4>
                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                  Centang item untuk mengizinkan akses menu tersebut.
+                  Centang item untuk mengizinkan akses. Parent checkbox mencentang semua anak otomatis.
                 </p>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-white/[0.05] px-2.5 py-1 rounded-lg">
+                  {activeMenus}/{totalMenus}
+                </span>
                 <button
                   onClick={handleSelectAll}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-white/[0.05] dark:text-gray-300 dark:hover:bg-white/[0.08]"
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-green-50 text-green-700 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/30 transition-colors"
                 >
                   Pilih Semua
                 </button>
                 <button
                   onClick={handleClearAll}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-white/[0.05] dark:text-gray-300 dark:hover:bg-white/[0.08]"
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/30 transition-colors"
                 >
                   Hapus Semua
                 </button>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[500px] overflow-y-auto pr-2 border-t border-b border-gray-100 dark:border-gray-800 py-4">
-              {menuDefinition.map((menu) => (
-                <label
-                  key={menu.id}
-                  className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 dark:border-gray-800/60 bg-gray-50/30 dark:bg-white/[0.01] hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={checkedMenus.includes(menu.id)}
-                    onChange={(e) =>
-                      handleCheckboxChange(menu.id, e.target.checked)
-                    }
-                    className="w-4.5 h-4.5 rounded border-gray-300 text-brand-600 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-900"
-                  />
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {menu.name}
-                  </span>
-                </label>
-              ))}
+            {/* Progress bar */}
+            <div className="w-full bg-gray-100 dark:bg-white/[0.05] rounded-full h-1.5">
+              <div
+                className="bg-brand-500 h-1.5 rounded-full transition-all duration-300"
+                style={{ width: `${totalMenus > 0 ? (activeMenus / totalMenus) * 100 : 0}%` }}
+              />
             </div>
 
-            <div className="flex justify-end pt-2">
+            {/* Tree */}
+            <div className="max-h-[520px] overflow-y-auto pr-1 border-t border-gray-100 dark:border-gray-800 pt-3 space-y-0.5">
+              {menuTree.map((node) => renderNode(node, 0))}
+            </div>
+
+            <div className="flex justify-end pt-3 border-t border-gray-100 dark:border-gray-800">
               <button
                 onClick={handleSave}
                 disabled={loading || !selectedRole}
@@ -323,7 +562,12 @@ export default function MenuSettings() {
                     Menyimpan...
                   </>
                 ) : (
-                  "Simpan Konfigurasi"
+                  <>
+                    <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Simpan Konfigurasi
+                  </>
                 )}
               </button>
             </div>

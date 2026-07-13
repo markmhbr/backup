@@ -55,21 +55,32 @@ export const initGoogleMapPicker = (options: MapPickerOptions) => {
 
   // Clear existing map instance if any
   // @ts-ignore
-  if (container._leaflet_id) {
-    // @ts-ignore
-    container._leaflet_id = null;
-    container.innerHTML = "";
+  if (container._leaflet_map) {
+    try {
+      // @ts-ignore
+      container._leaflet_map.remove();
+    } catch (e) {
+      console.warn("Error removing old Leaflet map:", e);
+    }
   }
+  // @ts-ignore
+  container._leaflet_id = null;
+  container.innerHTML = "";
 
-  // Fix default marker icon path issue in React/SPAs
+  // Fix default marker icon path issue in React/SPAs & change standard color to Red
   delete (L.Icon.Default.prototype as any)._getIconUrl;
   L.Icon.Default.mergeOptions({
-    iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
-    iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+    iconRetinaUrl: "https://cdn.jsdelivr.net/gh/pointhi/leaflet-color-markers@master/img/marker-icon-2x-red.png",
+    iconUrl: "https://cdn.jsdelivr.net/gh/pointhi/leaflet-color-markers@master/img/marker-icon-red.png",
     shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
   });
 
   const map = L.map(options.containerId).setView([options.initialLat, options.initialLng], 15);
+
+  // Fix Leaflet rendering/dragging issues in React modals
+  setTimeout(() => {
+    map.invalidateSize();
+  }, 300);
 
   // Google Maps Tile Layers
   const hybridLayer = L.tileLayer("https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}", {
@@ -160,6 +171,8 @@ export const initGoogleMapPicker = (options: MapPickerOptions) => {
           maximumAge: 0
         }
       );
+    } else {
+      alert("Browser Anda tidak mendukung fitur deteksi lokasi (Geolocation).");
     }
   };
 
@@ -193,19 +206,11 @@ export const initGoogleMapPicker = (options: MapPickerOptions) => {
   });
   map.addControl(new LocationControl());
 
-  // Auto locate if coords are the default placeholders or invalid
-  const isDefaultCoords = 
-    !options.initialLat || !options.initialLng ||
-    (options.initialLat === -6.200000 && options.initialLng === 106.816666) ||
-    (options.initialLat === 0 && options.initialLng === 0);
-
-  // Expose triggerGPS function on container DOM node so parent can call it
+  // Expose triggerGPS function and map instance on container DOM node so parent can call/clean them
   // @ts-ignore
   container.triggerGPS = getLocation;
-
-  if (isDefaultCoords) {
-    getLocation();
-  }
+  // @ts-ignore
+  container._leaflet_map = map;
 
   return map;
 };

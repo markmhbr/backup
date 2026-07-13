@@ -11,6 +11,7 @@ import { DownloadIcon, PrinterIcon, PlusIcon, TrashBinIcon } from "../../icons";
 import { dapodikService } from "../../services/dapodikService";
 import { getFotoUrl } from "../../utils/image";
 import { useSekolah } from "../../context/SekolahContext";
+import * as XLSX from "xlsx";
 
 const format3Digits = (value: string | number | null | undefined): string => {
   if (value === null || value === undefined || value === "") return "";
@@ -377,6 +378,15 @@ export default function SchoolProfile() {
   };
 
   const handleSave = async () => {
+    if (!profileData.cadisdik_id) {
+      Swal.fire({
+        title: "Peringatan",
+        text: "Cabang Dinas wajib diisi.",
+        icon: "warning",
+        confirmButtonColor: "#465fff",
+      });
+      return;
+    }
     try {
       Swal.fire({
         title: "Menyimpan...",
@@ -444,34 +454,11 @@ export default function SchoolProfile() {
             kontakData.email, kontakData.telepon, kontakData.website, kontakData.nomorFax
           ];
 
-          // Generate Excel HTML
-          let htmlContent = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">`;
-          htmlContent += `<head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Profil Sekolah</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>`;
-          htmlContent += `<body><table border="1">`;
-          
-          // Header Row
-          htmlContent += `<tr style="background-color: #4f46e5; color: #ffffff; font-weight: bold;">`;
-          headers.forEach(header => {
-            htmlContent += `<td>${header}</td>`;
-          });
-          htmlContent += `</tr>`;
-
-          // Value Row
-          htmlContent += `<tr>`;
-          values.forEach(val => {
-            htmlContent += `<td>${val || ''}</td>`;
-          });
-          htmlContent += `</tr>`;
-          htmlContent += `</table></body></html>`;
-
-          const blob = new Blob([htmlContent], { type: "application/vnd.ms-excel;charset=utf-8;" });
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.setAttribute("href", url);
-          link.setAttribute("download", `Profil_Sekolah_${profileData.namaSekolah.replace(/\s+/g, '_') || 'Sekolah'}.xls`);
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
+          // Generate Excel XLSX
+          const worksheet = XLSX.utils.aoa_to_sheet([headers, values]);
+          const workbook = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(workbook, worksheet, "Profil Sekolah");
+          XLSX.writeFile(workbook, `Profil_Sekolah_${profileData.namaSekolah.replace(/\s+/g, '_') || 'Sekolah'}.xlsx`);
 
           Swal.fire({
             title: "Berhasil!",
@@ -489,7 +476,360 @@ export default function SchoolProfile() {
   };
 
   const handlePrint = () => {
-    window.print();
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      Swal.fire("Gagal", "Popup blocker aktif. Mohon izinkan popup untuk mencetak.", "error");
+      return;
+    }
+
+    const todayFormatted = new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+    const now = new Date();
+    const timeFormatted = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');
+    const nowFormatted = todayFormatted + " " + timeFormatted;
+
+    const logoUrl = logoPreview || 'https://upload.wikimedia.org/wikipedia/commons/9/9c/Logo_Tut_Wuri_Handayani.png';
+    const rawProv = alamatData.propinsi || 'JAWA BARAT';
+    const provUpper = rawProv.toUpperCase();
+    const provText = provUpper.includes('PROVINSI') 
+      ? `PEMERINTAH ${provUpper}` 
+      : `PEMERINTAH PROVINSI ${provUpper}`;
+
+    const cadisdikLabel = cadisdikOptions.find(o => o.value === profileData.cadisdik_id)?.label || profileData.cadisdik_id || "-";
+
+    const socialMediaList = kontakData.socialMedia && kontakData.socialMedia.length > 0
+      ? kontakData.socialMedia.map(url => `<li>${url}</li>`).join('')
+      : '<li>-</li>';
+
+    const page1Content = `
+    <table class="header-table">
+        <tr>
+            <td style="width: 15%; text-align: left;">
+                <img src="${logoUrl}" class="logo">
+            </td>
+            <td class="kop-text" style="width: 70%;">
+                <div class="kop-h1">${provText}</div>
+                <div class="kop-h1">DINAS PENDIDIKAN</div>
+                <div class="kop-h2">${profileData.namaSekolah.toUpperCase()}</div>
+                <div class="kop-address">
+                    ${alamatData.jalan || ''} RT/RW ${format3Digits(alamatData.rt)}/${format3Digits(alamatData.rw)}
+                    Kec. ${alamatData.kecamatan || ''} Kab/Kota. ${alamatData.kabupaten || ''}
+                    Prov. ${alamatData.propinsi || ''} - Kode Pos ${alamatData.kodePos || ''}
+                </div>
+                <div class="kop-contact">
+                    ${kontakData.telepon ? `Telp. ${kontakData.telepon}` : ''}
+                    ${kontakData.email ? ` | Email: ${kontakData.email}` : ''}
+                    ${kontakData.website ? ` | Website: ${kontakData.website}` : ''}
+                </div>
+            </td>
+            <td style="width: 15%; text-align: right;">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/9/9c/Logo_Tut_Wuri_Handayani.png" class="logo">
+            </td>
+        </tr>
+    </table>
+    <div class="divider"></div>
+
+    <div class="title" style="text-align: center; font-size: 13px; font-weight: bold; margin-bottom: 3px; text-transform: uppercase;">BIODATA PROFIL SEKOLAH</div>
+    <div class="subtitle" style="text-align: center; font-size: 10px; color: #555; margin-bottom: 20px;">Laporan data per tanggal: ${todayFormatted}</div>
+
+    <div class="section-header" style="font-size: 11px; font-weight: bold; background-color: #f3f4f6; border-left: 5px solid #2563eb; padding: 5px 10px; margin-top: 15px; margin-bottom: 10px; text-transform: uppercase;">A. INFORMASI UMUM</div>
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
+        <tr>
+            <td style="vertical-align: top; width: 80%; border: none; padding: 0;">
+                <table class="info-table">
+                    <tr>
+                        <td class="label-col">Nama Sekolah</td>
+                        <td class="colon-col">:</td>
+                        <td class="value-col" style="font-weight: bold;">${profileData.namaSekolah || '-'}</td>
+                    </tr>
+                    <tr>
+                        <td class="label-col">NPSN / NSS</td>
+                        <td class="colon-col">:</td>
+                        <td class="value-col">${profileData.npsn || '-'} / ${profileData.nss || '-'}</td>
+                    </tr>
+                    <tr>
+                        <td class="label-col">Bentuk Pendidikan</td>
+                        <td class="colon-col">:</td>
+                        <td class="value-col">${profileData.bentukPendidikan || '-'}</td>
+                    </tr>
+                    <tr>
+                        <td class="label-col">Status Sekolah</td>
+                        <td class="colon-col">:</td>
+                        <td class="value-col">${profileData.statusSekolah || '-'}</td>
+                    </tr>
+                    <tr>
+                        <td class="label-col">Cabang Dinas</td>
+                        <td class="colon-col">:</td>
+                        <td class="value-col">${cadisdikLabel}</td>
+                    </tr>
+                    <tr>
+                        <td class="label-col">Kepala Sekolah</td>
+                        <td class="colon-col">:</td>
+                        <td class="value-col">${profileData.namaKepalaSekolah || '-'}</td>
+                    </tr>
+                    <tr>
+                        <td class="label-col">Operator</td>
+                        <td class="colon-col">:</td>
+                        <td class="value-col">${profileData.namaOperator || '-'}</td>
+                    </tr>
+                    <tr>
+                        <td class="label-col">Koordinat Lintang / Bujur</td>
+                        <td class="colon-col">:</td>
+                        <td class="value-col">${profileData.lintang || '-'} / ${profileData.bujur || '-'}</td>
+                    </tr>
+                </table>
+            </td>
+            <td style="vertical-align: top; width: 20%; text-align: right; border: none; padding: 0;">
+                <div style="border: 1px solid #ccc; width: 100px; height: 100px; display: inline-block; padding: 4px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                    <img src="${logoUrl}" style="max-width: 100%; max-height: 100%; object-fit: contain; display: block; margin: 0 auto;">
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <div class="section-header" style="font-size: 11px; font-weight: bold; background-color: #f3f4f6; border-left: 5px solid #2563eb; padding: 5px 10px; margin-top: 15px; margin-bottom: 10px; text-transform: uppercase;">B. ALAMAT LENGKAP</div>
+    <table class="info-table">
+        <tr>
+            <td class="label-col">Jalan</td>
+            <td class="colon-col">:</td>
+            <td class="value-col">${alamatData.jalan || '-'}</td>
+        </tr>
+        <tr>
+            <td class="label-col">RT / RW</td>
+            <td class="colon-col">:</td>
+            <td class="value-col">${format3Digits(alamatData.rt)} / ${format3Digits(alamatData.rw)}</td>
+        </tr>
+        <tr>
+            <td class="label-col">Desa / Kelurahan</td>
+            <td class="colon-col">:</td>
+            <td class="value-col">${alamatData.desa || '-'}</td>
+        </tr>
+        <tr>
+            <td class="label-col">Kecamatan</td>
+            <td class="colon-col">:</td>
+            <td class="value-col">${alamatData.kecamatan || '-'}</td>
+        </tr>
+        <tr>
+            <td class="label-col">Kabupaten / Kota</td>
+            <td class="colon-col">:</td>
+            <td class="value-col">${alamatData.kabupaten || '-'}</td>
+        </tr>
+        <tr>
+            <td class="label-col">Provinsi</td>
+            <td class="colon-col">:</td>
+            <td class="value-col">${alamatData.propinsi || '-'}</td>
+        </tr>
+        <tr>
+            <td class="label-col">Kode Pos</td>
+            <td class="colon-col">:</td>
+            <td class="value-col">${alamatData.kodePos || '-'}</td>
+        </tr>
+    </table>`;
+
+    const page2Content = `
+    <div class="section-header" style="font-size: 11px; font-weight: bold; background-color: #f3f4f6; border-left: 5px solid #2563eb; padding: 5px 10px; margin-top: 0; margin-bottom: 10px; text-transform: uppercase;">C. INFORMASI KONTAK & MEDIA SOSIAL</div>
+    <table class="info-table">
+        <tr>
+            <td class="label-col">Email</td>
+            <td class="colon-col">:</td>
+            <td class="value-col">${kontakData.email || '-'}</td>
+        </tr>
+        <tr>
+            <td class="label-col">Telepon / Fax</td>
+            <td class="colon-col">:</td>
+            <td class="value-col">${kontakData.telepon || '-'} / ${kontakData.nomorFax || '-'}</td>
+        </tr>
+        <tr>
+            <td class="label-col">Website</td>
+            <td class="colon-col">:</td>
+            <td class="value-col">${kontakData.website || '-'}</td>
+        </tr>
+        <tr>
+            <td class="label-col">Media Sosial</td>
+            <td class="colon-col">:</td>
+            <td class="value-col">
+                <ul style="margin: 0; padding-left: 20px; list-style-type: square;">
+                    ${socialMediaList}
+                </ul>
+            </td>
+        </tr>
+    </table>
+
+    <div class="section-header" style="font-size: 11px; font-weight: bold; background-color: #f3f4f6; border-left: 5px solid #2563eb; padding: 5px 10px; margin-top: 15px; margin-bottom: 10px; text-transform: uppercase;">D. DOKUMEN & ADMINISTRASI</div>
+    <table class="info-table">
+        <tr>
+            <td class="label-col">SK Pendirian Sekolah</td>
+            <td class="colon-col">:</td>
+            <td class="value-col">${administrasiData.skPendirian || '-'} (Tanggal SK: ${administrasiData.tglSkPendirian || '-'})</td>
+        </tr>
+        <tr>
+            <td class="label-col">SK Izin Operasional</td>
+            <td class="colon-col">:</td>
+            <td class="value-col">${administrasiData.skIzinOperasional || '-'} (Tanggal SK: ${administrasiData.tglSkIzinOperasional || '-'})</td>
+        </tr>
+        <tr>
+            <td class="label-col">NPWP</td>
+            <td class="colon-col">:</td>
+            <td class="value-col">${administrasiData.npwp || '-'} (Nama WP: ${administrasiData.nmWp || '-'})</td>
+        </tr>
+        <tr>
+            <td class="label-col">Nama Bank</td>
+            <td class="colon-col">:</td>
+            <td class="value-col">${administrasiData.namaBank || '-'}</td>
+        </tr>
+        <tr>
+            <td class="label-col">No. Rekening</td>
+            <td class="colon-col">:</td>
+            <td class="value-col">${administrasiData.noRekening || '-'}</td>
+        </tr>
+        <tr>
+            <td class="label-col">Atas Nama Rekening</td>
+            <td class="colon-col">:</td>
+            <td class="value-col">${administrasiData.rekeningAtasNama || '-'}</td>
+        </tr>
+        <tr>
+            <td class="label-col">Cabang / KCP Bank</td>
+            <td class="colon-col">:</td>
+            <td class="value-col">${administrasiData.cabangKcp || '-'}</td>
+        </tr>
+    </table>
+
+    <table class="footer-table">
+        <tr>
+            <td style="width: 50%;"></td>
+            <td style="width: 50%;">
+                ${alamatData.kabupaten || 'Kabupaten'}, ${todayFormatted}<br/>
+                Kepala Sekolah,<br/><br/><br/><br/>
+                <strong>${profileData.namaKepalaSekolah || 'Nama Kepala Sekolah'}</strong>
+            </td>
+        </tr>
+    </table>`;
+
+    let htmlContent = `
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Profil Sekolah - ${profileData.namaSekolah}</title>
+    <style>
+        @page { size: A4; margin: 0; }
+        body, table, th, td, strong, span, p, div { font-family: Arial, Helvetica, sans-serif !important; color: #333; }
+        body { font-size: 10.5px; line-height: 1.35; margin: 0; padding: 0; }
+        @media screen {
+            html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; background-color: #323639; }
+            body { display: flex; flex-direction: column; }
+            .pdf-toolbar { height: 56px; background-color: #323639; color: #f1f1f1 !important; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-bottom: 1px solid #1c1f21; z-index: 100; }
+            .pdf-toolbar * { color: #f1f1f1 !important; }
+            .pdf-title-container { display: flex; align-items: center; gap: 12px; }
+            .pdf-hamburger { background: none; border: none; color: #f1f1f1 !important; font-size: 20px; cursor: pointer; padding: 8px; border-radius: 50%; }
+            .pdf-title { font-size: 14px; font-weight: 500; color: #f1f1f1 !important; }
+            .pdf-controls { display: flex; align-items: center; gap: 12px; background-color: #202124; padding: 4px 16px; border-radius: 20px; color: #bdc1c6 !important; }
+            .pdf-controls * { color: #bdc1c6 !important; }
+            .pdf-control-btn { background: none; border: none; color: #bdc1c6 !important; cursor: pointer; font-size: 20px; }
+            .pdf-page-indicator { font-size: 13px; display: flex; align-items: center; gap: 8px; color: #bdc1c6 !important; }
+            .pdf-page-input { width: 36px; background-color: #35363a; border: 1px solid #5f6368; color: white !important; text-align: center; border-radius: 4px; }
+            .pdf-btn { background: none; border: none; color: #f1f1f1 !important; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 8px; border-radius: 50%; }
+            .pdf-btn:hover { background-color: rgba(255,255,255,0.1); }
+            .pdf-btn svg { width: 20px; height: 20px; fill: currentColor; color: #f1f1f1 !important; }
+            .pdf-content-wrapper { display: flex; flex: 1; overflow: hidden; }
+            .pdf-sidebar { width: 200px; background-color: #323639; border-right: 1px solid #1c1f21; overflow-y: auto; padding: 20px 10px; display: flex; flex-direction: column; align-items: center; gap: 24px; }
+            .pdf-main-pane { flex: 1; background-color: #525659; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; align-items: center; scroll-behavior: smooth; }
+            .page-container { width: 210mm; height: 297mm; margin-bottom: 24px; background: white; box-shadow: 0 4px 8px rgba(0,0,0,0.3); padding: 1cm 1.5cm; box-sizing: border-box; position: relative; transform-origin: top center; transform: scale(var(--pdf-zoom, 1)); flex-shrink: 0; }
+            .thumbnail-wrapper { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; width: 100%; }
+            .thumbnail-container { width: 110px; height: 156px; border: 3px solid transparent; border-radius: 4px; background-color: #fff; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
+            .thumbnail-container.active { border-color: #8ab4f8; }
+            .thumbnail-page { width: 210mm; height: 297mm; transform: scale(0.138); transform-origin: top left; pointer-events: none; position: absolute; top: 0; left: 0; }
+            .thumbnail-number { color: #bdc1c6 !important; font-size: 12px; }
+        }
+        @media print {
+            .pdf-toolbar, .pdf-sidebar { display: none !important; }
+            .pdf-content-wrapper { display: block !important; overflow: visible !important; }
+            .pdf-main-pane { display: block !important; padding: 0 !important; background-color: transparent !important; }
+            .page-container { width: 210mm !important; height: 297mm !important; padding: 1cm 1.5cm !important; box-sizing: border-box !important; position: relative !important; background: transparent !important; box-shadow: none !important; margin: 0 auto !important; transform: none !important; }
+        }
+        .header-table { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
+        .logo { max-width: 70px; max-height: 70px; }
+        .kop-text { text-align: center; }
+        .kop-h1 { font-size: 12px; font-weight: bold; }
+        .kop-h2 { font-size: 14px; font-weight: bold; }
+        .kop-address { font-size: 8.5px; }
+        .kop-contact { font-size: 7.5px; }
+        .divider { border-bottom: 2px solid #000; margin: 4px 0 12px 0; }
+        .info-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+        .info-table td { border: none; padding: 2.5px 0; font-size: 10px; vertical-align: top; }
+        .label-col { width: 25%; color: #4b5563; }
+        .colon-col { width: 3%; text-align: center; }
+        .value-col { width: 72%; font-weight: 500; }
+        .footer-table { width: 100%; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="pdf-toolbar">
+        <div class="pdf-title-container">
+            <button class="pdf-hamburger" onclick="toggleSidebar()">☰</button>
+            <div class="pdf-title">Profil Sekolah - ${profileData.namaSekolah}</div>
+        </div>
+        <div class="pdf-controls">
+            <div class="pdf-page-indicator">
+                <input type="text" id="current-page-num" class="pdf-page-input" value="1" onchange="goToPage(this.value)">
+                <span>/</span>
+                <span id="total-pages-num">1</span>
+            </div>
+            <button class="pdf-control-btn" onclick="changeZoom(-0.1)">−</button>
+            <span id="zoom-val" style="color: #bdc1c6 !important;">100%</span>
+            <button class="pdf-control-btn" onclick="changeZoom(0.1)">+</button>
+        </div>
+        <div class="pdf-actions">
+            <button class="pdf-btn" onclick="window.print()" title="Cetak">
+                <svg viewBox="0 0 24 24">
+                    <path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+    <div class="pdf-content-wrapper">
+        <div class="pdf-sidebar">
+            <div class="thumbnail-wrapper" onclick="goToPage(1)">
+                <div class="thumbnail-container active" id="thumb-1">
+                    <div class="thumbnail-page"><div class="page-container">${page1Content} ${page2Content}</div></div>
+                </div>
+                <div class="thumbnail-number">1</div>
+            </div>
+        </div>
+        <div class="pdf-main-pane">
+            <div id="page-container-1" class="page-container">
+                ${page1Content}
+                ${page2Content}
+                <div class="page-footer" style="position: absolute; bottom: 0.5cm; left: 1.5cm; right: 1.5cm; font-size: 7.5px; color: #777; text-align: center; border-top: 1px solid #eee; padding-top: 3px;">
+                    Dicetak melalui Sistem Informasi Sekolah pada ${nowFormatted} | Hal 1
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        let currentZoom = 1.0;
+        function changeZoom(delta) {
+            currentZoom = Math.min(2.0, Math.max(0.5, currentZoom + delta));
+            const pane = document.querySelector('.pdf-main-pane');
+            pane.style.setProperty('--pdf-zoom', currentZoom);
+            document.getElementById('zoom-val').innerText = Math.round(currentZoom * 100) + '%';
+        }
+        function toggleSidebar() {
+            const sidebar = document.querySelector('.pdf-sidebar');
+            sidebar.style.display = sidebar.style.display === 'none' ? 'flex' : 'none';
+        }
+        function goToPage(pageNum) {
+            pageNum = parseInt(pageNum);
+            if (pageNum === 1) {
+                document.getElementById('page-container-1').scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+    </script>
+</body>
+</html>`;
+
+    printWindow.document.open();
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
   };
 
   if (loading) {
@@ -938,7 +1278,7 @@ export default function SchoolProfile() {
                       />
                     </div>
                     <div>
-                      <Label>Cabang Dinas</Label>
+                      <Label>Cabang Dinas <span className="text-red-500">*</span></Label>
                       <Select
                         options={cadisdikOptions}
                         value={profileData.cadisdik_id}
@@ -978,9 +1318,9 @@ export default function SchoolProfile() {
                   </div>
                 </div>
               </div>
-              <div className="flex justify-end no-print">
-                <Button onClick={handleSave}>Simpan Perubahan</Button>
-              </div>
+                <div className="flex justify-end mt-6">
+                  <Button variant="primary-outline" onClick={handleSave}>Simpan Perubahan</Button>
+                </div>
             </div>
           )}
 
@@ -1096,7 +1436,7 @@ export default function SchoolProfile() {
               </div>
 
               <div className="flex justify-end no-print">
-                <Button onClick={handleSave}>Simpan Perubahan</Button>
+                <Button variant="primary-outline" onClick={handleSave}>Simpan Perubahan</Button>
               </div>
             </div>
           )}
@@ -1189,7 +1529,7 @@ export default function SchoolProfile() {
                 </div>
               </div>
               <div className="flex justify-end no-print">
-                <Button onClick={handleSave}>Simpan Perubahan</Button>
+                <Button variant="primary-outline" onClick={handleSave}>Simpan Perubahan</Button>
               </div>
             </div>
           )}
@@ -1247,7 +1587,7 @@ export default function SchoolProfile() {
                     Media Sosial
                   </h4>
                   <Button
-                    variant="primary-outline"
+                    variant="outline"
                     size="sm"
                     onClick={addSocialMedia}
                     startIcon={<PlusIcon className="size-4 fill-current" />}
@@ -1308,7 +1648,7 @@ export default function SchoolProfile() {
               </div>
 
               <div className="flex justify-end no-print pt-4">
-                <Button onClick={handleSave}>Simpan Perubahan</Button>
+                <Button variant="primary-outline" onClick={handleSave}>Simpan Perubahan</Button>
               </div>
             </div>
           )}
@@ -1364,7 +1704,7 @@ export default function SchoolProfile() {
                 ></iframe>
               </div>
               <div className="flex justify-end no-print">
-                <Button onClick={handleSave}>Simpan Perubahan</Button>
+                <Button variant="primary-outline" onClick={handleSave}>Simpan Perubahan</Button>
               </div>
             </div>
           )}

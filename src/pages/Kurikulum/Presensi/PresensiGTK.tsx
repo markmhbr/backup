@@ -17,8 +17,6 @@ import Input from "../../../components/form/input/InputField";
 import Pagination from "../../../components/common/Pagination";
 import Badge from "../../../components/ui/badge/Badge";
 import { SearchIcon } from "../../../icons";
-import Button from "../../../components/ui/button/Button";
-import { Modal } from "../../../components/ui/modal";
 import Swal from "sweetalert2";
 
 interface GtkAttendance {
@@ -60,63 +58,65 @@ const PresensiGTK: React.FC = () => {
 
   // Absence States
   const [activeTab, setActiveTab] = useState<"daftar" | "kelola">("daftar");
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedGtk, setSelectedGtk] = useState<GtkAttendance | null>(null);
-  const [absentStatus, setAbsentStatus] = useState<"4" | "5" | "6" | "7">("4");
-  const [keterangan, setKeterangan] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+
+  const [keteranganMap, setKeteranganMap] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (data.length > 0) {
+      const initialMap: Record<string, string> = {};
+      data.forEach(item => {
+        initialMap[item.ptk_id] = item.izin?.keterangan || "";
+      });
+      setKeteranganMap(initialMap);
+    }
+  }, [data]);
+
+  const handleKeteranganChange = (gtkId: string, value: string) => {
+    setKeteranganMap(prev => ({ ...prev, [gtkId]: value }));
+  };
+
+  const handleQuickAbsent = async (gtkId: string, status: "4" | "5" | "6" | "7") => {
+    if (!sekolah?.sekolah_id) return;
+    const currentKeterangan = keteranganMap[gtkId] || "";
+    try {
+      Swal.fire({
+        title: 'Menyimpan...',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+      await presensiService.createIzin(sekolah.sekolah_id, {
+        ptk_id: gtkId,
+        jenis: parseInt(status),
+        tanggal: selectedDate,
+        keterangan: currentKeterangan,
+      });
+      Swal.close();
+      Swal.fire({
+        icon: "success",
+        title: "Berhasil",
+        text: "Status presensi GTK berhasil disimpan.",
+        timer: 1000,
+        showConfirmButton: false,
+      });
+      fetchAttendance();
+    } catch (err: any) {
+      Swal.close();
+      Swal.fire({
+        icon: "error",
+        title: "Gagal",
+        text: err.response?.data?.message || "Gagal menyimpan status presensi GTK.",
+      });
+    }
+  };
 
   useEffect(() => {
     setCurrentPage(1);
     setSearchTerm("");
   }, [activeTab]);
 
-  const openAbsentModal = (gtk: GtkAttendance) => {
-    setSelectedGtk(gtk);
-    const currentStatus = gtk.presensi?.status_masuk;
-    let mappedStatus: "4" | "5" | "6" | "7" = "4";
-    if (currentStatus === 3) mappedStatus = "4";
-    else if (currentStatus === 4) mappedStatus = "5";
-    else if (currentStatus === 5) mappedStatus = "6";
-    else if (currentStatus === 1 || currentStatus === 2) mappedStatus = "7";
 
-    setAbsentStatus(mappedStatus);
-    setKeterangan(gtk.izin?.keterangan || "");
-    setIsModalOpen(true);
-  };
-
-  const handleSaveAbsent = async () => {
-    if (!sekolah?.sekolah_id || !selectedGtk) return;
-    setSubmitting(true);
-    try {
-      await presensiService.createIzin(sekolah.sekolah_id, {
-        ptk_id: selectedGtk.ptk_id,
-        jenis: parseInt(absentStatus),
-        tanggal: selectedDate,
-        keterangan: keterangan,
-      });
-
-      setIsModalOpen(false);
-
-      Swal.fire({
-        icon: "success",
-        title: "Berhasil",
-        text: "Status ketidakhadiran GTK berhasil disimpan.",
-        timer: 1500,
-        showConfirmButton: false,
-      });
-
-      fetchAttendance();
-    } catch (err: any) {
-      Swal.fire({
-        icon: "error",
-        title: "Gagal",
-        text: err.response?.data?.message || "Gagal menyimpan status ketidakhadiran.",
-      });
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   const fetchAttendance = useCallback(async () => {
     if (!sekolah?.sekolah_id) return;
@@ -438,14 +438,18 @@ const PresensiGTK: React.FC = () => {
                         } else if (statusMasuk === 2) {
                           statusBadge = <Badge color="warning">Terlambat</Badge>;
                         } else if (statusMasuk === 3) {
-                          statusBadge = <Badge color="info">Izin</Badge>;
+                          statusBadge = <Badge color="warning">Izin</Badge>;
                         } else if (statusMasuk === 4) {
-                          statusBadge = <Badge color="warning">Sakit</Badge>;
+                          statusBadge = <Badge color="info">Sakit</Badge>;
                         } else if (statusMasuk === 5) {
                           statusBadge = <Badge color="error">Alpha</Badge>;
                         }
 
                         const fotoUrl = getFotoUrl(item.foto, "");
+                        const isHadirActive = statusMasuk === 1 || statusMasuk === 2;
+                        const isSakitActive = statusMasuk === 4;
+                        const isIzinActive = statusMasuk === 3;
+                        const isAlphaActive = statusMasuk === 5;
 
                         return (
                           <TableRow key={item.ptk_id} className="hover:bg-gray-50/50 dark:hover:bg-white/[0.01]">
@@ -460,19 +464,58 @@ const PresensiGTK: React.FC = () => {
                             </TableCell>
                             <TableCell className="px-5 py-3.5 text-sm text-gray-500 dark:text-gray-400">{item.nuptk || "-"}</TableCell>
                             <TableCell className="px-5 py-3.5">{statusBadge}</TableCell>
-                             <TableCell className="px-5 py-3.5 text-sm text-gray-500 dark:text-gray-400">
-                               <div className="max-w-[200px] truncate" title={item.izin?.keterangan || "-"}>
-                                 {item.izin?.keterangan || "-"}
-                               </div>
-                             </TableCell>
                             <TableCell className="px-5 py-3.5">
-                              <Button
-                                size="sm"
-                                variant="primary-outline"
-                                onClick={() => openAbsentModal(item)}
-                              >
-                                Atur Status
-                              </Button>
+                              <input
+                                type="text"
+                                value={keteranganMap[item.ptk_id] || ""}
+                                onChange={(e) => handleKeteranganChange(item.ptk_id, e.target.value)}
+                                placeholder="Tambah keterangan..."
+                                className="w-full min-w-[150px] px-2 py-1 text-xs border rounded-lg border-gray-200 dark:border-gray-800 bg-transparent text-gray-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-500 focus:border-brand-500 transition-colors"
+                              />
+                            </TableCell>
+                            <TableCell className="px-5 py-3.5">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <button
+                                  onClick={() => handleQuickAbsent(item.ptk_id, "7")}
+                                  className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all duration-150 ${
+                                    isHadirActive 
+                                      ? "bg-green-500 text-white border-green-500" 
+                                      : "border-green-500 text-green-600 hover:bg-green-50 dark:hover:bg-green-950/20"
+                                  }`}
+                                >
+                                  Hadir
+                                </button>
+                                <button
+                                  onClick={() => handleQuickAbsent(item.ptk_id, "5")}
+                                  className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all duration-150 ${
+                                    isSakitActive 
+                                      ? "bg-blue-500 text-white border-blue-500" 
+                                      : "border-blue-500 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/20"
+                                  }`}
+                                >
+                                  Sakit
+                                </button>
+                                <button
+                                  onClick={() => handleQuickAbsent(item.ptk_id, "4")}
+                                  className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all duration-150 ${
+                                    isIzinActive 
+                                      ? "bg-yellow-500 text-white border-yellow-500" 
+                                      : "border-yellow-500 text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-950/20"
+                                  }`}
+                                >
+                                  Izin
+                                </button>
+                                <button
+                                  onClick={() => handleQuickAbsent(item.ptk_id, "6")}
+                                  className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all duration-150 ${
+                                    isAlphaActive 
+                                      ? "bg-red-500 text-white border-red-500" 
+                                      : "border-red-500 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+                                  }`}
+                                >
+                                  Alpha
+                                </button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         );
@@ -494,72 +537,6 @@ const PresensiGTK: React.FC = () => {
         )}
       </ComponentCard>
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} className="max-w-md p-6">
-        <div className="flex flex-col gap-4">
-          <div className="pb-3 border-b border-gray-100 dark:border-gray-800">
-            <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-              Atur Ketidakhadiran GTK
-            </h4>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              Atur status ketidakhadiran untuk <span className="font-medium text-gray-800 dark:text-white/90">{selectedGtk?.nama}</span>
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                Status Ketidakhadiran
-              </label>
-              <Select
-                options={[
-                  { value: "7", label: "Hadir" },
-                  { value: "4", label: "Izin" },
-                  { value: "5", label: "Sakit" },
-                  { value: "6", label: "Alpha" },
-                ]}
-                defaultValue={absentStatus}
-                onChange={(val) => setAbsentStatus(val as "4" | "5" | "6" | "7")}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                Keterangan (Opsional)
-              </label>
-              <textarea
-                value={keterangan}
-                onChange={(e) => setKeterangan(e.target.value)}
-                placeholder="Masukkan alasan ketidakhadiran..."
-                rows={3}
-                className="w-full px-3 py-2 text-sm border rounded-xl border-gray-200 dark:border-gray-800 bg-transparent text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-colors"
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-3 pt-3 border-t border-gray-100 dark:border-gray-800">
-            <button
-              onClick={() => setIsModalOpen(false)}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors"
-            >
-              Batal
-            </button>
-            <button
-              onClick={handleSaveAbsent}
-              disabled={submitting}
-              className="px-4 py-2 text-sm font-medium text-white bg-brand-500 hover:bg-brand-600 rounded-xl disabled:opacity-50 transition-colors flex items-center gap-2"
-            >
-              {submitting ? (
-                <>
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                  Menyimpan...
-                </>
-              ) : (
-                "Simpan"
-              )}
-            </button>
-          </div>
-        </div>
-      </Modal>
     </>
   );
 };

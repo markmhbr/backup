@@ -7,6 +7,7 @@ import SubjectTable from "../../components/school/SubjectTable";
 import Button from "../../components/ui/button/Button";
 import Swal from "sweetalert2";
 import { dapodikService } from "../../services/dapodikService";
+import * as XLSX from "xlsx";
 
 export default function SubjectData() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -21,7 +22,7 @@ export default function SubjectData() {
   const handleExport = async () => {
     Swal.fire({
       title: "Export Data Mata Pelajaran?",
-      text: "Data Mata Pelajaran akan diunduh dalam format CSV.",
+      text: "Data Mata Pelajaran akan diunduh dalam format XLSX.",
       icon: "question",
       showCancelButton: true,
       confirmButtonColor: "#10b981",
@@ -55,36 +56,11 @@ export default function SubjectData() {
             item.nama_mata_pelajaran || ""
           ]);
 
-          // Generate Excel HTML
-          let htmlContent = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">`;
-          htmlContent += `<head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Data Mapel</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>`;
-          htmlContent += `<body><table border="1">`;
-          
-          // Header Row
-          htmlContent += `<tr style="background-color: #4f46e5; color: #ffffff; font-weight: bold;">`;
-          headers.forEach(header => {
-            htmlContent += `<td>${header}</td>`;
-          });
-          htmlContent += `</tr>`;
-
-          // Value Rows
-          rows.forEach((row: any) => {
-            htmlContent += `<tr>`;
-            row.forEach((cell: any) => {
-              htmlContent += `<td>${cell}</td>`;
-            });
-            htmlContent += `</tr>`;
-          });
-          htmlContent += `</table></body></html>`;
-
-          const blob = new Blob([htmlContent], { type: "application/vnd.ms-excel;charset=utf-8;" });
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.setAttribute("href", url);
-          link.setAttribute("download", `Data_Mata_Pelajaran_${new Date().toISOString().split('T')[0]}.xls`);
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
+          // Generate Excel XLSX
+          const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+          const workbook = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(workbook, worksheet, "Data Mapel");
+          XLSX.writeFile(workbook, `Data_Mata_Pelajaran_${new Date().toISOString().split('T')[0]}.xlsx`);
 
           Swal.fire({
             title: "Berhasil!",

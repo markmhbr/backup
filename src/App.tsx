@@ -25,11 +25,13 @@ import EditGTKPage from "./pages/DataMaster/EditGTKPage";
 import GTKPerbaikan from "./pages/DataMaster/GTKPerbaikan";
 import StudentPerbaikan from "./pages/DataMaster/StudentPerbaikan";
 import ClassData from "./pages/DataMaster/ClassData";
+import ClassDetail from "./pages/DataMaster/ClassDetail";
 import SubjectData from "./pages/DataMaster/SubjectData";
 import SarprasData from "./pages/DataMaster/SarprasData";
 import GTKBukuInduk from "./pages/DataMaster/GTKBukuInduk";
 import StudentBukuInduk from "./pages/DataMaster/StudentBukuInduk";
-import TugasTambahanPage from "./pages/DataMaster/TugasTambahanPage";
+import TugasGTKPage from "./pages/DataMaster/TugasGTKPage";
+import TugasPDPage from "./pages/DataMaster/TugasPDPage";
 import TahunPelajaran from "./pages/Academic/TahunPelajaran";
 import KompetensiPage from "./pages/Academic/KompetensiPage";
 import GTKCardPage from "./pages/Academic/GTKCardPage";
@@ -91,11 +93,13 @@ export default function App() {
             <Route path="student-data/edit/:id" element={<EditStudentPage />} />
             <Route path="student-perbaikan" element={<StudentPerbaikan />} />
             <Route path="class-data" element={<ClassData />} />
+            <Route path="class-data/detail/:id" element={<ClassDetail />} />
             <Route path="subject-data" element={<SubjectData />} />
             <Route path="sarpras-data" element={<SarprasData />} />
             <Route path="gtk-buku-induk" element={<GTKBukuInduk />} />
             <Route path="student-buku-induk" element={<StudentBukuInduk />} />
-            <Route path="tugas-tambahan" element={<TugasTambahanPage />} />
+            <Route path="gtk-tugas" element={<TugasGTKPage />} />
+            <Route path="student-tugas" element={<TugasPDPage />} />
 
             {/* Academic */}
             <Route path="academic/year" element={<TahunPelajaran />} />

@@ -71,6 +71,12 @@ const navItems: NavItem[] = [
             id: "gtk-tendik",
           },
           {
+            name: "Tugas GTK",
+            path: "/gtk-tugas",
+            icon: <DotIcon />,
+            id: "gtk-tugas",
+          },
+          {
             name: "Buku Induk",
             path: "/gtk-buku-induk",
             icon: <DotIcon />,
@@ -113,6 +119,12 @@ const navItems: NavItem[] = [
             path: "/student-data?tab=aktif",
             icon: <DotIcon />,
             id: "pd-aktif",
+          },
+          {
+            name: "Tugas PD",
+            path: "/student-tugas",
+            icon: <DotIcon />,
+            id: "pd-tugas",
           },
           {
             name: "Buku Induk",
@@ -190,12 +202,7 @@ const navItems: NavItem[] = [
           },
         ],
       },
-      {
-        name: "Tugas Tambahan",
-        path: "/tugas-tambahan",
-        icon: <DotIcon />,
-        id: "tugas-tambahan",
-      },
+
       {
         name: "Mata Pelajaran",
         path: "/subject-data",

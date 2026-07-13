@@ -256,6 +256,26 @@ export const dapodikService = {
     }
   },
 
+  getPdRekapAgama: async () => {
+    try {
+      const response = await api.get('/dapodik/peserta-didik/rekap-agama');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching pd rekap agama:', error);
+      throw error;
+    }
+  },
+
+  getPdRekapMasukAktif: async () => {
+    try {
+      const response = await api.get('/dapodik/peserta-didik/rekap-masuk-aktif');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching pd rekap masuk aktif:', error);
+      throw error;
+    }
+  },
+
   getGtkDetail: async (id: string) => {
     try {
       const response = await api.get(`/dapodik/gtk/${id}`);

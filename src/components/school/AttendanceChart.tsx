@@ -1,7 +1,31 @@
+import { useState, useEffect } from "react";
 import Chart from "react-apexcharts";
 import { ApexOptions } from "apexcharts";
+import { dapodikService } from "../../services/dapodikService";
 
 export default function AttendanceChart() {
+  const [gtkData, setGtkData] = useState<number[]>([0, 0, 0, 0, 0, 0]);
+  const [pdData, setPdData] = useState<number[]>([0, 0, 0, 0, 0, 0]);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const res = await dapodikService.getSummary();
+        if (res.status === 'success' && res.data) {
+          if (res.data.weekly_gtk_attendance) {
+            setGtkData(res.data.weekly_gtk_attendance);
+          }
+          if (res.data.weekly_pd_attendance) {
+            setPdData(res.data.weekly_pd_attendance);
+          }
+        }
+      } catch (e) {
+        console.error("Gagal memuat persentase kehadiran:", e);
+      }
+    };
+    fetchStats();
+  }, []);
+
   const options: ApexOptions = {
     colors: ["#465fff", "#10b981"],
     chart: {
@@ -85,11 +109,11 @@ export default function AttendanceChart() {
   const series = [
     {
       name: "Kehadiran GTK",
-      data: [98, 95, 97, 96, 94, 95],
+      data: gtkData,
     },
     {
       name: "Kehadiran Peserta Didik",
-      data: [92, 90, 93, 89, 91, 88],
+      data: pdData,
     },
   ];
 
@@ -98,7 +122,7 @@ export default function AttendanceChart() {
       <div className="flex flex-col gap-2 mb-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-            Prosentase Kehadiran
+            Persentase Kehadiran
           </h3>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             Data kehadiran mingguan

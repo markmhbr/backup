@@ -3,7 +3,7 @@ import PageMeta from "../../components/common/PageMeta";
 import Button from "../../components/ui/button/Button";
 import Input from "../../components/form/input/InputField";
 import Select from "../../components/form/Select";
-import { SearchIcon, PencilIcon, TrashBinIcon, CloseIcon, PlusIcon } from "../../icons";
+import { SearchIcon, PencilIcon, TrashBinIcon, CloseIcon, PlusIcon, EyeIcon } from "../../icons";
 import Swal from "sweetalert2";
 import { dapodikService } from "../../services/dapodikService";
 import Pagination from "../../components/common/Pagination";
@@ -17,7 +17,6 @@ import {
 
 interface TugasTambahan {
   ptk_tugas_tambahan_id: string;
-  ptk_id?: string;
   peserta_didik_id?: string;
   sekolah_id?: string;
   jabatan_ptk_id?: number;
@@ -33,26 +32,28 @@ interface TugasTambahan {
   nip_nisn?: string;
 }
 
-interface Option {
-  value: string;
-  label: string;
+interface GroupedPD {
+  peserta_didik_id: string;
+  nama: string;
+  nip_nisn: string;
+  last_sync?: string | null;
+  duties: TugasTambahan[];
 }
 
-export default function TugasTambahanPage() {
-  const [activeTab, setActiveTab] = useState<0 | 1>(0); // 0 = GTK, 1 = Peserta Didik
-  const [tasks, setTasks] = useState<TugasTambahan[]>([]);
-  const [total, setTotal] = useState(0);
+export default function TugasPDPage() {
+  const [search, setSearch] = useState("");
   const [limit, setLimit] = useState(10);
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(false);
 
-  // References and dropdown lists
-  const [gtks, setGtks] = useState<any[]>([]);
-  const [students, setStudents] = useState<any[]>([]);
+  // Data States
+  const [tasks, setTasks] = useState<TugasTambahan[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
+  const [students, setStudents] = useState<any[]>([]);
   const [selectedClass, setSelectedClass] = useState("");
   const [loadingStudents, setLoadingStudents] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  // Custom Selection Lists
   const [existingCustomJabatans, setExistingCustomJabatans] = useState<string[]>([]);
   const [isNewCustomJabatan, setIsNewCustomJabatan] = useState(false);
   const [selectedCustomJabatanSelect, setSelectedCustomJabatanSelect] = useState("");
@@ -61,57 +62,58 @@ export default function TugasTambahanPage() {
   const [isNewCustomJumlahJam, setIsNewCustomJumlahJam] = useState(false);
   const [selectedCustomJumlahJamSelect, setSelectedCustomJumlahJamSelect] = useState("");
 
-  // Modal State
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // Modals States
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedGroupedPD, setSelectedGroupedPD] = useState<GroupedPD | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [currentId, setCurrentId] = useState<string | null>(null);
+  const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
 
   // Form Fields
-  const [selectedEntityId, setSelectedEntityId] = useState("");
+  const [selectedPDId, setSelectedPDId] = useState("");
   const [customJabatan, setCustomJabatan] = useState("");
   const [jumlahJam, setJumlahJam] = useState("");
   const [nomorSk, setNomorSk] = useState("");
   const [tmtTambahan, setTmtTambahan] = useState("");
   const [tstTambahan, setTstTambahan] = useState("");
 
-  const loadData = async () => {
+  const loadTugasTambahan = async () => {
     setLoading(true);
     try {
-      const res = await dapodikService.getTugasTambahan(limit, search, page, activeTab);
+      // Fetch index = 1 for student duties
+      const res = await dapodikService.getTugasTambahan(9999, "", 1, 1);
       if (res && res.status === "success") {
         setTasks(res.data || []);
-        setTotal(res.total || 0);
       }
     } catch (err) {
       console.error(err);
-      Swal.fire("Error", "Gagal memuat data tugas tambahan", "error");
+      Swal.fire("Error", "Gagal memuat data tugas tambahan PD", "error");
     } finally {
       setLoading(false);
     }
   };
 
-  const loadCustomJabatans = async (tabIndex?: number) => {
+  const loadCustomJabatans = async () => {
     try {
-      const res = await dapodikService.getCustomJabatans(tabIndex !== undefined ? tabIndex : activeTab);
+      const res = await dapodikService.getCustomJabatans(1);
       if (res && res.status === "success") {
         setExistingCustomJabatans(res.data || []);
       }
     } catch (err) {
-      console.error("Gagal memuat list jabatan kustom", err);
+      console.error("Gagal memuat list jabatan kustom PD", err);
     }
   };
 
-  const loadCustomJumlahJams = async (tabIndex?: number) => {
+  const loadCustomJumlahJams = async () => {
     try {
-      const res = await dapodikService.getCustomJumlahJam(tabIndex !== undefined ? tabIndex : activeTab);
+      const res = await dapodikService.getCustomJumlahJam(1);
       if (res && res.status === "success") {
         setExistingCustomJumlahJams(res.data || []);
       }
     } catch (err) {
-      console.error("Gagal memuat list jumlah jam kustom", err);
+      console.error("Gagal memuat list jumlah jam kustom PD", err);
     }
   };
-
 
   const loadClasses = async () => {
     try {
@@ -126,7 +128,7 @@ export default function TugasTambahanPage() {
 
   const handleClassChange = async (className: string) => {
     setSelectedClass(className);
-    setSelectedEntityId("");
+    setSelectedPDId("");
     if (!className) {
       setStudents([]);
       return;
@@ -147,152 +149,134 @@ export default function TugasTambahanPage() {
     }
   };
 
-  const loadReferences = async () => {
-    try {
-      const [gtkRes] = await Promise.all([
-        dapodikService.getGTK(200, "", 1, undefined, "aktif"),
-      ]);
-
-      if (gtkRes && gtkRes.status === "success") {
-        setGtks(gtkRes.data || []);
-      }
-      await loadClasses();
-    } catch (err) {
-      console.error("Gagal memuat opsi referensi", err);
-    }
-  };
-
-  // Reset page to 1 when search changes
+  // Reset page to 1 when search query changes
   useEffect(() => {
     setPage(1);
   }, [search]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      loadData();
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [activeTab, page, limit, search]);
-
-  useEffect(() => {
-    loadReferences();
+    loadTugasTambahan();
     loadCustomJabatans();
     loadCustomJumlahJams();
+    loadClasses();
   }, []);
 
-  const openAddModal = async () => {
+  // Client-side grouping & filtering for Student Duties
+  // 1. Filter out expired duties where tst_tambahan is set.
+  const activeTasks = tasks.filter(task => !task.tst_tambahan);
+
+  // 2. Group by Student
+  const groupedMap = new Map<string, GroupedPD>();
+  activeTasks.forEach(task => {
+    const key = task.peserta_didik_id || task.nama || "";
+    let rawNisn = task.nip_nisn || "";
+    if (rawNisn.toLowerCase().startsWith("nisn:")) {
+      rawNisn = rawNisn.substring(5).trim();
+    } else if (rawNisn.toLowerCase().startsWith("nisn :")) {
+      rawNisn = rawNisn.substring(6).trim();
+    }
+
+    if (!groupedMap.has(key)) {
+      groupedMap.set(key, {
+        peserta_didik_id: task.peserta_didik_id || "",
+        nama: task.nama || "",
+        nip_nisn: rawNisn,
+        last_sync: task.last_sync,
+        duties: []
+      });
+    }
+    groupedMap.get(key)!.duties.push(task);
+  });
+
+  const groupedList = Array.from(groupedMap.values());
+
+  // 3. Search Filter
+  const searchedGroupedList = groupedList.filter(item =>
+    item.nama.toLowerCase().includes(search.toLowerCase()) ||
+    item.nip_nisn.toLowerCase().includes(search.toLowerCase()) ||
+    item.duties.some(d => (d.role_name || d.jabatan || "").toLowerCase().includes(search.toLowerCase()))
+  );
+
+  // Pagination Helper
+  const totalItems = searchedGroupedList.length;
+  const totalPages = Math.ceil(totalItems / limit) || 1;
+  const currentGroupedData = searchedGroupedList.slice((page - 1) * limit, page * limit);
+
+  // Open detail modal and sync its selected state dynamically
+  const openDetailModal = (groupedItem: GroupedPD) => {
+    setSelectedGroupedPD(groupedItem);
+    setIsDetailModalOpen(true);
+  };
+
+  // Sync selected group view when tasks data updates (e.g. after edit/delete)
+  useEffect(() => {
+    if (isDetailModalOpen && selectedGroupedPD) {
+      const updatedItem = groupedList.find(x => x.peserta_didik_id === selectedGroupedPD.peserta_didik_id || x.nama === selectedGroupedPD.nama);
+      if (updatedItem) {
+        setSelectedGroupedPD(updatedItem);
+      } else {
+        setIsDetailModalOpen(false);
+        setSelectedGroupedPD(null);
+      }
+    }
+  }, [tasks, isDetailModalOpen]);
+
+  // Modal actions
+  const openAddModal = () => {
     setIsEditMode(false);
-    setCurrentId(null);
-    setSelectedEntityId("");
+    setCurrentTaskId(null);
+    setSelectedPDId("");
     setSelectedClass("");
     setStudents([]);
     setCustomJabatan("");
     setSelectedCustomJabatanSelect("");
     setJumlahJam("");
     setSelectedCustomJumlahJamSelect("");
-
-    try {
-      const [jabRes, jamRes] = await Promise.all([
-        dapodikService.getCustomJabatans(activeTab),
-        dapodikService.getCustomJumlahJam(activeTab),
-      ]);
-
-      if (jabRes && jabRes.status === "success") {
-        const list = jabRes.data || [];
-        setExistingCustomJabatans(list);
-        if (list.length > 0) {
-          setIsNewCustomJabatan(false);
-        } else {
-          setIsNewCustomJabatan(true);
-        }
-      } else {
-        setIsNewCustomJabatan(true);
-      }
-
-      if (jamRes && jamRes.status === "success") {
-        const list = jamRes.data || [];
-        setExistingCustomJumlahJams(list);
-        if (list.length > 0) {
-          setIsNewCustomJumlahJam(false);
-        } else {
-          setIsNewCustomJumlahJam(true);
-        }
-      } else {
-        setIsNewCustomJumlahJam(true);
-      }
-    } catch (err) {
-      console.error(err);
-      setIsNewCustomJabatan(true);
-      setIsNewCustomJumlahJam(true);
-    }
-
     setNomorSk("");
     setTmtTambahan("");
     setTstTambahan("");
-    setIsModalOpen(true);
+    
+    setIsNewCustomJabatan(existingCustomJabatans.length === 0);
+    setIsNewCustomJumlahJam(existingCustomJumlahJams.length === 0);
+
+    setIsFormModalOpen(true);
   };
 
   const openEditModal = async (task: TugasTambahan) => {
     setIsEditMode(true);
-    setCurrentId(task.ptk_tugas_tambahan_id);
-    setSelectedEntityId(task.index === 1 ? task.peserta_didik_id || "" : task.ptk_id || "");
+    setCurrentTaskId(task.ptk_tugas_tambahan_id);
+    setSelectedPDId(task.peserta_didik_id || "");
     
     const jab = task.jabatan || task.role_name || "";
     setCustomJabatan(jab);
-
-    const jam = task.jumlah_jam !== undefined && task.jumlah_jam !== null ? task.jumlah_jam : "";
-    setJumlahJam(jam.toString());
-
-    try {
-      const [jabRes, jamRes] = await Promise.all([
-        dapodikService.getCustomJabatans(task.index),
-        dapodikService.getCustomJumlahJam(task.index),
-      ]);
-
-      if (jabRes && jabRes.status === "success") {
-        const list = jabRes.data || [];
-        setExistingCustomJabatans(list);
-        if (list.includes(jab)) {
-          setSelectedCustomJabatanSelect(jab);
-          setIsNewCustomJabatan(false);
-        } else {
-          setSelectedCustomJabatanSelect("TULIS_BARU");
-          setIsNewCustomJabatan(true);
-        }
-      } else {
-        setIsNewCustomJabatan(true);
-      }
-
-      if (jamRes && jamRes.status === "success") {
-        const list = jamRes.data || [];
-        setExistingCustomJumlahJams(list);
-        const numericJam = typeof jam === "string" ? (jam === "" ? NaN : parseFloat(jam)) : jam;
-        if (!isNaN(numericJam as number) && list.includes(numericJam as number)) {
-          setSelectedCustomJumlahJamSelect(numericJam.toString());
-          setIsNewCustomJumlahJam(false);
-        } else {
-          setSelectedCustomJumlahJamSelect("TULIS_BARU");
-          setIsNewCustomJumlahJam(true);
-        }
-      } else {
-        setIsNewCustomJumlahJam(true);
-      }
-    } catch (err) {
-      console.error(err);
+    if (existingCustomJabatans.includes(jab)) {
+      setSelectedCustomJabatanSelect(jab);
+      setIsNewCustomJabatan(false);
+    } else {
+      setSelectedCustomJabatanSelect("TULIS_BARU");
       setIsNewCustomJabatan(true);
+    }
+
+    const jam = task.jumlah_jam !== undefined && task.jumlah_jam !== null ? task.jumlah_jam.toString() : "";
+    setJumlahJam(jam);
+    if (jam && existingCustomJumlahJams.includes(parseFloat(jam))) {
+      setSelectedCustomJumlahJamSelect(jam);
+      setIsNewCustomJumlahJam(false);
+    } else {
+      setSelectedCustomJumlahJamSelect("TULIS_BARU");
       setIsNewCustomJumlahJam(true);
     }
 
     setNomorSk(task.nomor_sk || "");
     setTmtTambahan(task.tmt_tambahan ? task.tmt_tambahan.split("T")[0] : "");
     setTstTambahan(task.tst_tambahan ? task.tst_tambahan.split("T")[0] : "");
-    setIsModalOpen(true);
+    setIsFormModalOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedEntityId) {
-      Swal.fire("Peringatan", `Pilih ${activeTab === 0 ? "GTK" : "Peserta Didik"} terlebih dahulu`, "warning");
+    if (!selectedPDId) {
+      Swal.fire("Peringatan", "Pilih Peserta Didik terlebih dahulu", "warning");
       return;
     }
 
@@ -304,10 +288,10 @@ export default function TugasTambahanPage() {
       return;
     }
 
-    const payload: any = {
-      index: activeTab,
-      ptk_id: activeTab === 0 ? selectedEntityId : null,
-      peserta_didik_id: activeTab === 1 ? selectedEntityId : null,
+    const payload = {
+      index: 1,
+      ptk_id: null,
+      peserta_didik_id: selectedPDId,
       jabatan_ptk_id: null,
       jabatan: finalJabatan,
       jumlah_jam: finalJumlahJam ? parseFloat(finalJumlahJam) : null,
@@ -317,32 +301,32 @@ export default function TugasTambahanPage() {
     };
 
     try {
-      if (isEditMode && currentId) {
-        await dapodikService.updateTugasTambahan(currentId, payload);
-        Swal.fire("Sukses", "Tugas tambahan berhasil diperbarui", "success");
+      if (isEditMode && currentTaskId) {
+        await dapodikService.updateTugasTambahan(currentTaskId, payload);
+        Swal.fire("Sukses", "Tugas tambahan PD berhasil diperbarui", "success");
       } else {
         await dapodikService.createTugasTambahan(payload);
-        Swal.fire("Sukses", "Tugas tambahan berhasil ditambahkan", "success");
+        Swal.fire("Sukses", "Tugas tambahan PD berhasil ditambahkan", "success");
       }
-      setIsModalOpen(false);
-      loadCustomJabatans(activeTab);
-      loadCustomJumlahJams(activeTab);
-      loadData();
+      setIsFormModalOpen(false);
+      loadCustomJabatans();
+      loadCustomJumlahJams();
+      loadTugasTambahan();
     } catch (err: any) {
       console.error(err);
-      Swal.fire("Error", err.response?.data?.message || "Gagal menyimpan tugas tambahan", "error");
+      Swal.fire("Error", err.response?.data?.message || "Gagal menyimpan tugas tambahan PD", "error");
     }
   };
 
   const handleDelete = (task: TugasTambahan) => {
-    if (task.last_sync !== null && task.last_sync !== undefined) {
+    if (task.last_sync) {
       Swal.fire("Ditolak", "Tugas tambahan dari Dapodik tidak dapat dihapus", "error");
       return;
     }
 
     Swal.fire({
       title: "Apakah Anda yakin?",
-      text: `Menghapus tugas tambahan untuk ${task.nama}`,
+      text: `Menghapus tugas tambahan "${task.role_name || task.jabatan}" untuk ${task.nama || "Siswa"}`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#ef4444",
@@ -352,22 +336,15 @@ export default function TugasTambahanPage() {
       if (result.isConfirmed) {
         try {
           await dapodikService.deleteTugasTambahan(task.ptk_tugas_tambahan_id);
-          Swal.fire("Sukses", "Tugas tambahan berhasil dihapus", "success");
-          loadData();
+          Swal.fire("Sukses", "Tugas tambahan PD berhasil dihapus", "success");
+          loadTugasTambahan();
         } catch (err: any) {
           console.error(err);
-          Swal.fire("Error", err.response?.data?.message || "Gagal menghapus tugas tambahan", "error");
+          Swal.fire("Error", err.response?.data?.message || "Gagal menghapus tugas tambahan PD", "error");
         }
       }
     });
   };
-
-  const entityOptions: Option[] = (activeTab === 0 ? gtks : students).map((x: any) => ({
-    value: activeTab === 0 ? x.ptk_id : x.peserta_didik_id,
-    label: `${x.nama} (${activeTab === 0 ? (x.nip || x.nuptk || "No NIP/NUPTK") : (x.nisn || "No NISN")})`,
-  }));
-
-
 
   const rowsPerPageOptions = [
     { value: "10", label: "10" },
@@ -378,18 +355,18 @@ export default function TugasTambahanPage() {
   return (
     <>
       <PageMeta
-        title="Tugas Tambahan | SIMAK Admin Panel"
-        description="Tugas Tambahan management page"
+        title="Tugas PD | SIMAK Admin Panel"
+        description="Pengelolaan Tugas Tambahan Peserta Didik"
       />
       <div className="space-y-6">
         {/* Header Section */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 no-print">
           <div>
             <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-              Tugas Tambahan
+              Tugas PD
             </h3>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              Kelola tugas tambahan bagi Guru/Tendik (GTK) dan Peserta Didik di sini.
+              Kelola tugas tambahan (ekstrakurikuler, organisasi, dsb.) bagi Peserta Didik di sini.
             </p>
           </div>
           <div>
@@ -397,44 +374,14 @@ export default function TugasTambahanPage() {
               variant="outline" 
               size="sm" 
               onClick={openAddModal}
-              startIcon={<PlusIcon className="size-4" />}
+              startIcon={<PlusIcon className="size-4 fill-current" />}
             >
-              Tambah Tugas Tambahan
+              Tambah Tugas PD
             </Button>
           </div>
         </div>
 
-        {/* Tab Selection */}
-        <div className="flex border-b border-gray-200 dark:border-gray-800 no-print">
-          <button
-            className={`px-6 py-3 text-sm font-semibold transition-all duration-200 border-b-2 ${
-              activeTab === 0
-                ? "border-blue-600 text-blue-600 dark:border-blue-500 dark:text-blue-400"
-                : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-            }`}
-            onClick={() => {
-              setActiveTab(0);
-              setPage(1);
-            }}
-          >
-            GTK
-          </button>
-          <button
-            className={`px-6 py-3 text-sm font-semibold transition-all duration-200 border-b-2 ${
-              activeTab === 1
-                ? "border-blue-600 text-blue-600 dark:border-blue-500 dark:text-blue-400"
-                : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-            }`}
-            onClick={() => {
-              setActiveTab(1);
-              setPage(1);
-            }}
-          >
-            Peserta Didik
-          </button>
-        </div>
-
-        {/* Filters & Tables Section */}
+        {/* Table & Filter Container */}
         <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 print-area">
           <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between no-print">
             <div className="w-20">
@@ -453,7 +400,7 @@ export default function TugasTambahanPage() {
               </span>
               <Input
                 type="text"
-                placeholder="Cari nama, SK, jabatan..."
+                placeholder="Cari nama, NISN, jabatan..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-10"
@@ -461,18 +408,14 @@ export default function TugasTambahanPage() {
             </div>
           </div>
 
-          {/* Table */}
           <div className="max-w-full overflow-x-auto custom-scrollbar">
             <Table>
               <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
                 <TableRow>
                   <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 whitespace-nowrap">Nama</TableCell>
-                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 whitespace-nowrap">Identitas (NIP/NISN)</TableCell>
-                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 whitespace-nowrap">Jabatan/Peran</TableCell>
-                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-center text-theme-xs dark:text-gray-400 whitespace-nowrap">Jumlah Jam</TableCell>
-                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 whitespace-nowrap">Nomor SK</TableCell>
-                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 whitespace-nowrap">TMT</TableCell>
-                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 whitespace-nowrap">TST</TableCell>
+                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 whitespace-nowrap">NISN</TableCell>
+                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 whitespace-nowrap">Tugas Tambahan</TableCell>
+                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-center text-theme-xs dark:text-gray-400 whitespace-nowrap">Jumlah Tugas</TableCell>
                   <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-center text-theme-xs dark:text-gray-400 whitespace-nowrap">Sumber</TableCell>
                   <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-right text-theme-xs dark:text-gray-400 whitespace-nowrap no-print">Aksi</TableCell>
                 </TableRow>
@@ -480,42 +423,127 @@ export default function TugasTambahanPage() {
               <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
+                    <TableCell colSpan={6} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
                       <div className="flex justify-center items-center gap-2">
                         <div className="size-5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"></div>
                         Memuat data...
                       </div>
                     </TableCell>
                   </TableRow>
-                ) : tasks.length === 0 ? (
+                ) : currentGroupedData.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
-                      Tidak ada data tugas tambahan.
+                    <TableCell colSpan={6} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
+                      Tidak ada data tugas tambahan PD ditemukan.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  tasks.map((task) => (
-                    <TableRow key={task.ptk_tugas_tambahan_id} className="hover:bg-gray-50/50 dark:hover:bg-white/[0.01]">
-                      <TableCell className="px-5 py-4 font-medium text-gray-900 dark:text-white">
-                        {task.nama}
+                  currentGroupedData.map((item) => {
+                    const rolesList = item.duties.map(d => d.role_name || d.jabatan).join(", ");
+                    const isAnyDapodik = item.duties.some(d => d.last_sync !== null && d.last_sync !== undefined);
+                    
+                    return (
+                      <TableRow key={item.peserta_didik_id || item.nama} className="hover:bg-gray-50/50 dark:hover:bg-white/[0.01]">
+                        <TableCell className="px-5 py-4 font-medium text-gray-900 dark:text-white">
+                          {item.nama}
+                        </TableCell>
+                        <TableCell className="px-5 py-4 text-gray-500 dark:text-gray-400">{item.nip_nisn || "-"}</TableCell>
+                        <TableCell className="px-5 py-4 text-gray-500 dark:text-gray-400 max-w-[280px] truncate">
+                          <span title={rolesList}>{rolesList}</span>
+                        </TableCell>
+                        <TableCell className="px-5 py-4 text-center text-gray-950 dark:text-white font-semibold">
+                          {item.duties.length}
+                        </TableCell>
+                        <TableCell className="px-5 py-4 text-center">
+                          {isAnyDapodik ? (
+                            <span className="inline-flex items-center gap-1 rounded-md bg-green-50 dark:bg-green-900/20 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-400">
+                              Dapodik
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-md bg-yellow-50 dark:bg-yellow-900/20 px-2 py-0.5 text-xs font-medium text-yellow-700 dark:text-yellow-400">
+                              Lokal
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell className="px-5 py-4 text-right no-print">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => openDetailModal(item)}
+                              className="p-1.5 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition"
+                              title="Lihat Tugas"
+                            >
+                              <EyeIcon className="size-5 fill-current" />
+                            </button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Pagination */}
+          {!loading && totalItems > 0 && (
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              onPageChange={(page) => setPage(page)}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* DETAIL MODAL: LIHAT TUGAS PD */}
+      {isDetailModalOpen && selectedGroupedPD && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-3xl rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-900 border border-gray-100 dark:border-gray-800 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-gray-800 mb-4">
+              <div>
+                <h3 className="text-md font-semibold text-gray-800 dark:text-white">
+                  Daftar Tugas Tambahan
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                  {selectedGroupedPD.nama} ({selectedGroupedPD.nip_nisn || "-"})
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setIsDetailModalOpen(false);
+                  setSelectedGroupedPD(null);
+                }}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <CloseIcon className="size-5" />
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
+                  <TableRow>
+                    <TableCell isHeader className="px-4 py-2 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Jabatan/Peran</TableCell>
+                    <TableCell isHeader className="px-4 py-2 font-medium text-gray-500 text-center text-theme-xs dark:text-gray-400">Jumlah Jam</TableCell>
+                    <TableCell isHeader className="px-4 py-2 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Nomor SK</TableCell>
+                    <TableCell isHeader className="px-4 py-2 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">TMT</TableCell>
+                    <TableCell isHeader className="px-4 py-2 font-medium text-gray-500 text-center text-theme-xs dark:text-gray-400">Sumber</TableCell>
+                    <TableCell isHeader className="px-4 py-2 font-medium text-gray-500 text-right text-theme-xs dark:text-gray-400 no-print">Aksi</TableCell>
+                  </TableRow>
+                </TableHeader>
+                <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
+                  {selectedGroupedPD.duties.map((task) => (
+                    <TableRow key={task.ptk_tugas_tambahan_id} className="hover:bg-gray-50/30 dark:hover:bg-white/[0.01]">
+                      <TableCell className="px-4 py-3 text-gray-900 dark:text-white font-medium">
+                        {task.role_name || task.jabatan}
                       </TableCell>
-                      <TableCell className="px-5 py-4 text-gray-500 dark:text-gray-400">{task.nip_nisn}</TableCell>
-                      <TableCell className="px-5 py-4">
-                        <span className="inline-flex items-center rounded-md bg-blue-50 dark:bg-blue-900/30 px-2.5 py-0.5 text-xs font-semibold text-blue-700 dark:text-blue-400">
-                          {task.role_name}
-                        </span>
-                      </TableCell>
-                      <TableCell className="px-5 py-4 text-center text-gray-500 dark:text-gray-400">
+                      <TableCell className="px-4 py-3 text-center text-gray-500 dark:text-gray-400">
                         {task.jumlah_jam !== null && task.jumlah_jam !== undefined ? Number(task.jumlah_jam) : "-"}
                       </TableCell>
-                      <TableCell className="px-5 py-4 text-gray-500 dark:text-gray-400">{task.nomor_sk || "-"}</TableCell>
-                      <TableCell className="px-5 py-4 text-gray-500 dark:text-gray-400">
+                      <TableCell className="px-4 py-3 text-gray-500 dark:text-gray-400">{task.nomor_sk || "-"}</TableCell>
+                      <TableCell className="px-4 py-3 text-gray-500 dark:text-gray-400">
                         {task.tmt_tambahan ? new Date(task.tmt_tambahan).toLocaleDateString("id-ID") : "-"}
                       </TableCell>
-                      <TableCell className="px-5 py-4 text-gray-500 dark:text-gray-400">
-                        {task.tst_tambahan ? new Date(task.tst_tambahan).toLocaleDateString("id-ID") : "-"}
-                      </TableCell>
-                      <TableCell className="px-5 py-4 text-center">
+                      <TableCell className="px-4 py-3 text-center">
                         {task.last_sync ? (
                           <span className="inline-flex items-center gap-1 rounded-md bg-green-50 dark:bg-green-900/20 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-400">
                             Dapodik
@@ -526,12 +554,15 @@ export default function TugasTambahanPage() {
                           </span>
                         )}
                       </TableCell>
-                      <TableCell className="px-5 py-4 text-right no-print">
-                        <div className="flex justify-end gap-2">
+                      <TableCell className="px-4 py-3 text-right no-print">
+                        <div className="flex justify-end gap-1.5">
                           {task.last_sync === null || task.last_sync === undefined ? (
                             <button
-                              onClick={() => openEditModal(task)}
-                              className="p-1.5 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition"
+                              onClick={() => {
+                                setIsDetailModalOpen(false); // Close detail modal first
+                                openEditModal(task);
+                              }}
+                              className="p-1 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition"
                               title="Edit"
                             >
                               <PencilIcon className="size-4" />
@@ -539,7 +570,7 @@ export default function TugasTambahanPage() {
                           ) : (
                             <button
                               disabled
-                              className="p-1.5 text-gray-300 dark:text-gray-700 cursor-not-allowed"
+                              className="p-1 text-gray-300 dark:text-gray-700 cursor-not-allowed"
                               title="Data Dapodik tidak dapat diubah"
                             >
                               <PencilIcon className="size-4" />
@@ -548,7 +579,7 @@ export default function TugasTambahanPage() {
                           {task.last_sync === null || task.last_sync === undefined ? (
                             <button
                               onClick={() => handleDelete(task)}
-                              className="p-1.5 text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition"
+                              className="p-1 text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition"
                               title="Hapus"
                             >
                               <TrashBinIcon className="size-4" />
@@ -556,7 +587,7 @@ export default function TugasTambahanPage() {
                           ) : (
                             <button
                               disabled
-                              className="p-1.5 text-gray-300 dark:text-gray-700 cursor-not-allowed"
+                              className="p-1 text-gray-300 dark:text-gray-700 cursor-not-allowed"
                               title="Data Dapodik tidak dapat dihapus"
                             >
                               <TrashBinIcon className="size-4" />
@@ -565,33 +596,37 @@ export default function TugasTambahanPage() {
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            <div className="flex justify-end pt-4 border-t border-gray-100 dark:border-gray-800 mt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setIsDetailModalOpen(false);
+                  setSelectedGroupedPD(null);
+                }}
+              >
+                Tutup
+              </Button>
+            </div>
           </div>
-
-          {/* Pagination */}
-          {!loading && total > 0 && (
-            <Pagination
-              currentPage={page}
-              totalPages={Math.ceil(total / limit)}
-              onPageChange={(page) => setPage(page)}
-            />
-          )}
         </div>
-      </div>
+      )}
 
-      {/* Modal Popup */}
-      {isModalOpen && (
+      {/* FORM MODAL: TAMBAH / UBAH TUGAS PD */}
+      {isFormModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-900 border border-gray-100 dark:border-gray-800">
             <div className="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-gray-800">
               <h3 className="text-md font-semibold text-gray-800 dark:text-white">
-                {isEditMode ? "Ubah Tugas Tambahan" : "Tambah Tugas Tambahan"} ({activeTab === 0 ? "GTK" : "Peserta Didik"})
+                {isEditMode ? "Ubah Tugas PD" : "Tambah Tugas PD"}
               </h3>
               <button
-                onClick={() => setIsModalOpen(false)}
+                onClick={() => setIsFormModalOpen(false)}
                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
               >
                 <CloseIcon className="size-5" />
@@ -599,8 +634,8 @@ export default function TugasTambahanPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-              {/* Select Entity */}
-              {activeTab === 1 && !isEditMode && (
+              {/* Select Rombel (Kelas) */}
+              {!isEditMode && (
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 mb-1.5">
                     Pilih Rombongan Belajar (Kelas)
@@ -616,14 +651,15 @@ export default function TugasTambahanPage() {
                 </div>
               )}
 
+              {/* Select Student */}
               <div>
                 <label className="block text-xs font-semibold text-gray-500 mb-1.5">
-                  Pilih {activeTab === 0 ? "GTK" : "Peserta Didik"}
+                  Pilih Peserta Didik
                 </label>
                 {isEditMode ? (
                   <Input
                     type="text"
-                    value={tasks.find(t => t.ptk_tugas_tambahan_id === currentId)?.nama || ""}
+                    value={tasks.find(t => t.ptk_tugas_tambahan_id === currentTaskId)?.nama || ""}
                     disabled
                   />
                 ) : (
@@ -633,15 +669,18 @@ export default function TugasTambahanPage() {
                         value: "", 
                         label: loadingStudents 
                           ? "Memuat data siswa..." 
-                          : activeTab === 1 && !selectedClass
+                          : !selectedClass
                             ? "-- Pilih kelas terlebih dahulu --"
-                            : `-- Pilih ${activeTab === 0 ? "GTK" : "Peserta Didik"} --` 
+                            : "-- Pilih Peserta Didik --" 
                       }, 
-                      ...entityOptions
+                      ...students.map((x: any) => ({
+                        value: x.peserta_didik_id,
+                        label: `${x.nama} (${x.nisn || "No NISN"})`,
+                      }))
                     ]}
-                    defaultValue={selectedEntityId}
-                    onChange={(val) => setSelectedEntityId(val)}
-                    disabled={loadingStudents || (activeTab === 1 && !selectedClass)}
+                    defaultValue={selectedPDId}
+                    onChange={(val) => setSelectedPDId(val)}
+                    disabled={loadingStudents || !selectedClass}
                   />
                 )}
               </div>
@@ -674,7 +713,7 @@ export default function TugasTambahanPage() {
                     {isNewCustomJabatan && (
                       <Input
                         type="text"
-                        placeholder="Ketik Jabatan Baru (Contoh: OSIS, Ketua Kelas, Pembina Pramuka)"
+                        placeholder="Ketik Jabatan Baru (Contoh: OSIS, Ketua Kelas, Pramuka)"
                         value={customJabatan}
                         onChange={(e) => setCustomJabatan(e.target.value)}
                       />
@@ -683,7 +722,7 @@ export default function TugasTambahanPage() {
                 ) : (
                   <Input
                     type="text"
-                    placeholder="Contoh: OSIS, Ketua Kelas, Pembina Pramuka, Kepala Lab"
+                    placeholder="Contoh: OSIS, Ketua Kelas, Anggota Pramuka"
                     value={customJabatan}
                     onChange={(e) => setCustomJabatan(e.target.value)}
                   />
@@ -693,7 +732,7 @@ export default function TugasTambahanPage() {
               {/* Jumlah Jam */}
               <div>
                 <label className="block text-xs font-semibold text-gray-500 mb-1.5">
-                  Jumlah Jam Mengajar/Kerja (Opsional)
+                  Jumlah Jam Kerja (Opsional)
                 </label>
                 {existingCustomJumlahJams.length > 0 ? (
                   <div className="space-y-2">
@@ -773,7 +812,7 @@ export default function TugasTambahanPage() {
 
               {/* Action Buttons */}
               <div className="flex justify-end gap-3 pt-3 border-t border-gray-100 dark:border-gray-800">
-                <Button variant="outline" size="sm" type="button" onClick={() => setIsModalOpen(false)}>
+                <Button variant="outline" size="sm" type="button" onClick={() => setIsFormModalOpen(false)}>
                   Batal
                 </Button>
                 <Button variant="primary" size="sm" type="submit">

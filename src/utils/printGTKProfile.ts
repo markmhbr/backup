@@ -773,7 +773,7 @@ export const printGTKProfile = async (selectedGTKIds: string[]) => {
                     <tr>
                         <td class="label">Lembaga Pengangkat</td>
                         <td class="sep">:</td>
-                        <td class="val">${gtk.lembaga_pengangkat || '-'}</td>
+                        <td class="val">${gtk.lembaga_pengangkat_nama || gtk.lembaga_pengangkat || '-'}</td>
                     </tr>
                     <tr>
                         <td class="label">Sumber Gaji</td>
@@ -817,12 +817,12 @@ export const printGTKProfile = async (selectedGTKIds: string[]) => {
                     <tr>
                         <td class="label">Keahlian Braille</td>
                         <td class="sep">:</td>
-                        <td class="val">${gtk.keahlian_braille ? 'Ya' : 'Tidak'}</td>
+                        <td class="val">${gtk.keahlian_braille_str || 'Tidak'}</td>
                     </tr>
                     <tr>
                         <td class="label">Bahasa Isyarat</td>
                         <td class="sep">:</td>
-                        <td class="val">${gtk.keahlian_bahasa_isyarat ? 'Ya' : 'Tidak'}</td>
+                        <td class="val">${gtk.keahlian_bhs_isyarat_str || 'Tidak'}</td>
                     </tr>
                 </table>
             </td>
@@ -830,8 +830,47 @@ export const printGTKProfile = async (selectedGTKIds: string[]) => {
     </table>
       `;
 
-      const sectionE_Html = `
-    <div class="section-title" style="margin-top: 0;">E. RIWAYAT PENDIDIKAN FORMAL</div>
+      const childrenList = gtk.anak || [];
+      const activeChildren = childrenList.filter((a: any) => Number(a.soft_delete || 0) === 0);
+      const sectionAnak_Html = `
+    <div class="section-title">E. DATA ANAK</div>
+    <table class="data-table table-bordered" style="margin-top: 15px;">
+        <thead>
+            <tr>
+                <th width="5%">No</th>
+                <th width="30%">Nama</th>
+                <th width="15%" class="text-center">NIK</th>
+                <th width="15%" class="text-center">NISN</th>
+                <th width="15%" class="text-center">Jenis Kelamin</th>
+                <th width="20%" class="text-center">Tempat, Tgl Lahir</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${activeChildren.length > 0 
+              ? activeChildren.map((a: any, i: number) => `
+                <tr>
+                    <td class="text-center">${i + 1}</td>
+                    <td><strong>${a.nama || '-'}</strong></td>
+                    <td class="text-center">${a.nik?.trim() || '-'}</td>
+                    <td class="text-center">${a.nisn?.trim() || '-'}</td>
+                    <td class="text-center">${a.jenis_kelamin === 'L' ? 'Laki-laki' : a.jenis_kelamin === 'P' ? 'Perempuan' : a.jenis_kelamin || '-'}</td>
+                    <td class="text-center">${a.tempat_lahir || '-'}, ${a.tanggal_lahir ? formatDateDMY(a.tanggal_lahir) : '-'}</td>
+                </tr>
+              `).join('')
+              : `
+                <tr>
+                    <td colspan="6" class="text-center text-muted" style="padding: 10px;">
+                        Tidak ada data anak yang tercatat.
+                    </td>
+                </tr>
+              `
+            }
+        </tbody>
+    </table>
+      `;
+
+      const sectionF_Html = `
+    <div class="section-title" style="margin-top: 0;">F. RIWAYAT PENDIDIKAN FORMAL</div>
     <table class="data-table table-bordered" style="margin-top: 15px;">
         <thead>
             <tr>
@@ -875,8 +914,8 @@ export const printGTKProfile = async (selectedGTKIds: string[]) => {
     </table>
       `;
 
-      const sectionF_Html = `
-    <div class="section-title">F. RIWAYAT GOLONGAN / KEPANGKATAN</div>
+      const sectionG_Html = `
+    <div class="section-title">G. RIWAYAT GOLONGAN / KEPANGKATAN</div>
     <table class="data-table table-bordered" style="margin-top: 15px;">
         <thead>
             <tr>
@@ -915,8 +954,8 @@ export const printGTKProfile = async (selectedGTKIds: string[]) => {
     </table>
       `;
 
-      const sectionG_Html = `
-    <div class="section-title">G. RIWAYAT SERTIFIKASI</div>
+      const sectionH_Html = `
+    <div class="section-title">H. RIWAYAT SERTIFIKASI</div>
     <table class="data-table table-bordered" style="margin-top: 15px;">
         <thead>
             <tr>
@@ -966,8 +1005,8 @@ export const printGTKProfile = async (selectedGTKIds: string[]) => {
     </table>
       `;
 
-      const sectionH_Html = hasSertifikasi ? `
-    <div class="section-title">H. DATA BANK</div>
+      const sectionI_Html = hasSertifikasi ? `
+    <div class="section-title">I. DATA BANK</div>
     <table class="data-table table-clean">
         <tr>
             <td width="50%" style="padding:0; vertical-align: top;">
@@ -1002,8 +1041,8 @@ export const printGTKProfile = async (selectedGTKIds: string[]) => {
     </table>
       ` : '';
 
-      const sectionI_Html = `
-    <div class="section-title">I. REKAPITULASI PEMBELAJARAN</div>
+      const sectionJ_Html = `
+    <div class="section-title">J. REKAPITULASI PEMBELAJARAN</div>
     <table class="data-table table-bordered" style="margin-top: 15px;">
         <thead>
             <tr>
@@ -1046,8 +1085,8 @@ export const printGTKProfile = async (selectedGTKIds: string[]) => {
     </table>
       `;
 
-      const sectionJ_Html = `
-    <div class="section-title">J. TUGAS TAMBAHAN</div>
+      const sectionK_Html = `
+    <div class="section-title">K. TUGAS TAMBAHAN</div>
     <table class="data-table table-bordered" style="margin-top: 15px;">
         <thead>
             <tr>
@@ -1089,34 +1128,80 @@ export const printGTKProfile = async (selectedGTKIds: string[]) => {
     <div class="signature-box">
         <p style="margin: 0 0 5px 0;">Cianjur, ${todayFormatted}</p>
         <p style="margin: 0 0 10px 0;">Yang Bersangkutan,</p>
-
+ 
         <div style="height: 60px; margin: 10px auto; display: flex; align-items: center; justify-content: center;">
             ${ttdUrl ? `<img src="${ttdUrl}" style="max-height: 60px; max-width: 150px;">` : ''}
         </div>
-
+ 
         <p style="font-weight: bold; text-decoration: underline; margin: 10px 0 2px 0;">${gtk.nama.toUpperCase()}</p>
         <p style="margin: 0;">NIP/NIY. ${gtk.nip || gtk.niy_nigk || '-'}</p>
     </div>
-
+ 
     <!-- QR VALIDATION (LEFT) -->
     <div class="qr-validation">
-        <img src="https://api.qrserver.com/v1/create-qr-code/?size=70x70&data=Validasi Data: ${encodeURIComponent(gtk.nama)} - ${encodeURIComponent(gtk.nik || '')}" style="width: 70px; height: 70px;">
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=70x70&data=Validasi Data: ${encodeURIComponent(gtk.nama)} - ${encodeURIComponent(sekolah.nama || '')}" style="width: 70px; height: 70px;">
         <div style="font-size: 8px; margin-top: 5px;">Dokumen ini digenerate otomatis.</div>
     </div>
       `;
 
-      // Decide page containers dynamically based on data length
-      const totalRows = educationList.length + rankList.length + certList.length + pembelajaranList.length + tugasTambahanList.length;
-      const hasPage3 = totalRows > 7 || certList.length > 0;
+      // Dynamic split logic based on estimated layout height score (safe threshold is 26)
+      const scoreAnak = 2.5 + (activeChildren.length > 0 ? activeChildren.length : 1);
+      const scoreF = 2.5 + (educationList.length > 0 ? educationList.length : 1);
+      const scoreG = 2.5 + (rankList.length > 0 ? rankList.length : 1);
+      const scoreH = 2.5 + (certList.length > 0 ? certList.length * 1.8 : 1);
+      const scoreI = hasSertifikasi ? 4 : 0;
+      const scoreJ = 2.5 + (pembelajaranList.length > 0 ? pembelajaranList.length : 1);
+      const scoreK = 2.5 + (tugasTambahanList.length > 0 ? tugasTambahanList.length : 1);
+      const scoreSignature = 8;
 
-      let p2Content = sectionE_Html + sectionF_Html;
+      let p2Content = '';
       let p3Content = '';
+      let currentP2Score = 0;
+      const maxP2Score = 26; // Safe threshold for Page 2 height capacity
 
-      if (hasPage3) {
-        p3Content = sectionG_Html + sectionH_Html + sectionI_Html + sectionJ_Html + signature_Html;
+      // Always put E (Anak), F (Pendidikan), G (Kepangkatan) on Page 2
+      p2Content += sectionAnak_Html;
+      currentP2Score += scoreAnak;
+
+      p2Content += sectionF_Html;
+      currentP2Score += scoreF;
+
+      p2Content += sectionG_Html;
+      currentP2Score += scoreG;
+
+      // Decide if H (Sertifikasi) fits on Page 2
+      if (currentP2Score + scoreH <= maxP2Score) {
+        p2Content += sectionH_Html;
+        currentP2Score += scoreH;
+
+        // Decide if I (Data Bank) fits on Page 2
+        if (currentP2Score + scoreI <= maxP2Score) {
+          p2Content += sectionI_Html;
+          currentP2Score += scoreI;
+
+          // Decide if J (Pembelajaran) fits on Page 2
+          if (currentP2Score + scoreJ <= maxP2Score) {
+            p2Content += sectionJ_Html;
+            currentP2Score += scoreJ;
+
+            // Decide if K (Tugas Tambahan) & signature fit on Page 2
+            if (currentP2Score + scoreK + scoreSignature <= maxP2Score) {
+              p2Content += sectionK_Html + signature_Html;
+              currentP2Score += scoreK + scoreSignature;
+            } else {
+              p3Content += sectionK_Html + signature_Html;
+            }
+          } else {
+            p3Content += sectionJ_Html + sectionK_Html + signature_Html;
+          }
+        } else {
+          p3Content += sectionI_Html + sectionJ_Html + sectionK_Html + signature_Html;
+        }
       } else {
-        p2Content += sectionG_Html + sectionH_Html + sectionI_Html + sectionJ_Html + signature_Html;
+        p3Content += sectionH_Html + sectionI_Html + sectionJ_Html + sectionK_Html + signature_Html;
       }
+
+      const hasPage3 = p3Content.trim().length > 0;
 
       pagesHtml += `
 <div id="page-container-${globalPageIndex}" class="page-container">

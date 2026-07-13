@@ -16,6 +16,8 @@ import RekapGTKPendidikanTable from "../../components/gtk/RekapGTKPendidikanTabl
 import RekapGTKUsiaTable from "../../components/gtk/RekapGTKUsiaTable";
 import { dapodikService } from "../../services/dapodikService";
 import { getFotoUrl } from "../../utils/image";
+import * as XLSX from "xlsx";
+import { Modal } from "../../components/ui/modal";
 
 
 
@@ -39,6 +41,11 @@ export default function GTKData() {
   const [selectedGTKIds, setSelectedGTKIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [printType, setPrintType] = useState<"all" | "guru" | "tendik" | "rekap" | "rekap-guru" | "rekap-tendik" | "nonaktif">("all");
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [exportType, setExportType] = useState<"all" | "guru" | "tendik" | "rekap" | "rekap-guru" | "rekap-tendik" | "nonaktif">("all");
+  const [rekapSubTab, setRekapSubTab] = useState<"all" | "guru" | "tendik">("all");
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -1296,272 +1303,708 @@ export default function GTKData() {
     }
   };
 
-  const handleExport = async () => {
-    if (activeTab === "rekap") {
+  const generateRekapData = (list: any[]) => {
+    const isGuru = (j: string) => (j || '').toLowerCase().includes('guru');
+    const isAsn = (s: string) => ['pns', 'pppk'].some(x => (s || '').toLowerCase().includes(x));
+    const calculateAge = (birthDateStr: string | null) => {
+      if (!birthDateStr) return 0;
+      const birthDate = new Date(birthDateStr);
+      if (isNaN(birthDate.getTime())) return 0;
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const m = today.getMonth() - birthDate.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      return age;
+    };
+
+    const guruList = list.filter(i => isGuru(i.jenis_ptk_id_str || i.jenisPtk || ''));
+    const tendikList = list.filter(i => !isGuru(i.jenis_ptk_id_str || i.jenisPtk || ''));
+
+    const rekapKategori = [
+      {
+        kategori: "Guru",
+        lakiLaki: guruList.filter(i => i.jenis_kelamin === 'L').length,
+        perempuan: guruList.filter(i => i.jenis_kelamin === 'P').length,
+        totalJK: guruList.length,
+        asn: guruList.filter(i => isAsn(i.status_kepegawaian_id_str || i.status_kepegawaian || '')).length,
+        nonAsn: guruList.filter(i => !isAsn(i.status_kepegawaian_id_str || i.status_kepegawaian || '')).length,
+        totalStatus: guruList.length
+      },
+      {
+        kategori: "Tendik",
+        lakiLaki: tendikList.filter(i => i.jenis_kelamin === 'L').length,
+        perempuan: tendikList.filter(i => i.jenis_kelamin === 'P').length,
+        totalJK: tendikList.length,
+        asn: tendikList.filter(i => isAsn(i.status_kepegawaian_id_str || i.status_kepegawaian || '')).length,
+        nonAsn: tendikList.filter(i => !isAsn(i.status_kepegawaian_id_str || i.status_kepegawaian || '')).length,
+        totalStatus: tendikList.length
+      }
+    ];
+
+    const educationCategories = [
+      { label: "S2/Pasca Sarjana", keys: ["S2"] },
+      { label: "S1/Sarjana", keys: ["S1", null, ""] },
+      { label: "D3/Diploma", keys: ["D3"] },
+      { label: "SMA/Sederajat", keys: ["SMA", "SMK"] },
+    ];
+
+    const rekapPendidikan = educationCategories.map(cat => {
+      const subset = list.filter(i => {
+        const ped = i.pendidikan_terakhir || '';
+        if (cat.keys.includes(null) && !ped) return true;
+        return cat.keys.some(k => k && ped.toUpperCase().startsWith(k.toUpperCase()));
+      });
+
+      return {
+        pendidikan: cat.label,
+        lakiLaki: subset.filter(i => i.jenis_kelamin === 'L').length,
+        perempuan: subset.filter(i => i.jenis_kelamin === 'P').length,
+        totalJK: subset.length,
+        asn: subset.filter(i => isAsn(i.status_kepegawaian_id_str || i.status_kepegawaian || '')).length,
+        nonAsn: subset.filter(i => !isAsn(i.status_kepegawaian_id_str || i.status_kepegawaian || '')).length,
+        totalStatus: subset.length
+      };
+    });
+
+    const ageRanges = [
+      { label: "< 30 Tahun", min: 0, max: 30 },
+      { label: "31 - 40 Tahun", min: 31, max: 40 },
+      { label: "41 - 50 Tahun", min: 41, max: 50 },
+      { label: "> 50 Tahun", min: 51, max: 150 },
+    ];
+
+    const rekapUsia = ageRanges.map(range => {
+      const subset = list.filter(i => {
+        const age = calculateAge(i.tanggal_lahir);
+        return age >= range.min && age <= range.max;
+      });
+
+      return {
+        rentangUsia: range.label,
+        lakiLaki: subset.filter(i => i.jenis_kelamin === 'L').length,
+        perempuan: subset.filter(i => i.jenis_kelamin === 'P').length,
+        totalJK: subset.length,
+        asn: subset.filter(i => isAsn(i.status_kepegawaian_id_str || i.status_kepegawaian || '')).length,
+        nonAsn: subset.filter(i => !isAsn(i.status_kepegawaian_id_str || i.status_kepegawaian || '')).length,
+        totalStatus: subset.length
+      };
+    });
+
+    return { rekapKategori, rekapPendidikan, rekapUsia };
+  };
+
+  const handlePrintRekap = async (rekapType: 'all' | 'guru' | 'tendik') => {
+    try {
       Swal.fire({
-        title: "Export Rekapitulasi GTK?",
-        text: "Seluruh tabel rekapitulasi GTK akan diunduh dalam format Excel.",
-        icon: "question",
-        showCancelButton: true,
-        confirmButtonColor: "#10b981",
-        cancelButtonColor: "#d33",
-        confirmButtonText: "Ya, Export!",
-        cancelButtonText: "Batal"
-      }).then(async (result) => {
-        if (result.isConfirmed) {
-          try {
-            Swal.fire({
-              title: "Mengekspor...",
-              text: "Sedang mengambil data rekap untuk diekspor",
-              allowOutsideClick: false,
-              didOpen: () => {
-                Swal.showLoading();
-              }
-            });
-
-            const [resKategori, resPendidikan, resUsia] = await Promise.all([
-              dapodikService.getGtkRekapKategori(),
-              dapodikService.getGtkRekapPendidikan(),
-              dapodikService.getGtkRekapUsia()
-            ]);
-
-            Swal.close();
-
-            const dataKategori = resKategori.data || [];
-            const dataPendidikan = resPendidikan.data || [];
-            const dataUsia = resUsia.data || [];
-
-            const rows: string[][] = [];
-
-            // 1. Kategori
-            rows.push(["REKAP GTK BERDASARKAN KATEGORI"]);
-            rows.push(["Kategori (Guru/Tendik)", "Jenis Kelamin (L)", "Jenis Kelamin (P)", "Total Jenis Kelamin", "Status Kepegawaian (ASN)", "Status Kepegawaian (Non ASN)", "Total Status"]);
-            dataKategori.forEach((item: any) => {
-              rows.push([
-                item.kategori || "",
-                String(item.lakiLaki || 0),
-                String(item.perempuan || 0),
-                String(item.totalJK || 0),
-                String(item.asn || 0),
-                String(item.nonAsn || 0),
-                String(item.totalStatus || 0)
-              ]);
-            });
-            rows.push([]); // blank separator
-
-            // 2. Pendidikan
-            rows.push(["REKAP GTK BERDASARKAN PENDIDIKAN"]);
-            rows.push(["Pendidikan", "Jenis Kelamin (L)", "Jenis Kelamin (P)", "Total Jenis Kelamin", "Status Kepegawaian (ASN)", "Status Kepegawaian (Non ASN)", "Total Status"]);
-            dataPendidikan.forEach((item: any) => {
-              rows.push([
-                item.pendidikan || "",
-                String(item.lakiLaki || 0),
-                String(item.perempuan || 0),
-                String(item.totalJK || 0),
-                String(item.asn || 0),
-                String(item.nonAsn || 0),
-                String(item.totalStatus || 0)
-              ]);
-            });
-            rows.push([]); // blank separator
-
-            // 3. Usia
-            rows.push(["REKAP GTK BERDASARKAN USIA"]);
-            rows.push(["Rentang Usia", "Jenis Kelamin (L)", "Jenis Kelamin (P)", "Total Jenis Kelamin", "Status Kepegawaian (ASN)", "Status Kepegawaian (Non ASN)", "Total Status"]);
-            dataUsia.forEach((item: any) => {
-              rows.push([
-                item.rentangUsia || "",
-                String(item.lakiLaki || 0),
-                String(item.perempuan || 0),
-                String(item.totalJK || 0),
-                String(item.asn || 0),
-                String(item.nonAsn || 0),
-                String(item.totalStatus || 0)
-              ]);
-            });
-
-            // Generate Excel HTML
-            let htmlContent = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">`;
-            htmlContent += `<head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Rekap GTK</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>`;
-            htmlContent += `<body><table border="1">`;
-            
-            rows.forEach((row) => {
-              if (row.length === 0) {
-                htmlContent += `<tr><td colspan="7" style="border: none; height: 20px;"></td></tr>`;
-              } else if (row.length === 1) {
-                htmlContent += `<tr><td colspan="7" style="font-weight: bold; font-size: 14px; background-color: #e0e7ff; height: 30px; vertical-align: middle;">${row[0]}</td></tr>`;
-              } else if (row.includes("Kategori (Guru/Tendik)") || row.includes("Pendidikan") || row.includes("Rentang Usia")) {
-                htmlContent += `<tr style="background-color: #4f46e5; color: #ffffff; font-weight: bold;">`;
-                row.forEach(cell => {
-                  htmlContent += `<td>${cell}</td>`;
-                });
-                htmlContent += `</tr>`;
-              } else {
-                htmlContent += `<tr>`;
-                row.forEach(cell => {
-                  htmlContent += `<td>${cell}</td>`;
-                });
-                htmlContent += `</tr>`;
-              }
-            });
-            htmlContent += `</table></body></html>`;
-
-            const blob = new Blob([htmlContent], { type: "application/vnd.ms-excel;charset=utf-8;" });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.setAttribute("href", url);
-            link.setAttribute("download", `Rekap_GTK_${new Date().toISOString().split('T')[0]}.xls`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-
-            Swal.fire({
-              title: "Berhasil!",
-              text: "Rekap GTK berhasil diunduh.",
-              icon: "success",
-              timer: 2000,
-              showConfirmButton: false,
-            });
-          } catch (err) {
-            console.error(err);
-            Swal.fire("Error", "Gagal memproses ekspor rekap GTK", "error");
-          }
+        title: 'Mengambil Data...',
+        text: 'Mohon tunggu sementara data sedang dimuat.',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
         }
       });
+
+      const typeFilter = rekapType === 'all' ? undefined : rekapType;
+      const [sekolahRes, resultData] = await Promise.all([
+        dapodikService.getSekolah(),
+        dapodikService.getGTK(10000, "", 1, typeFilter, 'aktif')
+      ]);
+
+      Swal.close();
+
+      const sekolah = sekolahRes.data || {};
+      
+      let filteredList = resultData.data || [];
+      const isGuru = (j: string) => (j || '').toLowerCase().includes('guru');
+      if (rekapType === 'guru') {
+        filteredList = filteredList.filter((i: any) => isGuru(i.jenis_ptk_id_str || i.jenisPtk || ''));
+      } else if (rekapType === 'tendik') {
+        filteredList = filteredList.filter((i: any) => !isGuru(i.jenis_ptk_id_str || i.jenisPtk || ''));
+      }
+
+      const { rekapKategori, rekapPendidikan, rekapUsia } = generateRekapData(filteredList);
+
+      const printWindow = window.open("", "_blank");
+      if (!printWindow) {
+        Swal.fire("Gagal", "Popup blocker aktif. Mohon izinkan popup untuk mencetak.", "error");
+        return;
+      }
+
+      const todayFormatted = formatDateObjDMY(new Date());
+
+      let dataKategoriFiltered = rekapKategori;
+      if (rekapType === 'guru') {
+        dataKategoriFiltered = rekapKategori.filter(i => i.kategori === 'Guru');
+      } else if (rekapType === 'tendik') {
+        dataKategoriFiltered = rekapKategori.filter(i => i.kategori === 'Tendik');
+      }
+
+      const totalKategori = dataKategoriFiltered.reduce((acc, curr) => ({
+        lakiLaki: acc.lakiLaki + curr.lakiLaki,
+        perempuan: acc.perempuan + curr.perempuan,
+        totalJK: acc.totalJK + curr.totalJK,
+        asn: acc.asn + curr.asn,
+        nonAsn: acc.nonAsn + curr.nonAsn,
+        totalStatus: acc.totalStatus + curr.totalStatus,
+      }), { lakiLaki: 0, perempuan: 0, totalJK: 0, asn: 0, nonAsn: 0, totalStatus: 0 });
+
+      const finalKategori = [
+        ...dataKategoriFiltered.map(k => ({ ...k, isTotal: false })),
+        { kategori: "Jumlah Total", ...totalKategori, isTotal: true }
+      ];
+
+      const totalPendidikan = rekapPendidikan.reduce((acc, curr) => ({
+        lakiLaki: acc.lakiLaki + curr.lakiLaki,
+        perempuan: acc.perempuan + curr.perempuan,
+        totalJK: acc.totalJK + curr.totalJK,
+        asn: acc.asn + curr.asn,
+        nonAsn: acc.nonAsn + curr.nonAsn,
+        totalStatus: acc.totalStatus + curr.totalStatus,
+      }), { lakiLaki: 0, perempuan: 0, totalJK: 0, asn: 0, nonAsn: 0, totalStatus: 0 });
+
+      const finalPendidikan = [
+        ...rekapPendidikan.map(p => ({ ...p, isTotal: false })),
+        { pendidikan: "Jumlah Total", ...totalPendidikan, isTotal: true }
+      ];
+
+      const totalUsia = rekapUsia.reduce((acc, curr) => ({
+        lakiLaki: acc.lakiLaki + curr.lakiLaki,
+        perempuan: acc.perempuan + curr.perempuan,
+        totalJK: acc.totalJK + curr.totalJK,
+        asn: acc.asn + curr.asn,
+        nonAsn: acc.nonAsn + curr.nonAsn,
+        totalStatus: acc.totalStatus + curr.totalStatus,
+      }), { lakiLaki: 0, perempuan: 0, totalJK: 0, asn: 0, nonAsn: 0, totalStatus: 0 });
+
+      const finalUsia = [
+        ...rekapUsia.map(u => ({ ...u, isTotal: false })),
+        { rentangUsia: "Jumlah Total", ...totalUsia, isTotal: true }
+      ];
+
+      const typeTitle = rekapType === 'guru' ? 'GURU' : rekapType === 'tendik' ? 'TENAGA KEPENDIDIKAN (TENDIK)' : 'GURU DAN TENAGA KEPENDIDIKAN (GTK)';
+
+      const htmlContent = `
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Laporan Rekapitulasi ${typeTitle}</title>
+    <style>
+        @page { size: A4; margin: 1.5cm 2cm; }
+        body, table, th, td, strong, span, p, div { font-family: Arial, Helvetica, sans-serif !important; color: #333; }
+        body { font-size: 11px; line-height: 1.4; margin: 0; padding: 0; }
+        .header-table { width: 100%; border-collapse: collapse; margin-bottom: 5px; }
+        .logo { max-width: 80px; max-height: 80px; }
+        .kop-text { text-align: center; }
+        .kop-h1 { font-size: 13px; font-weight: bold; }
+        .kop-h2 { font-size: 15px; font-weight: bold; }
+        .kop-address { font-size: 9px; }
+        .kop-contact { font-size: 8px; }
+        .divider { border-bottom: 2px solid #000; margin: 5px 0 20px 0; }
+        
+        .report-title { text-align: center; font-size: 13px; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; }
+        .section-title { font-size: 11px; font-weight: bold; background-color: #f3f4f6; border-left: 5px solid #4f46e5; padding: 5px 10px; margin-top: 20px; margin-bottom: 10px; text-transform: uppercase; }
+        
+        .rekap-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .rekap-table th, .rekap-table td { border: 1px solid #ddd; padding: 8px; text-align: center; font-size: 10px; }
+        .rekap-table th { background-color: #f9fafb; font-weight: bold; }
+        .rekap-table td.text-left { text-align: left; font-weight: 500; }
+        .rekap-table tr.total-row td { font-weight: bold; background-color: #f3f4f6; }
+        
+        .footer-table { width: 100%; margin-top: 40px; }
+        .footer-table td { border: none; padding: 0; text-align: center; font-size: 11px; }
+    </style>
+</head>
+<body onload="window.print()">
+    <table class="header-table">
+        <tr>
+            <td style="width: 15%; text-align: left;">
+                <img class="logo" src="${sekolah.logo_sekolah || '/logo-dinas.png'}" alt="Logo Dinas" onerror="this.src='/logo-dinas.png'" />
+            </td>
+            <td style="width: 70%;" class="kop-text">
+                <div class="kop-h1">PEMERINTAH PROVINSI JAWA BARAT</div>
+                <div class="kop-h1">DINAS PENDIDIKAN</div>
+                <div class="kop-h2">${sekolah.nama || 'SMK NEGERI / SWASTA'}</div>
+                <div class="kop-address">${sekolah.alamat_jalan || 'Alamat Sekolah'}, RT ${sekolah.rt || 0}/RW ${sekolah.rw || 0}, Kec. ${sekolah.kecamatan || '-'}</div>
+                <div class="kop-contact">Website: ${sekolah.website || '-'} | Email: ${sekolah.email || '-'}</div>
+            </td>
+            <td style="width: 15%; text-align: right;">
+                <img class="logo" src="${sekolah.logo_sekolah || ''}" alt="Logo Sekolah" style="display: ${sekolah.logo_sekolah ? 'block' : 'none'}; margin-left: auto;" />
+            </td>
+        </tr>
+    </table>
+    <div class="divider"></div>
+    
+    <div class="report-title">LAPORAN REKAPITULASI DATA ${typeTitle}</div>
+    
+    <div class="section-title">1. Rekapitulasi Berdasarkan Kategori</div>
+    <table class="rekap-table">
+        <thead>
+            <tr>
+                <th rowspan="2">Kategori (Guru/Tendik)</th>
+                <th colspan="3">Jenis Kelamin</th>
+                <th colspan="3">Status Kepegawaian</th>
+            </tr>
+            <tr>
+                <th>L</th>
+                <th>P</th>
+                <th>Total</th>
+                <th>ASN</th>
+                <th>Non ASN</th>
+                <th>JML</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${finalKategori.map((item: any) => `
+                <tr class="${item.isTotal ? 'total-row' : ''}">
+                    <td class="text-left">${item.kategori || ''}</td>
+                    <td>${item.lakiLaki || 0}</td>
+                    <td>${item.perempuan || 0}</td>
+                    <td>${item.totalJK || 0}</td>
+                    <td>${item.asn || 0}</td>
+                    <td>${item.nonAsn || 0}</td>
+                    <td>${item.totalStatus || 0}</td>
+                </tr>
+            `).join('')}
+        </tbody>
+    </table>
+    
+    <div class="section-title">2. Rekapitulasi Berdasarkan Pendidikan</div>
+    <table class="rekap-table">
+        <thead>
+            <tr>
+                <th rowspan="2">Pendidikan Terakhir</th>
+                <th colspan="3">Jenis Kelamin</th>
+                <th colspan="3">Status Kepegawaian</th>
+            </tr>
+            <tr>
+                <th>L</th>
+                <th>P</th>
+                <th>Total</th>
+                <th>ASN</th>
+                <th>Non ASN</th>
+                <th>JML</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${finalPendidikan.map((item: any) => `
+                <tr class="${item.isTotal ? 'total-row' : ''}">
+                    <td class="text-left">${item.pendidikan || ''}</td>
+                    <td>${item.lakiLaki || 0}</td>
+                    <td>${item.perempuan || 0}</td>
+                    <td>${item.totalJK || 0}</td>
+                    <td>${item.asn || 0}</td>
+                    <td>${item.nonAsn || 0}</td>
+                    <td>${item.totalStatus || 0}</td>
+                </tr>
+            `).join('')}
+        </tbody>
+    </table>
+    
+    <div class="section-title" style="page-break-before: always;">3. Rekapitulasi Berdasarkan Rentang Usia</div>
+    <table class="rekap-table">
+        <thead>
+            <tr>
+                <th rowspan="2">Rentang Usia</th>
+                <th colspan="3">Jenis Kelamin</th>
+                <th colspan="3">Status Kepegawaian</th>
+            </tr>
+            <tr>
+                <th>L</th>
+                <th>P</th>
+                <th>Total</th>
+                <th>ASN</th>
+                <th>Non ASN</th>
+                <th>JML</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${finalUsia.map((item: any) => `
+                <tr class="${item.isTotal ? 'total-row' : ''}">
+                    <td class="text-left">${item.rentangUsia || ''}</td>
+                    <td>${item.lakiLaki || 0}</td>
+                    <td>${item.perempuan || 0}</td>
+                    <td>${item.totalJK || 0}</td>
+                    <td>${item.asn || 0}</td>
+                    <td>${item.nonAsn || 0}</td>
+                    <td>${item.totalStatus || 0}</td>
+                </tr>
+            `).join('')}
+        </tbody>
+    </table>
+    
+    <table class="footer-table">
+        <tr>
+            <td style="width: 50%;"></td>
+            <td style="width: 50%;">
+                ${sekolah.kabupaten_kota || 'Kabupaten/Kota'}, ${todayFormatted}<br/>
+                Kepala Sekolah,<br/><br/><br/><br/>
+                <strong>${sekolah.nama_kepala_sekolah || '(Nama Kepala Sekolah)'}</strong>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+      `;
+
+      printWindow.document.open();
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+    } catch (e) {
+      console.error(e);
+      Swal.fire("Error", "Gagal memproses cetak rekapitulasi", "error");
+    }
+  };
+
+  const handleExport = () => {
+    if (activeTab === 'rekap') {
+      setExportType(rekapSubTab === 'guru' ? 'rekap-guru' : rekapSubTab === 'tendik' ? 'rekap-tendik' : 'rekap');
+    } else {
+      setExportType(activeTab === 'tendik' ? 'tendik' : activeTab === 'guru' ? 'guru' : activeTab === 'nonaktif' ? 'nonaktif' : 'all');
+    }
+    setIsExportModalOpen(true);
+  };
+
+  const handleConfirmExport = async () => {
+    setIsExportModalOpen(false);
+
+    if (exportType === "rekap" || exportType === "rekap-guru" || exportType === "rekap-tendik") {
+      try {
+        Swal.fire({
+          title: "Mengekspor...",
+          text: "Sedang mengambil data rekap untuk diekspor",
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading();
+          }
+        });
+
+        const typeFilter = exportType === "rekap-guru" ? "guru" : exportType === "rekap-tendik" ? "tendik" : undefined;
+        const resultData = await dapodikService.getGTK(10000, "", 1, typeFilter, 'aktif');
+
+        Swal.close();
+
+        let filteredList = resultData.data || [];
+        const isGuru = (j: string) => (j || '').toLowerCase().includes('guru');
+        if (exportType === "rekap-guru") {
+          filteredList = filteredList.filter((i: any) => isGuru(i.jenis_ptk_id_str || i.jenisPtk || ''));
+        } else if (exportType === "rekap-tendik") {
+          filteredList = filteredList.filter((i: any) => !isGuru(i.jenis_ptk_id_str || i.jenisPtk || ''));
+        }
+
+        const { rekapKategori, rekapPendidikan, rekapUsia } = generateRekapData(filteredList);
+
+        const rows: string[][] = [];
+
+        // 1. Kategori
+        let dataKategoriFiltered = rekapKategori;
+        if (exportType === 'rekap-guru') {
+          dataKategoriFiltered = rekapKategori.filter(i => i.kategori === 'Guru');
+        } else if (exportType === 'rekap-tendik') {
+          dataKategoriFiltered = rekapKategori.filter(i => i.kategori === 'Tendik');
+        }
+
+        const totalKategori = dataKategoriFiltered.reduce((acc, curr) => ({
+          lakiLaki: acc.lakiLaki + curr.lakiLaki,
+          perempuan: acc.perempuan + curr.perempuan,
+          totalJK: acc.totalJK + curr.totalJK,
+          asn: acc.asn + curr.asn,
+          nonAsn: acc.nonAsn + curr.nonAsn,
+          totalStatus: acc.totalStatus + curr.totalStatus,
+        }), { lakiLaki: 0, perempuan: 0, totalJK: 0, asn: 0, nonAsn: 0, totalStatus: 0 });
+
+        rows.push(["REKAP GTK BERDASARKAN KATEGORI"]);
+        rows.push(["Kategori (Guru/Tendik)", "Jenis Kelamin (L)", "Jenis Kelamin (P)", "Total Jenis Kelamin", "Status Kepegawaian (ASN)", "Status Kepegawaian (Non ASN)", "Total Status"]);
+        dataKategoriFiltered.forEach((item: any) => {
+          rows.push([
+            item.kategori || "",
+            String(item.lakiLaki || 0),
+            String(item.perempuan || 0),
+            String(item.totalJK || 0),
+            String(item.asn || 0),
+            String(item.nonAsn || 0),
+            String(item.totalStatus || 0)
+          ]);
+        });
+        rows.push([
+          "Jumlah Total",
+          String(totalKategori.lakiLaki),
+          String(totalKategori.perempuan),
+          String(totalKategori.totalJK),
+          String(totalKategori.asn),
+          String(totalKategori.nonAsn),
+          String(totalKategori.totalStatus)
+        ]);
+        rows.push([]); // blank separator
+
+        // 2. Pendidikan
+        const totalPendidikan = rekapPendidikan.reduce((acc, curr) => ({
+          lakiLaki: acc.lakiLaki + curr.lakiLaki,
+          perempuan: acc.perempuan + curr.perempuan,
+          totalJK: acc.totalJK + curr.totalJK,
+          asn: acc.asn + curr.asn,
+          nonAsn: acc.nonAsn + curr.nonAsn,
+          totalStatus: acc.totalStatus + curr.totalStatus,
+        }), { lakiLaki: 0, perempuan: 0, totalJK: 0, asn: 0, nonAsn: 0, totalStatus: 0 });
+
+        rows.push(["REKAP GTK BERDASARKAN PENDIDIKAN"]);
+        rows.push(["Pendidikan", "Jenis Kelamin (L)", "Jenis Kelamin (P)", "Total Jenis Kelamin", "Status Kepegawaian (ASN)", "Status Kepegawaian (Non ASN)", "Total Status"]);
+        rekapPendidikan.forEach((item: any) => {
+          rows.push([
+            item.pendidikan || "",
+            String(item.lakiLaki || 0),
+            String(item.perempuan || 0),
+            String(item.totalJK || 0),
+            String(item.asn || 0),
+            String(item.nonAsn || 0),
+            String(item.totalStatus || 0)
+          ]);
+        });
+        rows.push([
+          "Jumlah Total",
+          String(totalPendidikan.lakiLaki),
+          String(totalPendidikan.perempuan),
+          String(totalPendidikan.totalJK),
+          String(totalPendidikan.asn),
+          String(totalPendidikan.nonAsn),
+          String(totalPendidikan.totalStatus)
+        ]);
+        rows.push([]); // blank separator
+
+        // 3. Usia
+        const totalUsia = rekapUsia.reduce((acc, curr) => ({
+          lakiLaki: acc.lakiLaki + curr.lakiLaki,
+          perempuan: acc.perempuan + curr.perempuan,
+          totalJK: acc.totalJK + curr.totalJK,
+          asn: acc.asn + curr.asn,
+          nonAsn: acc.nonAsn + curr.nonAsn,
+          totalStatus: acc.totalStatus + curr.totalStatus,
+        }), { lakiLaki: 0, perempuan: 0, totalJK: 0, asn: 0, nonAsn: 0, totalStatus: 0 });
+
+        rows.push(["REKAP GTK BERDASARKAN USIA"]);
+        rows.push(["Rentang Usia", "Jenis Kelamin (L)", "Jenis Kelamin (P)", "Total Jenis Kelamin", "Status Kepegawaian (ASN)", "Status Kepegawaian (Non ASN)", "Total Status"]);
+        rekapUsia.forEach((item: any) => {
+          rows.push([
+            item.rentangUsia || "",
+            String(item.lakiLaki || 0),
+            String(item.perempuan || 0),
+            String(item.totalJK || 0),
+            String(item.asn || 0),
+            String(item.nonAsn || 0),
+            String(item.totalStatus || 0)
+          ]);
+        });
+        rows.push([
+          "Jumlah Total",
+          String(totalUsia.lakiLaki),
+          String(totalUsia.perempuan),
+          String(totalUsia.totalJK),
+          String(totalUsia.asn),
+          String(totalUsia.nonAsn),
+          String(totalUsia.totalStatus)
+        ]);
+
+        const worksheet = XLSX.utils.aoa_to_sheet(rows);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Rekap GTK");
+        XLSX.writeFile(workbook, `Rekap_GTK_${exportType}_${new Date().toISOString().split('T')[0]}.xlsx`);
+
+        Swal.fire({
+          title: "Berhasil!",
+          text: "Rekap GTK berhasil diunduh.",
+          icon: "success",
+          timer: 2000,
+          showConfirmButton: false,
+        });
+      } catch (err) {
+        console.error(err);
+        Swal.fire("Error", "Gagal memproses ekspor rekap GTK", "error");
+      }
       return;
     }
 
-    Swal.fire({
-      title: "Export Data GTK?",
-      text: `Data ${activeTab === 'nonaktif' ? 'GTK Non Aktif' : activeTab === 'guru' ? 'Guru' : activeTab === 'tendik' ? 'Tendik' : 'GTK'} akan diunduh dalam format Excel.`,
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonColor: "#10b981",
-      cancelButtonColor: "#d33",
-      confirmButtonText: "Ya, Export!",
-      cancelButtonText: "Batal"
-    }).then(async (result) => {
-      if (result.isConfirmed) {
-        try {
-          Swal.fire({
-            title: "Mengekspor...",
-            text: "Sedang mengambil data untuk diekspor",
-            allowOutsideClick: false,
-            didOpen: () => {
-              Swal.showLoading();
-            }
-          });
-
-          // Fetch list from API
-          const type = activeTab === 'guru' ? 'guru' : activeTab === 'tendik' ? 'tendik' : undefined;
-          const status = activeTab === 'nonaktif' ? 'non-aktif' : 'aktif';
-
-          const resultData = await dapodikService.getGTK(10000, searchQuery, 1, type, status);
-          const list = resultData.data || [];
-
-          Swal.close();
-
-          if (list.length === 0) {
-            Swal.fire("Info", "Tidak ada data untuk diekspor", "info");
-            return;
-          }
-
-          // Headers (Only columns shown in the table)
-          const headers = [
-            "Induk", "Nama", "JK", "Lengkap Data", "Tempat Lahir", "Tanggal Lahir",
-            "Ibu Kandung", "Status Kepegawaian", "Jenis GTK", "Jabatan GTK",
-            "Alamat", "NUPTK", "Tgl Surat Tugas"
-          ];
-
-          // Rows
-          const rows = list.map((item: any) => {
-            // Calculate completeness
-            const completenessFields = [
-              'nama', 'jenis_kelamin', 'tempat_lahir', 'tanggal_lahir',
-              'nuptk', 'nik', 'no_kk', 'alamat_jalan', 'no_hp', 'email',
-              'sk_pengangkatan', 'tmt_pengangkatan', 'sumber_gaji', 'pendidikan_terakhir'
-            ];
-            let filled = 0;
-            completenessFields.forEach(f => {
-              if (item[f] && item[f] !== '-' && item[f] !== '') {
-                filled++;
-              }
-            });
-            const lengkapData = Math.round((filled / completenessFields.length) * 100);
-
-            // Construct Alamat
-            const rtRw = item.rt || item.rw ? ` RT ${item.rt || 0}/RW ${item.rw || 0}` : "";
-            const desa = item.desa_kelurahan ? `, Desa ${item.desa_kelurahan}` : "";
-            const kec = item.kecamatan ? `, Kec. ${item.kecamatan}` : "";
-            const alamat = `${item.alamat_jalan || ""}${rtRw}${desa}${kec}`;
-
-            const isInduk = item.ptk_induk === "1" || item.ptk_induk === 1 || item.ptk_induk === "Ya" ? "Ya" : "Tidak";
-
-            return [
-              isInduk,
-              item.nama || "",
-              item.jenis_kelamin || "",
-              `${lengkapData}%`,
-              item.tempat_lahir || "",
-              item.tanggal_lahir && !isNaN(new Date(item.tanggal_lahir).getTime()) ? globalFormatDateDMY(item.tanggal_lahir) : "",
-              item.nama_ibu_kandung || "",
-              item.status_kepegawaian_id_str || "",
-              item.jenis_ptk_id_str || "",
-              item.jabatan_ptk_id_str || "",
-              alamat,
-              item.nuptk || "",
-              item.tmt_tugas && !isNaN(new Date(item.tmt_tugas).getTime()) ? globalFormatDateDMY(item.tmt_tugas) : ""
-            ];
-          });
-
-          // Generate Excel HTML
-          let htmlContent = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">`;
-          htmlContent += `<head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Data GTK</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>`;
-          htmlContent += `<body><table border="1">`;
-          
-          // Header Row
-          htmlContent += `<tr style="background-color: #4f46e5; color: #ffffff; font-weight: bold;">`;
-          headers.forEach(header => {
-            htmlContent += `<td>${header}</td>`;
-          });
-          htmlContent += `</tr>`;
-
-          // Value Rows
-          rows.forEach((row: any) => {
-            htmlContent += `<tr>`;
-            row.forEach((cell: any) => {
-              htmlContent += `<td>${cell}</td>`;
-            });
-            htmlContent += `</tr>`;
-          });
-          htmlContent += `</table></body></html>`;
-
-          const blob = new Blob([htmlContent], { type: "application/vnd.ms-excel;charset=utf-8;" });
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.setAttribute("href", url);
-          link.setAttribute("download", `Data_GTK_${activeTab}_${new Date().toISOString().split('T')[0]}.xls`);
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-
-          Swal.fire({
-            title: "Berhasil!",
-            text: "Data GTK berhasil diunduh.",
-            icon: "success",
-            timer: 2000,
-            showConfirmButton: false,
-          });
-        } catch (err) {
-          console.error(err);
-          Swal.fire("Error", "Gagal memproses ekspor data GTK", "error");
+    try {
+      Swal.fire({
+        title: "Mengekspor...",
+        text: "Sedang mengambil data untuk diekspor",
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
         }
+      });
+
+      const isNonAktif = activeTab === 'nonaktif';
+      const type = (exportType === 'all' || exportType === 'nonaktif') ? undefined : exportType;
+      const status = isNonAktif ? 'non-aktif' : 'aktif';
+
+      const resultData = await dapodikService.getGTK(10000, searchQuery, 1, type, status);
+      const list = resultData.data || [];
+
+      Swal.close();
+
+      if (list.length === 0) {
+        Swal.fire("Info", "Tidak ada data untuk diekspor", "info");
+        return;
       }
-    });
+
+      // Headers
+      const headers = [
+        "Induk", "Nama", "JK", "Kelengkapan Data", "Tempat Lahir", "Tanggal Lahir",
+        "Ibu Kandung", "Status Kepegawaian", "Jenis GTK", "Jabatan GTK",
+        "Alamat", "NUPTK", "Tgl Surat Tugas"
+      ];
+      if (isNonAktif) {
+        headers.push("Alasan", "Tgl Keluar");
+      }
+
+      // Rows
+      const rows = list.map((item: any) => {
+        const isFieldFilled = (val: any) => {
+          return val !== null && val !== undefined && val !== '-' && val !== '' && val !== 0 && val !== '0';
+        };
+
+        const completenessFields = [
+          'nama', 'nik', 'no_kk', 'jenis_kelamin', 'tempat_lahir', 'tanggal_lahir',
+          'nama_ibu_kandung', 'agama_id_str', 'status_perkawinan', 'nama_suami_istri',
+          'pekerjaan_suami_istri', 'nm_wp', 'npwp', 'alamat_jalan', 'rt', 'rw',
+          'nama_dusun', 'desa_kelurahan', 'provinsi', 'kabupaten_kota', 'kecamatan',
+          'kode_pos', 'lintang', 'bujur', 'sumber_gaji', 'id_bank', 'rekening_bank',
+          'rekening_atas_nama', 'nama_kcp', 'no_hp', 'no_whatsapp', 'id_telegram',
+          'email'
+        ];
+
+        const fields = completenessFields.filter(key => {
+          if (key === 'id_bank' || key === 'rekening_bank' || key === 'rekening_atas_nama' || key === 'nama_kcp') {
+            return item['memilikiSertifikasi'] === 'Ya';
+          }
+          if (key === 'nama_suami_istri' || key === 'pekerjaan_suami_istri') {
+            const statusPerkawinan = item['status_perkawinan'];
+            return statusPerkawinan === '1' || statusPerkawinan === 1;
+          }
+          return true;
+        });
+
+        let filled = 0;
+        fields.forEach(f => {
+          if (f === 'provinsi' || f === 'kabupaten_kota' || f === 'kecamatan') {
+            const desa = item['desa_kelurahan'];
+            const kodeWilayah = item['kode_wilayah'];
+            if (isFieldFilled(desa) || isFieldFilled(kodeWilayah)) {
+              filled++;
+              return;
+            }
+          }
+          if (isFieldFilled(item[f])) {
+            filled++;
+          }
+        });
+        const lengkapData = Math.round((filled / fields.length) * 100);
+
+        const rtRw = item.rt || item.rw ? ` RT ${item.rt || 0}/RW ${item.rw || 0}` : "";
+        const desa = item.desa_kelurahan ? `, Desa ${item.desa_kelurahan}` : "";
+        const kec = item.kecamatan ? `, Kec. ${item.kecamatan}` : "";
+        const alamat = `${item.alamat_jalan || ""}${rtRw}${desa}${kec}`;
+
+        const isInduk = item.ptk_induk === "1" || item.ptk_induk === 1 || item.ptk_induk === "Ya" ? "Ya" : "Tidak";
+
+        const rowData = [
+          isInduk,
+          item.nama || "",
+          item.jenis_kelamin || "",
+          `${lengkapData}%`,
+          item.tempat_lahir || "",
+          item.tanggal_lahir && !isNaN(new Date(item.tanggal_lahir).getTime()) ? globalFormatDateDMY(item.tanggal_lahir) : "",
+          item.nama_ibu_kandung || "",
+          item.status_kepegawaian_id_str || "",
+          item.jenis_ptk_id_str || "",
+          item.jabatan_ptk_id_str || "",
+          alamat,
+          item.nuptk || "",
+          item.tanggal_surat_tugas && !isNaN(new Date(item.tanggal_surat_tugas).getTime()) ? globalFormatDateDMY(item.tanggal_surat_tugas) : ""
+        ];
+
+        if (isNonAktif) {
+          rowData.push(
+            item.status || "Non-Aktif",
+            item.updated_at && !isNaN(new Date(item.updated_at).getTime()) ? globalFormatDateDMY(item.updated_at) : ""
+          );
+        }
+
+        return rowData;
+      });
+
+      const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Data GTK");
+      XLSX.writeFile(workbook, `Data_GTK_${exportType}_${new Date().toISOString().split('T')[0]}.xlsx`);
+
+      Swal.fire({
+        title: "Berhasil!",
+        text: "Data GTK berhasil diunduh.",
+        icon: "success",
+        timer: 2000,
+        showConfirmButton: false,
+      });
+    } catch (err) {
+      console.error(err);
+      Swal.fire("Error", "Gagal memproses ekspor data GTK", "error");
+    }
   };
 
   const handlePrint = () => {
-    window.print();
+    if (activeTab === 'rekap') {
+      setPrintType(rekapSubTab === 'guru' ? 'rekap-guru' : rekapSubTab === 'tendik' ? 'rekap-tendik' : 'rekap');
+    } else {
+      setPrintType(activeTab === 'tendik' ? 'tendik' : activeTab === 'guru' ? 'guru' : activeTab === 'nonaktif' ? 'nonaktif' : 'all');
+    }
+    setIsPrintModalOpen(true);
+  };
+
+  const handleConfirmPrint = async () => {
+    setIsPrintModalOpen(false);
+    if (printType === 'rekap' || printType === 'rekap-guru' || printType === 'rekap-tendik') {
+      const pType = printType === 'rekap-guru' ? 'guru' : printType === 'rekap-tendik' ? 'tendik' : 'all';
+      await handlePrintRekap(pType);
+      return;
+    }
+    try {
+      Swal.fire({
+        title: 'Mengambil Data...',
+        text: 'Mohon tunggu sementara data sedang dimuat.',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+
+      const isNonAktif = activeTab === 'nonaktif';
+      const type = (printType === 'all' || printType === 'nonaktif') ? undefined : printType;
+      const status = isNonAktif ? 'non-aktif' : 'aktif';
+      const resultData = await dapodikService.getGTK(10000, "", 1, type, status);
+      const list = resultData.data || [];
+
+      Swal.close();
+
+      if (list.length === 0) {
+        Swal.fire("Info", "Tidak ada data untuk dicetak", "info");
+        return;
+      }
+
+      const ids = list.map((item: any) => item.ptk_id).filter(Boolean);
+      
+      if (ids.length === 0) {
+        Swal.fire("Info", "Tidak ada data valid untuk dicetak", "info");
+        return;
+      }
+
+      const { printGTKProfile } = await import("../../utils/printGTKProfile");
+      await printGTKProfile(ids);
+    } catch (err) {
+      console.error(err);
+      Swal.fire("Error", "Gagal memproses cetak data GTK", "error");
+    }
   };
 
   if (false as any) {
@@ -1598,15 +2041,6 @@ export default function GTKData() {
                   Register
                 </Button>
                 <Button
-                  variant="warning-outline"
-                  size="sm"
-                  className="min-w-[110px]"
-                  startIcon={<PencilIcon className="size-4" />}
-                  onClick={handleEditData}
-                >
-                  Ubah
-                </Button>
-                <Button
                   variant="primary-outline"
                   size="sm"
                   className="min-w-[110px]"
@@ -1614,6 +2048,15 @@ export default function GTKData() {
                   onClick={handleShowProfile}
                 >
                   Profil
+                </Button>
+                <Button
+                  variant="warning-outline"
+                  size="sm"
+                  className="min-w-[110px]"
+                  startIcon={<PencilIcon className="size-4" />}
+                  onClick={handleEditData}
+                >
+                  Ubah
                 </Button>
               </>
             )}
@@ -1697,27 +2140,62 @@ export default function GTKData() {
 
           {activeTab === "rekap" && (
             <div className="space-y-8">
+              {/* Sub-tabs for Rekap categories */}
+              <div className="flex items-center gap-1 border-b border-gray-200 dark:border-white/[0.05] mb-6 no-print">
+                <button
+                  onClick={() => setRekapSubTab("all")}
+                  className={`px-4 py-2 text-sm font-medium transition-colors ${
+                    rekapSubTab === "all"
+                      ? "border-b-2 border-brand-500 text-brand-500"
+                      : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white"
+                  }`}
+                >
+                  GTK
+                </button>
+                <button
+                  onClick={() => setRekapSubTab("guru")}
+                  className={`px-4 py-2 text-sm font-medium transition-colors ${
+                    rekapSubTab === "guru"
+                      ? "border-b-2 border-brand-500 text-brand-500"
+                      : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white"
+                  }`}
+                >
+                  Guru
+                </button>
+                <button
+                  onClick={() => setRekapSubTab("tendik")}
+                  className={`px-4 py-2 text-sm font-medium transition-colors ${
+                    rekapSubTab === "tendik"
+                      ? "border-b-2 border-brand-500 text-brand-500"
+                      : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white"
+                  }`}
+                >
+                  Tendik
+                </button>
+              </div>
+
               <div>
                 <h4 className="mb-4 text-md font-semibold text-gray-800 dark:text-white/90">
-                  Rekap GTK berdasarkan Kategori
+                  Rekap {rekapSubTab === "guru" ? "Guru" : rekapSubTab === "tendik" ? "Tendik" : "GTK"} berdasarkan Kategori
                 </h4>
                 <RekapGTKTable
                   searchTerm={debouncedSearchQuery}
+                  rekapType={rekapSubTab}
                 />
               </div>
 
               <div className="pt-6 border-t border-gray-100 dark:border-white/[0.05]">
                 <h4 className="mb-4 text-md font-semibold text-gray-800 dark:text-white/90">
-                  Rekap GTK berdasarkan Pendidikan
+                  Rekap {rekapSubTab === "guru" ? "Guru" : rekapSubTab === "tendik" ? "Tendik" : "GTK"} berdasarkan Pendidikan
                 </h4>
-                <RekapGTKPendidikanTable />
+                <RekapGTKPendidikanTable rekapType={rekapSubTab} />
               </div>
 
               <div className="pt-6 border-t border-gray-100 dark:border-white/[0.05]">
                 <h4 className="mb-4 text-md font-semibold text-gray-800 dark:text-white/90">
-                  Rekap GTK berdasarkan Usia
+                  Rekap {rekapSubTab === "guru" ? "Guru" : rekapSubTab === "tendik" ? "Tendik" : "GTK"} berdasarkan Usia
                 </h4>
-                <RekapGTKUsiaTable />
+                <RekapGTKUsiaTable rekapType={rekapSubTab} />
               </div>
             </div>
           )}
@@ -1735,6 +2213,343 @@ export default function GTKData() {
         </div>
       </div>
 
+      <Modal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        className="max-w-md p-6"
+      >
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+              {activeTab === "rekap" ? "Pilih Rekapitulasi yang Akan Dicetak" : "Pilih Data yang Akan Dicetak"}
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              {activeTab === "rekap" ? "Pilih kategori rekapitulasi data yang ingin dicetak." : "Pilih jenis GTK yang ingin dicetak dalam format biodata."}
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {activeTab === "rekap" ? (
+              <>
+                <label 
+                  onClick={() => setPrintType("rekap")}
+                  className={`flex items-center gap-3 p-3.5 rounded-2xl border cursor-pointer transition-all ${
+                    printType === "rekap"
+                      ? "border-brand-500 bg-brand-50/30 dark:bg-brand-500/10"
+                      : "border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-white/[0.02]"
+                  }`}
+                >
+                  <input 
+                    type="radio" 
+                    name="print-gtk-type" 
+                    value="rekap" 
+                    checked={printType === "rekap"} 
+                    onChange={() => setPrintType("rekap")}
+                    className="w-4 h-4 text-brand-600 border-gray-300 focus:ring-brand-500 accent-brand-500"
+                  />
+                  <div>
+                    <div className="text-sm font-semibold text-gray-800 dark:text-white/90">Rekapitulasi GTK</div>
+                    <div className="text-xs text-gray-400 dark:text-gray-500">Cetak rekapitulasi data guru dan tendik combined</div>
+                  </div>
+                </label>
+
+                <label 
+                  onClick={() => setPrintType("rekap-guru")}
+                  className={`flex items-center gap-3 p-3.5 rounded-2xl border cursor-pointer transition-all ${
+                    printType === "rekap-guru"
+                      ? "border-brand-500 bg-brand-50/30 dark:bg-brand-500/10"
+                      : "border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-white/[0.02]"
+                  }`}
+                >
+                  <input 
+                    type="radio" 
+                    name="print-gtk-type" 
+                    value="rekap-guru" 
+                    checked={printType === "rekap-guru"} 
+                    onChange={() => setPrintType("rekap-guru")}
+                    className="w-4 h-4 text-brand-600 border-gray-300 focus:ring-brand-500 accent-brand-500"
+                  />
+                  <div>
+                    <div className="text-sm font-semibold text-gray-800 dark:text-white/90">Rekapitulasi Guru</div>
+                    <div className="text-xs text-gray-400 dark:text-gray-500">Cetak rekapitulasi data guru saja</div>
+                  </div>
+                </label>
+
+                <label 
+                  onClick={() => setPrintType("rekap-tendik")}
+                  className={`flex items-center gap-3 p-3.5 rounded-2xl border cursor-pointer transition-all ${
+                    printType === "rekap-tendik"
+                      ? "border-brand-500 bg-brand-50/30 dark:bg-brand-500/10"
+                      : "border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-white/[0.02]"
+                  }`}
+                >
+                  <input 
+                    type="radio" 
+                    name="print-gtk-type" 
+                    value="rekap-tendik" 
+                    checked={printType === "rekap-tendik"} 
+                    onChange={() => setPrintType("rekap-tendik")}
+                    className="w-4 h-4 text-brand-600 border-gray-300 focus:ring-brand-500 accent-brand-500"
+                  />
+                  <div>
+                    <div className="text-sm font-semibold text-gray-800 dark:text-white/90">Rekapitulasi Tendik</div>
+                    <div className="text-xs text-gray-400 dark:text-gray-500">Cetak rekapitulasi data tenaga kependidikan saja</div>
+                  </div>
+                </label>
+              </>
+            ) : (
+              <>
+                <label 
+                  onClick={() => setPrintType("all")}
+                  className={`flex items-center gap-3 p-3.5 rounded-2xl border cursor-pointer transition-all ${
+                    printType === "all"
+                      ? "border-brand-500 bg-brand-50/30 dark:bg-brand-500/10"
+                      : "border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-white/[0.02]"
+                  }`}
+                >
+                  <input 
+                    type="radio" 
+                    name="print-gtk-type" 
+                    value="all" 
+                    checked={printType === "all"} 
+                    onChange={() => setPrintType("all")}
+                    className="w-4 h-4 text-brand-600 border-gray-300 focus:ring-brand-500 accent-brand-500"
+                  />
+                  <div>
+                    <div className="text-sm font-semibold text-gray-800 dark:text-white/90">Semua GTK</div>
+                    <div className="text-xs text-gray-400 dark:text-gray-500">Cetak data guru dan tenaga kependidikan</div>
+                  </div>
+                </label>
+
+                <label 
+                  onClick={() => setPrintType("guru")}
+                  className={`flex items-center gap-3 p-3.5 rounded-2xl border cursor-pointer transition-all ${
+                    printType === "guru"
+                      ? "border-brand-500 bg-brand-50/30 dark:bg-brand-500/10"
+                      : "border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-white/[0.02]"
+                  }`}
+                >
+                  <input 
+                    type="radio" 
+                    name="print-gtk-type" 
+                    value="guru" 
+                    checked={printType === "guru"} 
+                    onChange={() => setPrintType("guru")}
+                    className="w-4 h-4 text-brand-600 border-gray-300 focus:ring-brand-500 accent-brand-500"
+                  />
+                  <div>
+                    <div className="text-sm font-semibold text-gray-800 dark:text-white/90">Hanya Guru</div>
+                    <div className="text-xs text-gray-400 dark:text-gray-500">Cetak data guru saja</div>
+                  </div>
+                </label>
+
+                <label 
+                  onClick={() => setPrintType("tendik")}
+                  className={`flex items-center gap-3 p-3.5 rounded-2xl border cursor-pointer transition-all ${
+                    printType === "tendik"
+                      ? "border-brand-500 bg-brand-50/30 dark:bg-brand-500/10"
+                      : "border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-white/[0.02]"
+                  }`}
+                >
+                  <input 
+                    type="radio" 
+                    name="print-gtk-type" 
+                    value="tendik" 
+                    checked={printType === "tendik"} 
+                    onChange={() => setPrintType("tendik")}
+                    className="w-4 h-4 text-brand-600 border-gray-300 focus:ring-brand-500 accent-brand-500"
+                  />
+                  <div>
+                    <div className="text-sm font-semibold text-gray-800 dark:text-white/90">Hanya Tenaga Kependidikan (Tendik)</div>
+                    <div className="text-xs text-gray-400 dark:text-gray-500">Cetak data tendik saja</div>
+                  </div>
+                </label>
+              </>
+            )}
+          </div>
+
+          <div className="flex gap-3 justify-end pt-2 border-t border-gray-100 dark:border-gray-800">
+            <button
+              onClick={() => setIsPrintModalOpen(false)}
+              className="px-4 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 dark:text-gray-300 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              Batal
+            </button>
+            <Button variant="primary" onClick={handleConfirmPrint}>
+              Cetak
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        className="max-w-md p-6"
+      >
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+              {activeTab === "rekap" ? "Pilih Rekapitulasi yang Akan Diekspor" : "Pilih Data yang Akan Diekspor"}
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              {activeTab === "rekap" ? "Pilih kategori rekapitulasi data yang ingin diekspor." : "Pilih jenis GTK yang ingin diekspor dalam format Excel (.xlsx)."}
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {activeTab === "rekap" ? (
+              <>
+                <label 
+                  onClick={() => setExportType("rekap")}
+                  className={`flex items-center gap-3 p-3.5 rounded-2xl border cursor-pointer transition-all ${
+                    exportType === "rekap"
+                      ? "border-brand-500 bg-brand-50/30 dark:bg-brand-500/10"
+                      : "border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-white/[0.02]"
+                  }`}
+                >
+                  <input 
+                    type="radio" 
+                    name="export-gtk-type" 
+                    value="rekap" 
+                    checked={exportType === "rekap"} 
+                    onChange={() => setExportType("rekap")}
+                    className="w-4 h-4 text-brand-600 border-gray-300 focus:ring-brand-500 accent-brand-500"
+                  />
+                  <div>
+                    <div className="text-sm font-semibold text-gray-800 dark:text-white/90">Rekapitulasi GTK</div>
+                    <div className="text-xs text-gray-400 dark:text-gray-500">Ekspor rekapitulasi data guru dan tendik combined</div>
+                  </div>
+                </label>
+
+                <label 
+                  onClick={() => setExportType("rekap-guru")}
+                  className={`flex items-center gap-3 p-3.5 rounded-2xl border cursor-pointer transition-all ${
+                    exportType === "rekap-guru"
+                      ? "border-brand-500 bg-brand-50/30 dark:bg-brand-500/10"
+                      : "border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-white/[0.02]"
+                  }`}
+                >
+                  <input 
+                    type="radio" 
+                    name="export-gtk-type" 
+                    value="rekap-guru" 
+                    checked={exportType === "rekap-guru"} 
+                    onChange={() => setExportType("rekap-guru")}
+                    className="w-4 h-4 text-brand-600 border-gray-300 focus:ring-brand-500 accent-brand-500"
+                  />
+                  <div>
+                    <div className="text-sm font-semibold text-gray-800 dark:text-white/90">Rekapitulasi Guru</div>
+                    <div className="text-xs text-gray-400 dark:text-gray-500">Ekspor rekapitulasi data guru saja</div>
+                  </div>
+                </label>
+
+                <label 
+                  onClick={() => setExportType("rekap-tendik")}
+                  className={`flex items-center gap-3 p-3.5 rounded-2xl border cursor-pointer transition-all ${
+                    exportType === "rekap-tendik"
+                      ? "border-brand-500 bg-brand-50/30 dark:bg-brand-500/10"
+                      : "border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-white/[0.02]"
+                  }`}
+                >
+                  <input 
+                    type="radio" 
+                    name="export-gtk-type" 
+                    value="rekap-tendik" 
+                    checked={exportType === "rekap-tendik"} 
+                    onChange={() => setExportType("rekap-tendik")}
+                    className="w-4 h-4 text-brand-600 border-gray-300 focus:ring-brand-500 accent-brand-500"
+                  />
+                  <div>
+                    <div className="text-sm font-semibold text-gray-800 dark:text-white/90">Rekapitulasi Tendik</div>
+                    <div className="text-xs text-gray-400 dark:text-gray-500">Ekspor rekapitulasi data tenaga kependidikan saja</div>
+                  </div>
+                </label>
+              </>
+            ) : (
+              <>
+                <label 
+                  onClick={() => setExportType("all")}
+                  className={`flex items-center gap-3 p-3.5 rounded-2xl border cursor-pointer transition-all ${
+                    exportType === "all"
+                      ? "border-brand-500 bg-brand-50/30 dark:bg-brand-500/10"
+                      : "border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-white/[0.02]"
+                  }`}
+                >
+                  <input 
+                    type="radio" 
+                    name="export-gtk-type" 
+                    value="all" 
+                    checked={exportType === "all"} 
+                    onChange={() => setExportType("all")}
+                    className="w-4 h-4 text-brand-600 border-gray-300 focus:ring-brand-500 accent-brand-500"
+                  />
+                  <div>
+                    <div className="text-sm font-semibold text-gray-800 dark:text-white/90">Semua GTK</div>
+                    <div className="text-xs text-gray-400 dark:text-gray-500">Ekspor data guru dan tenaga kependidikan</div>
+                  </div>
+                </label>
+
+                <label 
+                  onClick={() => setExportType("guru")}
+                  className={`flex items-center gap-3 p-3.5 rounded-2xl border cursor-pointer transition-all ${
+                    exportType === "guru"
+                      ? "border-brand-500 bg-brand-50/30 dark:bg-brand-500/10"
+                      : "border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-white/[0.02]"
+                  }`}
+                >
+                  <input 
+                    type="radio" 
+                    name="export-gtk-type" 
+                    value="guru" 
+                    checked={exportType === "guru"} 
+                    onChange={() => setExportType("guru")}
+                    className="w-4 h-4 text-brand-600 border-gray-300 focus:ring-brand-500 accent-brand-500"
+                  />
+                  <div>
+                    <div className="text-sm font-semibold text-gray-800 dark:text-white/90">Hanya Guru</div>
+                    <div className="text-xs text-gray-400 dark:text-gray-500">Ekspor data guru saja</div>
+                  </div>
+                </label>
+
+                <label 
+                  onClick={() => setExportType("tendik")}
+                  className={`flex items-center gap-3 p-3.5 rounded-2xl border cursor-pointer transition-all ${
+                    exportType === "tendik"
+                      ? "border-brand-500 bg-brand-50/30 dark:bg-brand-500/10"
+                      : "border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-white/[0.02]"
+                  }`}
+                >
+                  <input 
+                    type="radio" 
+                    name="export-gtk-type" 
+                    value="tendik" 
+                    checked={exportType === "tendik"} 
+                    onChange={() => setExportType("tendik")}
+                    className="w-4 h-4 text-brand-600 border-gray-300 focus:ring-brand-500 accent-brand-500"
+                  />
+                  <div>
+                    <div className="text-sm font-semibold text-gray-800 dark:text-white/90">Hanya Tenaga Kependidikan (Tendik)</div>
+                    <div className="text-xs text-gray-400 dark:text-gray-500">Ekspor data tendik saja</div>
+                  </div>
+                </label>
+              </>
+            )}
+          </div>
+
+          <div className="flex gap-3 justify-end pt-2 border-t border-gray-100 dark:border-gray-800">
+            <button
+              onClick={() => setIsExportModalOpen(false)}
+              className="px-4 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 dark:text-gray-300 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              Batal
+            </button>
+            <Button variant="primary" onClick={handleConfirmExport}>
+              Ekspor
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </>
   );
 }

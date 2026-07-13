@@ -119,7 +119,7 @@ const PrintAllGTKCards: React.FC<PrintAllGTKCardsProps> = ({ isOpen, onClose, ty
                           style={{
                             backgroundImage: `url(${avatarUrl})`,
                             backgroundSize: 'cover',
-                            backgroundPosition: 'center',
+                            backgroundPosition: 'top center',
                             backgroundRepeat: 'no-repeat'
                           }}
                         />

@@ -43,7 +43,7 @@ const Avatar: React.FC<AvatarProps> = ({
       <img 
         src={avatarSrc} 
         alt={alt} 
-        className="object-cover rounded-full w-full h-full" 
+        className="object-cover object-top rounded-full w-full h-full" 
         onError={(e) => {
           (e.target as HTMLImageElement).src = "/images/default/profile.jpg";
         }}

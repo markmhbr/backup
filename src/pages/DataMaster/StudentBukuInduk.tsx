@@ -101,7 +101,7 @@ export default function StudentBukuInduk() {
               />
             </div>
             <Button
-              variant="primary"
+              variant="info-outline"
               onClick={handleFetchStudents}
               disabled={!selectedClassId || loadingStudents}
               className="sm:w-auto w-full"
