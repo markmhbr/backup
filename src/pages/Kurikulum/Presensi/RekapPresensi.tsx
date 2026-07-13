@@ -129,7 +129,7 @@ const RekapPresensi: React.FC = () => {
           id: item.ptk_id,
           nama: item.nama,
           identitas: item.nuptk || "-",
-          rombelOrJabatan: item.jabatan || "Guru/Staf",
+          rombelOrJabatan: item.jenis_ptk_id_str || item.jabatan || "Guru/Staf",
           foto: item.foto,
           jamMasuk: item.presensi?.jam_masuk || null,
           jamPulang: item.presensi?.jam_pulang || null,
@@ -375,15 +375,6 @@ const RekapPresensi: React.FC = () => {
   };
 
   const handlePrintPdf = async () => {
-    let sch: any = {};
-    try {
-      const res = await dapodikService.getSekolah();
-      sch = res.data || {};
-    } catch (e) {
-      console.error("Gagal mengambil data sekolah detail", e);
-      sch = sekolah || {};
-    }
-
     const printWindow = window.open("", "_blank");
     if (!printWindow) {
       alert("Popup blocker aktif. Mohon izinkan popup untuk mencetak.");
@@ -394,269 +385,425 @@ const RekapPresensi: React.FC = () => {
       ? `Rekap Presensi - ${rekapTarget === "pd" ? "Siswa" : "GTK"} - ${rekapMode === "bulanan" ? "Bulanan" : "Semesteran"}`
       : `Rekap Presensi Harian - ${activeTab === "daily-pd" ? "Siswa" : "GTK"}`;
 
-    const dateRangeLabel = activeTab === "book-presensi"
-      ? (rekapMode === "bulanan"
-          ? monthOptions.find(o => o.value === selectedMonth)?.label || selectedMonth
-          : `Semester ${selectedSemester} Tahun ${selectedYear}`)
-      : new Date(selectedDate).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
-
-    // 1. Chunking Data per 15 baris per halaman agar tidak merusak layout A4
     const isPeriodik = activeTab === "book-presensi";
     const dataList = isPeriodik 
       ? getFilteredPeriodik() 
       : (activeTab === "no-pulang" ? getFilteredDaily().filter(i => !!i.jamMasuk && !i.jamPulang) : getFilteredDaily());
       
-    const itemsPerPagePdf = 25;
-    const totalPagesPdf = Math.max(1, Math.ceil(dataList.length / itemsPerPagePdf));
+    // Ambil data Wali Kelas secara dinamis dari rombel (dengan query search agar tidak terpotong pagination limit)
+    let waliKelasMap: Record<string, string> = {};
+    let waliKelasName = "-";
+    try {
+      const rombelRes = await dapodikService.getRombonganBelajar("reguler", 250);
+      if (rombelRes.data) {
+        rombelRes.data.forEach((r: any) => {
+          if (r.nama) {
+            waliKelasMap[r.nama] = r.ptk_id_str || r.nama_wali_kelas || r.wali_kelas_nama || "-";
+          }
+        });
+      }
+      if (selectedClass) {
+        waliKelasName = waliKelasMap[selectedClass] || "-";
+      }
+    } catch (e) {
+      console.error("Gagal mengambil daftar wali kelas", e);
+    }
+
+    const monthLabel = activeTab === "book-presensi"
+      ? (rekapMode === "bulanan"
+          ? monthOptions.find(o => o.value === selectedMonth)?.label || selectedMonth
+          : `Semester ${selectedSemester} Tahun ${selectedYear}`)
+      : new Date(selectedDate).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+
+    // Cek apakah cetak Harian Siswa per Kelas
+    const isDailyPd = activeTab === "daily-pd" || activeTab === "no-pulang";
 
     let pagesHtml = "";
     let thumbnailsHtml = "";
+    let pageNum = 0;
+    let totalPagesPdf = 1;
 
-    const rawProv = sch.provinsi || 'JAWA BARAT';
-    const provUpper = rawProv.toUpperCase();
-    const provText = provUpper.includes('PROVINSI') 
-      ? `PEMERINTAH ${provUpper}` 
-      : `PEMERINTAH PROVINSI ${provUpper}`;
-    const logoSrc = getFotoUrl(sch.logo, 'https://upload.wikimedia.org/wikipedia/commons/9/9c/Logo_Tut_Wuri_Handayani.png');
+    // Helper untuk parser tingkat kelas (X = 10, XI = 11, XII = 12)
+    const getGradeWeight = (className: string): number => {
+      const upper = className.toUpperCase();
+      if (upper.startsWith("X ")) return 10;
+      if (upper.startsWith("XI ")) return 11;
+      if (upper.startsWith("XII ")) return 12;
+      
+      const numMatch = className.match(/\d+/);
+      if (numMatch) return parseInt(numMatch[0]);
+      return 99; // Fallback untuk non-tingkat
+    };
 
-    for (let pageIdx = 0; pageIdx < totalPagesPdf; pageIdx++) {
-      const pageNum = pageIdx + 1;
-      const startOffset = pageIdx * itemsPerPagePdf;
-      const pageData = dataList.slice(startOffset, startOffset + itemsPerPagePdf);
+    if (isDailyPd && !selectedClass) {
+      // 1 KELAS 1 HALAMAN - URUT DARI TINGKAT PALING BAWAH
+      // Grouping dataList harian berdasarkan Rombel
+      const groupedByClass: Record<string, DailyItem[]> = {};
+      (dataList as DailyItem[]).forEach((item) => {
+        const cls = item.rombelOrJabatan || "Tanpa Kelas";
+        if (!groupedByClass[cls]) {
+          groupedByClass[cls] = [];
+        }
+        groupedByClass[cls].push(item);
+      });
 
-      // Render Header Kop Surat (hanya di halaman 1)
-      const headerKopHtml = pageNum === 1 ? `
-        <table class="header-table">
-            <tr>
-                <td class="header-logo" style="border:none; padding:0;">
-                    <img src="${logoSrc}" alt="Logo">
-                </td>
-                <td class="header-text" style="border:none; padding:0;">
-                    <div class="header-title-1">${provText}</div>
-                    <div class="header-title-2">${(sch.nama || "SIMAK SEKOLAH").toUpperCase()}</div>
-                    <div class="header-address">
-                        ${sch.alamat_jalan || "Jalan Pendidikan No. 123"} 
-                        ${sch.nomor_telepon ? ' | Telp: ' + sch.nomor_telepon : ''}
-                        ${sch.email ? ' | Email: ' + sch.email : ''}
-                    </div>
-                </td>
-            </tr>
-        </table>
-        <div class="doc-title">Laporan Rekapitulasi Presensi Kehadiran</div>
-        <div class="doc-subtitle">Rekapitulasi Kehadiran ${isPeriodik ? (rekapTarget === "pd" ? "Peserta Didik" : "GTK") : "Harian"} - Periode ${dateRangeLabel}</div>
-      ` : `
-        <div style="font-weight: bold; font-size: 11px; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 15px; display: flex; justify-content: space-between;">
-          <span>Laporan Rekapitulasi Presensi Kehadiran (Lanjutan)</span>
-          <span>Halaman ${pageNum} dari ${totalPagesPdf}</span>
-        </div>
-      `;
+      // Urutkan kelas berdasarkan tingkat terbawah (X, XI, XII)
+      const sortedClasses = Object.keys(groupedByClass).sort((a, b) => {
+        const weightA = getGradeWeight(a);
+        const weightB = getGradeWeight(b);
+        if (weightA !== weightB) {
+          return weightA - weightB;
+        }
+        return a.localeCompare(b);
+      });
 
-      // Render Table for current page
-      let tableHtml = "";
-      if (isPeriodik) {
-        const isBulanan = rekapMode === "bulanan";
-        const headers = isBulanan
-          ? `
+      // Hitung total halaman keseluruhan
+      totalPagesPdf = 0;
+      sortedClasses.forEach((cls) => {
+        const classItems = groupedByClass[cls];
+        totalPagesPdf += Math.max(1, Math.ceil(classItems.length / 48)); // maksimal 48 baris per halaman harian
+      });
+
+      sortedClasses.forEach((cls) => {
+        const classItems = groupedByClass[cls];
+        const classWali = waliKelasMap[cls] || "-";
+        const itemsPerPageClass = 48;
+        const totalClassPages = Math.max(1, Math.ceil(classItems.length / itemsPerPageClass));
+
+        for (let classPageIdx = 0; classPageIdx < totalClassPages; classPageIdx++) {
+          pageNum++;
+          const startOffset = classPageIdx * itemsPerPageClass;
+          const pageData = classItems.slice(startOffset, startOffset + itemsPerPageClass);
+
+          const headerKopHtml = `
+            <div style="font-weight: bold; font-size: 11px; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: flex-end;">
+              <div>
+                <div style="font-size: 13px; font-weight: bold; margin-bottom: 4px;">Laporan Rekapitulasi Presensi Kehadiran Harian</div>
+                <div style="font-size: 9px; font-weight: normal; color: #444; display: flex; gap: 15px;">
+                  <span><strong>Kelas:</strong> ${cls}</span>
+                  <span><strong>Wali Kelas:</strong> ${classWali}</span>
+                  <span><strong>Tanggal:</strong> ${monthLabel}</span>
+                </div>
+              </div>
+            </div>
+          `;
+
+          const headers = `
             <tr>
               <th style="width: 30px;">No.</th>
-              <th style="width: 150px; text-align: left;">Nama ${rekapTarget === "pd" ? "Siswa" : "GTK"}</th>
-              ${datesInRange.map(d => `<th style="width: 22px;">${d.label}</th>`).join("")}
-              <th style="width: 25px; color: #16a34a; background: #f0fdf4;">H</th>
-              <th style="width: 25px; color: #2563eb; background: #eff6ff;">S</th>
-              <th style="width: 25px; color: #d97706; background: #fffbeb;">I</th>
-              <th style="width: 25px; color: #dc2626; background: #fef2f2;">A</th>
-            </tr>`
-          : `
-            <tr>
-              <th rowspan="2" style="width: 30px;">No.</th>
-              <th rowspan="2" style="width: 150px; text-align: left;">Nama ${rekapTarget === "pd" ? "Siswa" : "GTK"}</th>
-              ${datesInRange.map(d => `<th colspan="4" style="font-weight: bold;">${d.label}</th>`).join("")}
-              <th rowspan="2" style="width: 30px; color: #16a34a; background: #f0fdf4;">Tot H</th>
-              <th rowspan="2" style="width: 30px; color: #2563eb; background: #eff6ff;">Tot S</th>
-              <th rowspan="2" style="width: 30px; color: #d97706; background: #fffbeb;">Tot I</th>
-              <th rowspan="2" style="width: 30px; color: #dc2626; background: #fef2f2;">Tot A</th>
-            </tr>
-            <tr>
-              ${datesInRange.map(() => `
-                <th style="font-size: 8px; color: #16a34a;">H</th>
-                <th style="font-size: 8px; color: #2563eb;">S</th>
-                <th style="font-size: 8px; color: #d97706;">I</th>
-                <th style="font-size: 8px; color: #dc2626;">A</th>
-              `).join("")}
-            </tr>`;
-
-        const rows = pageData.map((student: any, localIdx) => {
-          const globalIdx = startOffset + localIdx;
-          const totals = calculateTotals(student);
-          let cellsHtml = "";
-          
-          if (isBulanan) {
-            let i = 0;
-            const dates = datesInRange as Array<{ label: string; dateStr: string }>;
-            while (i < dates.length) {
-              const d = dates[i];
-              const holiday = checkIsHoliday(d.dateStr);
-              if (holiday.isHoliday) {
-                let span = 1;
-                while (i + span < dates.length && span < 3) {
-                  const nextHoliday = checkIsHoliday(dates[i + span].dateStr);
-                  if (nextHoliday.isHoliday && nextHoliday.nama === holiday.nama) {
-                    span++;
-                  } else {
-                    break;
-                  }
-                }
-                const labelText = holiday.nama === "Libur Mingguan" ? "LIBUR" : holiday.nama.toUpperCase();
-                const isStartOfRowspanGroup = globalIdx % 10 === 0 || localIdx === 0; // split per 10 atau di awal halaman
-                
-                // Cari berapa baris yang tersisa dalam chunk halaman saat ini vs grup 10
-                const nextTenBoundary = 10 - (globalIdx % 10);
-                const calculatedRowspan = Math.min(nextTenBoundary, pageData.length - localIdx);
-
-                if (isStartOfRowspanGroup) {
-                  const renderText = calculatedRowspan >= 2;
-                  
-                  cellsHtml += `
-                    <td 
-                      colspan="${span}" 
-                      rowspan="${calculatedRowspan}" 
-                      style="background-color: rgba(254, 226, 226, 0.7); text-align: center; vertical-align: middle; font-weight: bold; color: #dc2626; padding: 2px 0;"
-                    >
-                      ${renderText ? `
-                        <div style="writing-mode: vertical-rl; transform: rotate(180deg); margin: 0 auto; font-size: 8px;">
-                          ${labelText}
-                        </div>
-                      ` : ""}
-                    </td>
-                  `;
-                }
-                i += span;
-              } else {
-                const sym = getStatusSymbol(student, d.dateStr);
-                cellsHtml += `<td style="text-align: center; font-size: 10px;">${sym.char === "•" ? "•" : sym.char}</td>`;
-                i++;
-              }
-            }
-          } else {
-            cellsHtml = datesInRange.map((d: any) => {
-              const monthly = calculateMonthlyTotals(student, d.monthNum, d.yearNum);
-              return `
-                <td style="text-align: center; background: #f0fdf4; font-size: 9px; font-weight: 500;">${monthly.H || 0}</td>
-                <td style="text-align: center; background: #eff6ff; font-size: 9px; font-weight: 500;">${monthly.S || 0}</td>
-                <td style="text-align: center; background: #fffbeb; font-size: 9px; font-weight: 500;">${monthly.I || 0}</td>
-                <td style="text-align: center; background: #fef2f2; font-size: 9px; font-weight: 500;">${monthly.A || 0}</td>
-              `;
-            }).join("");
-          }
-
-          return `
-            <tr>
-              <td style="text-align: center;">${globalIdx + 1}</td>
-              <td style="font-weight: 500;">${student.nama}</td>
-              ${cellsHtml}
-              <td style="text-align: center; font-weight: bold; background: #f0fdf4;">${totals.H}</td>
-              <td style="text-align: center; font-weight: bold; background: #eff6ff;">${totals.S}</td>
-              <td style="text-align: center; font-weight: bold; background: #fffbeb;">${totals.I}</td>
-              <td style="text-align: center; font-weight: bold; background: #fef2f2;">${totals.A}</td>
+              <th style="width: 200px; text-align: left;">Nama</th>
+              <th style="width: 85px; text-align: left;">NISN</th>
+              <th style="width: 70px; text-align: left;">Rombel</th>
+              <th style="width: 65px;">Jam Masuk</th>
+              <th style="width: 65px;">Jam Pulang</th>
+              <th style="width: 75px;">Status</th>
             </tr>
           `;
-        }).join("");
 
-        tableHtml = `
-          <table class="report-table">
-            <thead>
-              ${headers}
-            </thead>
-            <tbody>
-              ${rows}
-            </tbody>
-          </table>
-        `;
-      } else {
-        // Harian / Belum Presensi Pulang
-        const isDailyGtk = activeTab === "daily-gtk";
-        const headers = `
-          <tr>
-            <th style="width: 40px;">No.</th>
-            <th style="text-align: left;">Nama</th>
-            <th style="width: 150px; text-align: left;">Identitas (NISN/NIP)</th>
-            <th style="width: 120px; text-align: left;">${isDailyGtk ? "Jabatan" : "Rombel"}</th>
-            <th style="width: 100px;">Jam Masuk</th>
-            <th style="width: 100px;">Jam Pulang</th>
-            <th style="width: 100px;">Status</th>
-          </tr>
-        `;
+          const rows = pageData.map((item: any, localIdx) => {
+            const globalIdx = startOffset + localIdx;
+            let statusBadge = "Belum Absen";
+            if (item.status === 1) statusBadge = "Hadir";
+            else if (item.status === 2) statusBadge = "Terlambat";
+            else if (item.status === 3) statusBadge = "Izin";
+            else if (item.status === 4) statusBadge = "Sakit";
+            else if (item.status === 5) statusBadge = "Alpha";
 
-        const rows = pageData.map((item: any, localIdx) => {
-          const globalIdx = startOffset + localIdx;
-          let statusBadge = "Belum Absen";
-          if (item.status === 1) statusBadge = "Hadir";
-          else if (item.status === 2) statusBadge = "Terlambat";
-          else if (item.status === 3) statusBadge = "Izin";
-          else if (item.status === 4) statusBadge = "Sakit";
-          else if (item.status === 5) statusBadge = "Alpha";
+            return `
+              <tr>
+                <td style="text-align: center;">${globalIdx + 1}</td>
+                <td style="font-weight: 500;">${item.nama}</td>
+                <td>${item.identitas}</td>
+                <td>${item.rombelOrJabatan}</td>
+                <td style="text-align: center;">${formatTime(item.jamMasuk)}</td>
+                <td style="text-align: center;">${item.jamPulang ? formatTime(item.jamPulang) : '<span style="color: #dc2626; font-weight: 600;">Belum Pulang</span>'}</td>
+                <td style="text-align: center; font-weight: 600;">${statusBadge}</td>
+              </tr>
+            `;
+          }).join("");
 
-          return `
-            <tr>
-              <td style="text-align: center;">${globalIdx + 1}</td>
-              <td style="font-weight: 500;">${item.nama}</td>
-              <td>${item.identitas}</td>
-              <td>${item.rombelOrJabatan}</td>
-              <td style="text-align: center;">${formatTime(item.jamMasuk)}</td>
-              <td style="text-align: center;">${item.jamPulang ? formatTime(item.jamPulang) : '<span style="color: #dc2626; font-weight: 600;">Belum Pulang</span>'}</td>
-              <td style="text-align: center; font-weight: 600;">${statusBadge}</td>
-            </tr>
+          const tableHtml = `
+            <table class="report-table">
+              <thead>
+                ${headers}
+              </thead>
+              <tbody>
+                ${rows}
+              </tbody>
+            </table>
           `;
-        }).join("");
 
-        tableHtml = `
-          <table class="report-table">
-            <thead>
-              ${headers}
-            </thead>
-            <tbody>
-              ${rows}
-            </tbody>
-          </table>
-        `;
-      }
-
-      // Render Tanda Tangan (hanya di halaman terakhir)
-      const signatureHtml = pageNum === totalPagesPdf ? `
-        <div class="footer-sig">
-            <div>Cianjur, ${new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</div>
-            <div style="margin-top: 5px; font-weight: bold;">Kepala Sekolah,</div>
-            <div style="margin-top: 50px; font-weight: bold; text-decoration: underline;">${sch.nama_kepala_sekolah || "Nama Kepala Sekolah, M.Pd."}</div>
-            <div style="color: #666; font-size: 9px;">NIP. ${sch.nip_kepala_sekolah || "------------------------"}</div>
-        </div>
-      ` : "";
-
-      // Accumulate Pages
-      pagesHtml += `
-        <div id="page-container-${pageNum}" class="page-container">
-            ${headerKopHtml}
-            ${tableHtml}
-            ${signatureHtml}
-            <div class="page-footer" style="position: absolute; bottom: 0.4cm; left: 1.5cm; right: 1.5cm; font-size: 8px; color: #888; display: flex; justify-content: space-between; border-top: 1px solid #eee; padding-top: 4px;">
-                <span>Dicetak melalui Sistem Informasi Sekolah pada ${new Date().toLocaleDateString("id-ID")}</span>
-                <span>Halaman ${pageNum} dari ${totalPagesPdf}</span>
-            </div>
-        </div>
-      `;
-
-      // Accumulate Thumbnails
-      thumbnailsHtml += `
-        <div class="thumbnail-wrapper" onclick="goToPage(${pageNum})">
-            <div id="thumb-container-${pageNum}" class="thumbnail-container ${pageNum === 1 ? 'active' : ''}">
-                <div class="thumbnail-page">
-                    <div class="page-container" style="zoom: 1; padding: 1.2cm !important; transform: scale(1) !important; box-shadow: none !important;">
-                        ${pageNum === 1 ? '<div style="font-size: 18px; font-weight: bold; text-align: center; margin-top: 20px;">HALAMAN 1<br><span style="font-size: 10px; font-weight: normal;">Kop & Tabel</span></div>' : `<div style="font-size: 18px; font-weight: bold; text-align: center; margin-top: 20px;">HALAMAN ${pageNum}<br><span style="font-size: 10px; font-weight: normal;">Tabel Rekap</span></div>`}
-                    </div>
+          pagesHtml += `
+            <div id="page-container-${pageNum}" class="page-container">
+                ${headerKopHtml}
+                ${tableHtml}
+                <div class="page-footer" style="position: absolute; bottom: 0.4cm; left: 1.5cm; right: 1.5cm; font-size: 8px; color: #888; display: flex; justify-content: space-between; border-top: 1px solid #eee; padding-top: 4px;">
+                    <span>Dicetak melalui Sistem Informasi Sekolah pada ${new Date().toLocaleDateString("id-ID")}</span>
+                    <span>Halaman ${pageNum} dari ${totalPagesPdf}</span>
                 </div>
             </div>
-            <div class="thumbnail-number">${pageNum}</div>
-        </div>
-      `;
+          `;
+
+          thumbnailsHtml += `
+            <div class="thumbnail-wrapper" onclick="goToPage(${pageNum})">
+                <div id="thumb-container-${pageNum}" class="thumbnail-container ${pageNum === 1 ? 'active' : ''}">
+                    <div class="thumbnail-page">
+                        <div class="page-container" style="padding: 1cm !important; box-shadow: none !important;">
+                            ${headerKopHtml}
+                            ${tableHtml}
+                        </div>
+                    </div>
+                </div>
+                <div class="thumbnail-number">${pageNum}</div>
+            </div>
+          `;
+        }
+      });
+
+    } else {
+      // Normal flow (Periodik ATAU Harian dengan kelas filter tertentu ATAU GTK)
+      const itemsPerPagePdf = isPeriodik ? 32 : 50;
+      totalPagesPdf = Math.max(1, Math.ceil(dataList.length / itemsPerPagePdf));
+
+      for (let pageIdx = 0; pageIdx < totalPagesPdf; pageIdx++) {
+        pageNum++;
+        const startOffset = pageIdx * itemsPerPagePdf;
+        const pageData = dataList.slice(startOffset, startOffset + itemsPerPagePdf);
+
+        // Render Header Halaman dengan info Kelas, Wali Kelas, dan Bulan (tanpa halaman di header)
+        const headerKopHtml = `
+          <div style="font-weight: bold; font-size: 11px; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+              <div style="font-size: 13px; font-weight: bold; margin-bottom: 4px;">Laporan Rekapitulasi Presensi Kehadiran ${isPeriodik ? (rekapTarget === "pd" ? "Peserta Didik" : "GTK") : "Harian"}</div>
+              ${isPeriodik && rekapTarget === "pd" ? `
+                <div style="font-size: 9px; font-weight: normal; color: #444; display: flex; gap: 15px;">
+                  <span><strong>Kelas:</strong> ${selectedClass || "-"}</span>
+                  <span><strong>Wali Kelas:</strong> ${waliKelasName}</span>
+                  <span><strong>Bulan/Periode:</strong> ${monthLabel}</span>
+                </div>
+              ` : (activeTab !== "daily-gtk" ? `
+                <div style="font-size: 9px; font-weight: normal; color: #444; display: flex; gap: 15px;">
+                  <span><strong>Kelas:</strong> ${selectedClass || "-"}</span>
+                  <span><strong>Wali Kelas:</strong> ${waliKelasName}</span>
+                  <span><strong>Tanggal:</strong> ${monthLabel}</span>
+                </div>
+              ` : `
+                <div style="font-size: 9px; font-weight: normal; color: #444;"><strong>Periode:</strong> ${monthLabel}</div>
+              `)}
+            </div>
+          </div>
+        `;
+
+        // Render Table for current page
+        let tableHtml = "";
+        if (isPeriodik) {
+          const isBulanan = rekapMode === "bulanan";
+          const headers = isBulanan
+            ? `
+              <tr>
+                <th style="width: 25px;">No.</th>
+                <th style="width: 110px; text-align: left;">Nama ${rekapTarget === "pd" ? "Siswa" : "GTK"}</th>
+                ${datesInRange.map(d => `<th style="width: 18px;">${d.label}</th>`).join("")}
+                <th style="width: 18px; color: #16a34a; background: #f0fdf4;">H</th>
+                <th style="width: 18px; color: #2563eb; background: #eff6ff;">S</th>
+                <th style="width: 18px; color: #d97706; background: #fffbeb;">I</th>
+                <th style="width: 18px; color: #dc2626; background: #fef2f2;">A</th>
+              </tr>`
+            : `
+              <tr>
+                <th rowspan="2" style="width: 25px;">No.</th>
+                <th rowspan="2" style="width: 110px; text-align: left;">Nama ${rekapTarget === "pd" ? "Siswa" : "GTK"}</th>
+                ${datesInRange.map(d => `<th colspan="4" style="font-weight: bold;">${d.label}</th>`).join("")}
+                <th rowspan="2" style="width: 22px; color: #16a34a; background: #f0fdf4;">Tot H</th>
+                <th rowspan="2" style="width: 22px; color: #2563eb; background: #eff6ff;">Tot S</th>
+                <th rowspan="2" style="width: 22px; color: #d97706; background: #fffbeb;">Tot I</th>
+                <th rowspan="2" style="width: 22px; color: #dc2626; background: #fef2f2;">Tot A</th>
+              </tr>
+              <tr>
+                ${datesInRange.map(() => `
+                  <th style="font-size: 8px; color: #16a34a;">H</th>
+                  <th style="font-size: 8px; color: #2563eb;">S</th>
+                  <th style="font-size: 8px; color: #d97706;">I</th>
+                  <th style="font-size: 8px; color: #dc2626;">A</th>
+                `).join("")}
+              </tr>`;
+
+          const rows = pageData.map((student: any, localIdx) => {
+            const globalIdx = startOffset + localIdx;
+            const totals = calculateTotals(student);
+            let cellsHtml = "";
+            
+            if (isBulanan) {
+              let i = 0;
+              const dates = datesInRange as Array<{ label: string; dateStr: string }>;
+              while (i < dates.length) {
+                const d = dates[i];
+                const holiday = checkIsHoliday(d.dateStr);
+                if (holiday.isHoliday) {
+                  let span = 1;
+                  while (i + span < dates.length) {
+                    const nextHoliday = checkIsHoliday(dates[i + span].dateStr);
+                    if (nextHoliday.isHoliday && nextHoliday.nama === holiday.nama) {
+                      span++;
+                    } else {
+                      break;
+                    }
+                  }
+                  const labelText = holiday.nama === "Libur Mingguan" ? "LIBUR" : holiday.nama.toUpperCase();
+                  
+                  // MENGGABUNGKAN HARI LIBUR UNTUK SELURUH SISWA DALAM SATU HALAMAN TANPA DIVIDER
+                  const isStartOfRowspanGroup = localIdx === 0; 
+                  const calculatedRowspan = pageData.length;
+
+                  if (isStartOfRowspanGroup) {
+                    cellsHtml += `
+                      <td 
+                        colspan="${span}" 
+                        rowspan="${calculatedRowspan}" 
+                        style="background-color: rgba(254, 226, 226, 0.7); text-align: center; vertical-align: middle; font-weight: bold; color: #dc2626; padding: 2px 0; border: 1px solid #888;"
+                      >
+                        <div style="writing-mode: vertical-rl; transform: rotate(180deg); margin: 0 auto; font-size: 8px; letter-spacing: 2px;">
+                          ${labelText}
+                        </div>
+                      </td>
+                    `;
+                  }
+                  i += span;
+                } else {
+                  const sym = getStatusSymbol(student, d.dateStr);
+                  cellsHtml += `<td style="text-align: center; font-size: 10px;">${sym.char === "•" ? "•" : sym.char}</td>`;
+                  i++;
+                }
+              }
+            } else {
+              cellsHtml = datesInRange.map((d: any) => {
+                const monthly = calculateMonthlyTotals(student, d.monthNum, d.yearNum);
+                return `
+                  <td style="text-align: center; background: #f0fdf4; font-size: 9px; font-weight: 500;">${monthly.H || 0}</td>
+                  <td style="text-align: center; background: #eff6ff; font-size: 9px; font-weight: 500;">${monthly.S || 0}</td>
+                  <td style="text-align: center; background: #fffbeb; font-size: 9px; font-weight: 500;">${monthly.I || 0}</td>
+                  <td style="text-align: center; background: #fef2f2; font-size: 9px; font-weight: 500;">${monthly.A || 0}</td>
+                `;
+              }).join("");
+            }
+
+            return `
+              <tr>
+                <td style="text-align: center;">${globalIdx + 1}</td>
+                <td style="font-weight: 500;">${student.nama}</td>
+                ${cellsHtml}
+                <td style="text-align: center; font-weight: bold; background: #f0fdf4;">${totals.H}</td>
+                <td style="text-align: center; font-weight: bold; background: #eff6ff;">${totals.S}</td>
+                <td style="text-align: center; font-weight: bold; background: #fffbeb;">${totals.I}</td>
+                <td style="text-align: center; font-weight: bold; background: #fef2f2;">${totals.A}</td>
+              </tr>
+            `;
+          }).join("");
+
+          tableHtml = `
+            <table class="report-table">
+              <thead>
+                ${headers}
+              </thead>
+              <tbody>
+                ${rows}
+              </tbody>
+            </table>
+          `;
+        } else {
+          // Harian / Belum Presensi Pulang
+          const isDailyGtk = activeTab === "daily-gtk";
+          const headers = `
+            <tr>
+              <th style="width: 30px;">No.</th>
+              <th style="width: 200px; text-align: left;">Nama</th>
+              <th style="width: 85px; text-align: left;">${isDailyGtk ? "NIP/NUPTK" : "NISN"}</th>
+              <th style="width: 70px; text-align: left;">${isDailyGtk ? "Jenis GTK" : "Rombel"}</th>
+              <th style="width: 65px;">Jam Masuk</th>
+              <th style="width: 65px;">Jam Pulang</th>
+              <th style="width: 75px;">Status</th>
+            </tr>
+          `;
+
+          const rows = pageData.map((item: any, localIdx) => {
+            const globalIdx = startOffset + localIdx;
+            let statusBadge = "Belum Absen";
+            if (item.status === 1) statusBadge = "Hadir";
+            else if (item.status === 2) statusBadge = "Terlambat";
+            else if (item.status === 3) statusBadge = "Izin";
+            else if (item.status === 4) statusBadge = "Sakit";
+            else if (item.status === 5) statusBadge = "Alpha";
+
+            return `
+              <tr>
+                <td style="text-align: center;">${globalIdx + 1}</td>
+                <td style="font-weight: 500;">${item.nama}</td>
+                <td>${item.identitas}</td>
+                <td>${item.rombelOrJabatan}</td>
+                <td style="text-align: center;">${formatTime(item.jamMasuk)}</td>
+                <td style="text-align: center;">${item.jamPulang ? formatTime(item.jamPulang) : '<span style="color: #dc2626; font-weight: 600;">Belum Pulang</span>'}</td>
+                <td style="text-align: center; font-weight: 600;">${statusBadge}</td>
+              </tr>
+            `;
+          }).join("");
+
+          tableHtml = `
+            <table class="report-table">
+              <thead>
+                ${headers}
+              </thead>
+              <tbody>
+                ${rows}
+              </tbody>
+            </table>
+          `;
+        }
+
+        // Accumulate Pages
+        pagesHtml += `
+          <div id="page-container-${pageNum}" class="page-container">
+              ${isPeriodik ? `
+                <div class="landscape-rotated-wrapper">
+                  ${headerKopHtml}
+                  ${tableHtml}
+                  <div class="page-footer" style="position: absolute; bottom: 0.1cm; left: 0; right: 0; font-size: 8px; color: #888; display: flex; justify-content: space-between; border-top: 1px solid #eee; padding-top: 4px;">
+                      <span>Dicetak melalui Sistem Informasi Sekolah pada ${new Date().toLocaleDateString("id-ID")}</span>
+                      <span>Halaman ${pageNum} dari ${totalPagesPdf}</span>
+                  </div>
+                </div>
+              ` : `
+                ${headerKopHtml}
+                ${tableHtml}
+                <div class="page-footer" style="position: absolute; bottom: 0.4cm; left: 1.5cm; right: 1.5cm; font-size: 8px; color: #888; display: flex; justify-content: space-between; border-top: 1px solid #eee; padding-top: 4px;">
+                    <span>Dicetak melalui Sistem Informasi Sekolah pada ${new Date().toLocaleDateString("id-ID")}</span>
+                    <span>Halaman ${pageNum} dari ${totalPagesPdf}</span>
+                </div>
+              `}
+          </div>
+        `;
+
+        // Accumulate Thumbnails
+        thumbnailsHtml += `
+          <div class="thumbnail-wrapper" onclick="goToPage(${pageNum})">
+              <div id="thumb-container-${pageNum}" class="thumbnail-container ${pageNum === 1 ? 'active' : ''}">
+                  <div class="thumbnail-page">
+                      <div class="page-container" style="padding: 1cm !important; box-shadow: none !important;">
+                          ${isPeriodik ? `
+                            <div class="landscape-rotated-wrapper">
+                              ${headerKopHtml}
+                              ${tableHtml}
+                            </div>
+                          ` : `
+                            ${headerKopHtml}
+                            ${tableHtml}
+                          `}
+                      </div>
+                  </div>
+              </div>
+              <div class="thumbnail-number">${pageNum}</div>
+          </div>
+        `;
+      }
     }
 
     // 2. Construct HTML Template
@@ -672,7 +819,7 @@ const RekapPresensi: React.FC = () => {
             margin: 0;
         }
         body {
-            font-family: Arial, Helvetica, sans-serif;
+            font-family: 'Times New Roman', Times, serif;
             font-size: 11px;
             color: #333;
             line-height: 1.4;
@@ -823,7 +970,7 @@ const RekapPresensi: React.FC = () => {
                 margin-bottom: 24px;
                 background: white;
                 box-shadow: 0 4px 8px rgba(0,0,0,0.3), 0 12px 24px rgba(0,0,0,0.2);
-                padding: 1cm 1.5cm;
+                padding: 1cm;
                 box-sizing: border-box;
                 position: relative;
                 border-radius: 2px;
@@ -831,6 +978,16 @@ const RekapPresensi: React.FC = () => {
                 transform-origin: top center;
                 transform: scale(var(--pdf-zoom, 1));
                 overflow: hidden;
+            }
+            /* Landscape rotated wrapper for Periodik (Bulanan/Semesteran) inside Portrait Page */
+            .landscape-rotated-wrapper {
+                width: 277mm;
+                height: 190mm;
+                position: absolute;
+                top: 1cm;
+                left: 1cm;
+                transform: rotate(90deg) translate(0, -190mm);
+                transform-origin: top left;
             }
             .thumbnail-wrapper {
                 display: flex;
@@ -856,14 +1013,13 @@ const RekapPresensi: React.FC = () => {
             .thumbnail-page {
                 width: 210mm;
                 height: 297mm;
-                transform: scale(0.5);
+                transform: scale(0.125);
                 transform-origin: top left;
                 pointer-events: none;
                 position: absolute;
                 top: 0;
                 left: 0;
                 background: white;
-                zoom: 0.1;
             }
             .thumbnail-number {
                 color: #bdc1c6;
@@ -894,7 +1050,7 @@ const RekapPresensi: React.FC = () => {
             .page-container {
                 width: 210mm !important;
                 height: 297mm !important;
-                padding: 1cm 1.5cm !important;
+                padding: 1cm !important;
                 box-sizing: border-box !important;
                 position: relative !important;
                 page-break-after: always !important;
@@ -903,6 +1059,15 @@ const RekapPresensi: React.FC = () => {
                 margin: 0 auto !important;
                 transform: none !important;
                 overflow: hidden !important;
+            }
+            .landscape-rotated-wrapper {
+                width: 277mm !important;
+                height: 190mm !important;
+                position: absolute !important;
+                top: 1cm !important;
+                left: 1cm !important;
+                transform: rotate(90deg) translate(0, -190mm) !important;
+                transform-origin: top left !important;
             }
         }
 
