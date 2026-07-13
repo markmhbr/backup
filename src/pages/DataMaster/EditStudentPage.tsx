@@ -74,7 +74,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
   ];
 
   const apiBaseUrl = import.meta.env.VITE_API_URL 
-    ? import.meta.env.VITE_API_URL.replace("/api", "") 
+    ? (import.meta.env.VITE_API_URL.endsWith("/api") ? import.meta.env.VITE_API_URL.slice(0, -4) : import.meta.env.VITE_API_URL)
     : (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
 
   const [formData, setFormData] = useState<any>({});
