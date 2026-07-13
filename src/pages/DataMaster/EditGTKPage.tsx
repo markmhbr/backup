@@ -982,6 +982,41 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
     setPendingDocs((prev) => [...prev, newRow]);
   };
 
+  const handleReplaceDocument = async (doc: any) => {
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'application/pdf,image/jpeg,image/png,image/webp';
+    fileInput.onchange = async (e: any) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+      if (!['.pdf', '.jpg', '.jpeg', '.png', '.webp'].includes(ext)) {
+        Swal.fire({ title: "Format Salah", text: "Gunakan format PDF atau Gambar (JPG, PNG, WebP).", icon: "error", confirmButtonColor: "#465FFF" });
+        return;
+      }
+      if (file.size > 200 * 1024) {
+        Swal.fire({ title: "Berkas Terlalu Besar", text: `Ukuran berkas (${(file.size / 1024).toFixed(1)}KB) melebihi batas 200KB.`, icon: "error", confirmButtonColor: "#465FFF" });
+        return;
+      }
+
+      try {
+        Swal.fire({ title: "Mengganti dokumen...", allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        await dapodikService.uploadGtkDokumen(id!, file, doc.nama);
+        Swal.fire({ title: "Berhasil", text: `Dokumen "${doc.nama}" berhasil diganti.`, icon: "success", confirmButtonColor: "#465FFF", timer: 1500, showConfirmButton: false });
+
+        // Reload documents list
+        const result = await dapodikService.getGtkDetail(id!);
+        if (result.status === "success" && result.data) {
+          setPendingDocs(result.data.foto_dokumen || []);
+        }
+      } catch (err: any) {
+        Swal.fire({ title: "Gagal", text: err.response?.data?.message || "Gagal mengganti dokumen.", icon: "error", confirmButtonColor: "#465FFF" });
+      }
+    };
+    fileInput.click();
+  };
+
   const handleRowFileChange = (rowId: string, file: File | null) => {
     if (!file) return;
     
@@ -2634,6 +2669,13 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                                 className="flex-1 py-1.5 text-xs font-bold text-center text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/[0.03] rounded-lg border border-gray-200 dark:border-white/[0.05] transition-colors"
                               >
                                 Unduh
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleReplaceDocument(doc)}
+                                className="flex-1 py-1.5 text-xs font-bold text-center text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-500/10 rounded-lg border border-amber-100 dark:border-amber-500/20 transition-colors"
+                              >
+                                Ganti
                               </button>
                               <button
                                 type="button"
