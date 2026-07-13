@@ -94,7 +94,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
         const ext = existingFile.substring(existingFile.lastIndexOf('.')).toLowerCase();
         const isImage = ['.jpg', '.jpeg', '.png', '.webp'].includes(ext);
         if (isImage) {
-          const fileUrl = `${apiBaseUrl}/storage/${formData.sekolahId}/siswa/${id}/dokumen/${existingFile}`;
+          const fileUrl = `${apiBaseUrl}/storage/${formData.sekolahId}/siswa/${id}/dokumen/${existingFile}?t=${Date.now()}`;
           slides.push({
             src: fileUrl,
             title: docType.name,
@@ -115,7 +115,8 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
       setLightboxIndex(idx >= 0 ? idx : 0);
       setLightboxOpen(true);
     } else {
-      window.open(url, '_blank');
+      const cacheBustUrl = `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`;
+      window.open(cacheBustUrl, '_blank');
     }
   };
 

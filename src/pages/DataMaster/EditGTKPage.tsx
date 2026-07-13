@@ -228,7 +228,7 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
       const ext = filename.substring(filename.lastIndexOf('.')).toLowerCase();
       const isImage = ['.jpg', '.jpeg', '.png', '.webp'].includes(ext);
       if (isImage) {
-        const fileUrl = doc.fileUrl.startsWith('/') ? `${apiBaseUrl}${doc.fileUrl}` : doc.fileUrl;
+        const fileUrl = doc.fileUrl.startsWith('/') ? `${apiBaseUrl}${doc.fileUrl}?t=${Date.now()}` : `${doc.fileUrl}${doc.fileUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
         slides.push({
           src: fileUrl,
           title: doc.nama,
@@ -248,7 +248,8 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
       setLightboxIndex(idx >= 0 ? idx : 0);
       setLightboxOpen(true);
     } else {
-      window.open(url, '_blank');
+      const cacheBustUrl = `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`;
+      window.open(cacheBustUrl, '_blank');
     }
   };
   // Document Upload State
