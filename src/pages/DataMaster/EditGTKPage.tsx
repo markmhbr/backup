@@ -915,7 +915,8 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
       }
     });
     try {
-      const response = await fetch(url);
+      const cacheBustUrl = `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`;
+      const response = await fetch(cacheBustUrl);
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -928,7 +929,8 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
       Swal.close();
     } catch (error) {
       Swal.close();
-      window.open(url, '_blank');
+      const cacheBustUrl = `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`;
+      window.open(cacheBustUrl, '_blank');
     }
   };
 
