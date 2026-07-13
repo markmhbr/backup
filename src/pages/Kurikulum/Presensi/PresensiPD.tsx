@@ -145,8 +145,12 @@ const PresensiPD: React.FC = () => {
     fetchAttendance();
   }, [fetchAttendance]);
 
-  // Filtered list
+  // Filtered list (Hadir / Terlambat / Izin / Sakit)
   const filteredData = data.filter((item) => {
+    const hasStatus = item.presensi?.status_masuk;
+    const isPresent = hasStatus === 1 || hasStatus === 2 || hasStatus === 3 || hasStatus === 4;
+    if (!isPresent) return false;
+
     const matchSearch =
       item.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (item.nisn && item.nisn.includes(searchTerm));
@@ -154,7 +158,7 @@ const PresensiPD: React.FC = () => {
     return matchSearch && matchClass;
   });
 
-  // Filtered list for Kelola tab
+  // Filtered list for Kelola tab (tampilkan semua untuk dikelola)
   const kelolaFilteredData = data.filter((item) => {
     const matchSearch =
       item.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -212,7 +216,7 @@ const PresensiPD: React.FC = () => {
       </div>
 
       <ComponentCard
-        title={activeTab === "daftar" ? "Daftar Kehadiran Peserta Didik" : "Kelola Ketidakhadiran Peserta Didik"}
+        title={activeTab === "daftar" ? "Daftar Kehadiran Peserta Didik" : "Kelola Kehadiran Peserta Didik"}
       >
         {/* Tabs */}
         <div className="flex border-b border-gray-200 dark:border-gray-800 -mt-2 mb-6">
@@ -234,7 +238,7 @@ const PresensiPD: React.FC = () => {
                 : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
             }`}
           >
-            Kelola Ketidakhadiran
+            Kelola Kehadiran
           </button>
         </div>
 
@@ -460,7 +464,7 @@ const PresensiPD: React.FC = () => {
                   </svg>
                 </div>
                 <p className="text-gray-500 font-medium">Silakan Pilih Kelas Terlebih Dahulu</p>
-                <p className="text-xs text-gray-400 mt-1">Pilih rombel/kelas dari dropdown untuk mengelola ketidakhadiran peserta didik.</p>
+                <p className="text-xs text-gray-400 mt-1">Pilih rombel/kelas dari dropdown untuk mengelola kehadiran peserta didik.</p>
               </div>
             ) : loading ? (
               <div className="flex justify-center items-center py-20">

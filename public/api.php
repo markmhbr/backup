@@ -210,17 +210,31 @@ $responseBody = substr($response, $headerSize);
 
 curl_close($ch);
 
-// Auto-cleanup jika API Key ditolak/diganti oleh backend pusat
+// Auto-cleanup HANYA jika backend pusat secara eksplisit menolak API Key itu sendiri.
+// JANGAN hapus key untuk error 401 biasa (misalnya: JWT token expired, user not authenticated)
+// karena itu bukan masalah API Key sekolah, melainkan session user.
 if ($httpCode === 401 || $httpCode === 403) {
-    if (isset($keys[$currentHost])) {
+    $bodyLower = strtolower($responseBody);
+    $isApiKeyRejected = (
+        strpos($bodyLower, 'api key') !== false ||
+        strpos($bodyLower, 'x-api-key') !== false ||
+        strpos($bodyLower, 'invalid key') !== false ||
+        strpos($bodyLower, 'key tidak valid') !== false ||
+        strpos($bodyLower, 'key ditolak') !== false
+    );
+
+    if ($isApiKeyRejected && isset($keys[$currentHost])) {
         unset($keys[$currentHost]);
         $keysContent = "<?php\n// Terproteksi\ndefined('SECURE_ACCESS') or die('No direct script access allowed');\nreturn " . var_export($keys, true) . ";\n";
         file_put_contents(KEYS_FILE, $keysContent);
+
+        // Ganti response body agar user tahu sistem harus menghubungkan ulang key
+        http_response_code(400);
+        echo json_encode(["status" => "error", "message" => "API Key tidak valid atau telah diganti di backend pusat. Silakan hubungkan ulang API Key."]);
+        exit;
     }
-    // Ganti response body agar user tahu sistem harus menghubungkan ulang key
-    http_response_code(400);
-    echo json_encode(["status" => "error", "message" => "API Key tidak valid atau telah diganti di backend pusat. Silakan hubungkan ulang API Key."]);
-    exit;
+
+    // Untuk 401/403 biasa (token expired dll), teruskan response asli dari backend
 }
 
 // Kirim header kembali ke browser

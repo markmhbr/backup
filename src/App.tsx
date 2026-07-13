@@ -46,6 +46,7 @@ import PresensiGTK from "./pages/Kurikulum/Presensi/PresensiGTK";
 import HariLibur from "./pages/Kurikulum/Presensi/HariLibur";
 import Scanner from "./pages/Kurikulum/Presensi/Scanner";
 import IzinSakit from "./pages/Kurikulum/Presensi/IzinSakit";
+import RekapPresensi from "./pages/Kurikulum/Presensi/RekapPresensi";
 import IndisiplinerData from "./pages/indisipliner/IndisiplinerData";
 import KeuanganData from "./pages/keuangan/KeuanganData";
 import SuratData from "./pages/Surat/SuratData";
@@ -114,6 +115,7 @@ export default function App() {
             <Route path="kurikulum/presensi/pesertadidik" element={<PresensiPD />} />
             <Route path="kurikulum/presensi/gtk" element={<PresensiGTK />} />
             <Route path="kurikulum/presensi/mapel" element={<Blank />} />
+            <Route path="kurikulum/presensi/rekap" element={<RekapPresensi />} />
             <Route path="kurikulum/presensi/izin" element={<IzinSakit />} />
             <Route path="kurikulum/presensi/hari-libur" element={<HariLibur />} />
 

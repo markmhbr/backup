@@ -45,6 +45,11 @@ export const presensiService = {
     return response.data;
   },
 
+  updateHariLibur: async (sekolahId: string, id: string, data: any) => {
+    const response = await api.patch(`/kurikulum/presensi/hari-libur/${sekolahId}/${id}`, data);
+    return response.data;
+  },
+
   deleteHariLibur: async (sekolahId: string, id: string) => {
     const response = await api.delete(`/kurikulum/presensi/hari-libur/${sekolahId}/${id}`);
     return response.data;
@@ -88,6 +93,13 @@ export const presensiService = {
   getRekapGtk: async (sekolahId: string, tanggal?: string) => {
     const response = await api.get(`/kurikulum/presensi/rekap-gtk/${sekolahId}`, {
       params: tanggal ? { tanggal } : {},
+    });
+    return response.data;
+  },
+
+  getRekapPeriodik: async (sekolahId: string, rombel: string, tanggalMulai: string, tanggalSelesai: string, tipe?: 'pd' | 'gtk') => {
+    const response = await api.get(`/kurikulum/presensi/rekap-periodik/${sekolahId}`, {
+      params: { rombel, tanggal_mulai: tanggalMulai, tanggal_selesai: tanggalSelesai, tipe },
     });
     return response.data;
   },

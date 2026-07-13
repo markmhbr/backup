@@ -283,6 +283,12 @@ const navItems: NavItem[] = [
             id: "presensi-mapel",
           },
           {
+            name: "Rekap Presensi",
+            path: "/kurikulum/presensi/rekap",
+            icon: <DotIcon />,
+            id: "presensi-rekap",
+          },
+          {
             name: "Izin",
             path: "/kurikulum/presensi/izin",
             icon: <DotIcon />,

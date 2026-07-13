@@ -10,6 +10,7 @@ const HariLibur: React.FC = () => {
   const { sekolah } = useSekolah();
   const [loading, setLoading] = useState(false);
   const [holidays, setHolidays] = useState<any[]>([]);
+  const [editingHolidayId, setEditingHolidayId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     nama: "",
     tanggal_mulai: new Date().toISOString().split('T')[0],
@@ -40,16 +41,27 @@ const HariLibur: React.FC = () => {
 
     setLoading(true);
     try {
-      await presensiService.createHariLibur(sekolah.sekolah_id, formData);
-      
-      Swal.fire({
-        title: 'Berhasil!',
-        text: 'Hari libur berhasil ditambahkan.',
-        icon: 'success',
-        confirmButtonColor: '#4f46e5',
-        background: document.documentElement.classList.contains('dark') ? '#1e293b' : '#ffffff',
-        color: document.documentElement.classList.contains('dark') ? '#f1f5f9' : '#1e293b',
-      });
+      if (editingHolidayId) {
+        await presensiService.updateHariLibur(sekolah.sekolah_id, editingHolidayId, formData);
+        Swal.fire({
+          title: 'Berhasil!',
+          text: 'Hari libur berhasil diperbarui.',
+          icon: 'success',
+          confirmButtonColor: '#4f46e5',
+          background: document.documentElement.classList.contains('dark') ? '#1e293b' : '#ffffff',
+          color: document.documentElement.classList.contains('dark') ? '#f1f5f9' : '#1e293b',
+        });
+      } else {
+        await presensiService.createHariLibur(sekolah.sekolah_id, formData);
+        Swal.fire({
+          title: 'Berhasil!',
+          text: 'Hari libur berhasil ditambahkan.',
+          icon: 'success',
+          confirmButtonColor: '#4f46e5',
+          background: document.documentElement.classList.contains('dark') ? '#1e293b' : '#ffffff',
+          color: document.documentElement.classList.contains('dark') ? '#f1f5f9' : '#1e293b',
+        });
+      }
 
       setFormData({
         nama: "",
@@ -57,11 +69,12 @@ const HariLibur: React.FC = () => {
         tanggal_selesai: new Date().toISOString().split('T')[0],
         keterangan: "",
       });
+      setEditingHolidayId(null);
       fetchHolidays();
     } catch (error: any) {
       Swal.fire({
         title: 'Gagal!',
-        text: error.response?.data?.message || 'Gagal menambahkan hari libur.',
+        text: error.response?.data?.message || 'Gagal menyimpan hari libur.',
         icon: 'error',
         confirmButtonColor: '#ef4444',
         background: document.documentElement.classList.contains('dark') ? '#1e293b' : '#ffffff',
@@ -70,6 +83,26 @@ const HariLibur: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleEdit = (holiday: any) => {
+    setEditingHolidayId(holiday.hari_libur_id);
+    setFormData({
+      nama: holiday.nama,
+      tanggal_mulai: new Date(holiday.tanggal_mulai).toISOString().split('T')[0],
+      tanggal_selesai: new Date(holiday.tanggal_selesai).toISOString().split('T')[0],
+      keterangan: holiday.keterangan || "",
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingHolidayId(null);
+    setFormData({
+      nama: "",
+      tanggal_mulai: new Date().toISOString().split('T')[0],
+      tanggal_selesai: new Date().toISOString().split('T')[0],
+      keterangan: "",
+    });
   };
 
   const handleDelete = async (id: string) => {
@@ -136,7 +169,7 @@ const HariLibur: React.FC = () => {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-1">
-          <ComponentCard title="Tambah Hari Libur">
+          <ComponentCard title={editingHolidayId ? "Edit Hari Libur" : "Tambah Hari Libur"}>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="mb-2.5 block text-sm font-medium text-gray-800 dark:text-white/90">
@@ -191,13 +224,24 @@ const HariLibur: React.FC = () => {
                 />
               </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full rounded-lg bg-brand-500 py-3 font-bold text-white hover:bg-brand-600 disabled:opacity-50 shadow-md shadow-brand-500/10 transition-all active:scale-[0.98] cursor-pointer"
-              >
-                {loading ? 'Menyimpan...' : 'Simpan Hari Libur'}
-              </button>
+              <div className="flex flex-col gap-2.5">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full rounded-lg bg-brand-500 py-3 font-bold text-white hover:bg-brand-600 disabled:opacity-50 shadow-md shadow-brand-500/10 transition-all active:scale-[0.98] cursor-pointer"
+                >
+                  {loading ? 'Menyimpan...' : editingHolidayId ? 'Update Hari Libur' : 'Simpan Hari Libur'}
+                </button>
+                {editingHolidayId && (
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    className="w-full rounded-lg border border-gray-300 py-3 font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                  >
+                    Batal Edit
+                  </button>
+                )}
+              </div>
             </form>
           </ComponentCard>
         </div>
@@ -231,15 +275,26 @@ const HariLibur: React.FC = () => {
                           {formatDateDMY(h.tanggal_mulai)} - {formatDateDMY(h.tanggal_selesai)}
                         </td>
                         <td className="px-6 py-4 text-right whitespace-nowrap">
-                          <button 
-                            type="button"
-                            onClick={() => handleDelete(h.hari_libur_id)}
-                            className="text-xs text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 font-semibold px-2.5 py-1.5 border border-red-500/30 rounded-lg bg-red-500/5 hover:bg-red-500/10 cursor-pointer transition-colors inline-flex items-center gap-1.5"
-                            title="Hapus"
-                          >
-                            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                            Hapus
-                          </button>
+                          <div className="inline-flex items-center gap-2">
+                            <button 
+                              type="button"
+                              onClick={() => handleEdit(h)}
+                              className="text-xs text-brand-600 hover:text-brand-900 dark:text-brand-400 dark:hover:text-brand-300 font-semibold px-2.5 py-1.5 border border-brand-500/30 rounded-lg bg-brand-500/5 hover:bg-brand-500/10 cursor-pointer transition-colors inline-flex items-center gap-1.5"
+                              title="Edit"
+                            >
+                              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                              Edit
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={() => handleDelete(h.hari_libur_id)}
+                              className="text-xs text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 font-semibold px-2.5 py-1.5 border border-red-500/30 rounded-lg bg-red-500/5 hover:bg-red-500/10 cursor-pointer transition-colors inline-flex items-center gap-1.5"
+                              title="Hapus"
+                            >
+                              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                              Hapus
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))

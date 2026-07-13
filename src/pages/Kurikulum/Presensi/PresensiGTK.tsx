@@ -136,8 +136,20 @@ const PresensiGTK: React.FC = () => {
     fetchAttendance();
   }, [fetchAttendance]);
 
-  // Filtered list
+  // Filtered list (Hadir / Terlambat / Izin / Sakit)
   const filteredData = data.filter((item) => {
+    const hasStatus = item.presensi?.status_masuk;
+    const isPresent = hasStatus === 1 || hasStatus === 2 || hasStatus === 3 || hasStatus === 4;
+    if (!isPresent) return false;
+
+    return (
+      item.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.nuptk && item.nuptk.includes(searchTerm))
+    );
+  });
+
+  // Filtered list for Kelola tab (tampilkan semua GTK)
+  const kelolaFilteredData = data.filter((item) => {
     return (
       item.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (item.nuptk && item.nuptk.includes(searchTerm))
@@ -147,6 +159,12 @@ const PresensiGTK: React.FC = () => {
   // Pagination calculation
   const totalPages = Math.ceil(filteredData.length / itemsPerPage) || 1;
   const paginatedData = filteredData.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const kelolaTotalPages = Math.ceil(kelolaFilteredData.length / itemsPerPage) || 1;
+  const kelolaPaginatedData = kelolaFilteredData.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
@@ -182,7 +200,7 @@ const PresensiGTK: React.FC = () => {
       </div>
 
       <ComponentCard
-        title={activeTab === "daftar" ? "Daftar Kehadiran GTK" : "Kelola Ketidakhadiran GTK"}
+        title={activeTab === "daftar" ? "Daftar Kehadiran GTK" : "Kelola Kehadiran GTK"}
       >
         {/* Tabs */}
         <div className="flex border-b border-gray-200 dark:border-gray-800 -mt-2 mb-6">
@@ -204,7 +222,7 @@ const PresensiGTK: React.FC = () => {
                 : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
             }`}
           >
-            Kelola Ketidakhadiran
+            Kelola Kehadiran
           </button>
         </div>
 
@@ -406,7 +424,7 @@ const PresensiGTK: React.FC = () => {
               </div>
             ) : error ? (
               <div className="text-center py-10 text-red-500">{error}</div>
-            ) : paginatedData.length === 0 ? (
+            ) : kelolaPaginatedData.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-xl">
                  <div className="h-16 w-16 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
                     <svg className="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
@@ -429,7 +447,7 @@ const PresensiGTK: React.FC = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-                      {paginatedData.map((item, index) => {
+                      {kelolaPaginatedData.map((item, index) => {
                         const statusMasuk = item.presensi?.status_masuk;
 
                         let statusBadge = <Badge color="light">Belum Presensi</Badge>;
@@ -527,7 +545,7 @@ const PresensiGTK: React.FC = () => {
                 <div className="no-print">
                   <Pagination
                     currentPage={currentPage}
-                    totalPages={totalPages}
+                    totalPages={kelolaTotalPages}
                     onPageChange={(page) => setCurrentPage(page)}
                   />
                 </div>
