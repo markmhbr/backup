@@ -1052,14 +1052,14 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
 
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
-    fileInput.accept = 'application/pdf,image/jpeg,image/png,image/webp';
+    fileInput.accept = 'application/pdf';
     fileInput.onchange = async (e: any) => {
       const file = e.target.files?.[0];
       if (!file) return;
 
       const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
-      if (!['.pdf', '.jpg', '.jpeg', '.png', '.webp'].includes(ext)) {
-        Swal.fire({ title: "Format Salah", text: "Gunakan format PDF atau Gambar (JPG, PNG, WebP).", icon: "error", confirmButtonColor: "#465FFF" });
+      if (ext !== '.pdf') {
+        Swal.fire({ title: "Format Salah", text: "Hanya berkas format PDF yang diperbolehkan.", icon: "error", confirmButtonColor: "#465FFF" });
         return;
       }
       if (file.size > 200 * 1024) {
