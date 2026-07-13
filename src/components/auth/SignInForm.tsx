@@ -42,9 +42,14 @@ export default function SignInForm() {
         // Tangkap error jika jembatan proxy (api.php) di production mengembalikan error 400
         if (
           err.response?.status === 400 &&
-          err.response?.data?.message?.includes("Sistem belum terhubung")
+          (err.response?.data?.message?.includes("belum terhubung") || err.response?.data?.message?.includes("API Key"))
         ) {
           setError(err.response.data.message);
+        } else if (
+          err.response?.status === 500 ||
+          err.response?.data?.message?.includes("belum terhubung")
+        ) {
+          setError(err.response?.data?.message || "Sistem belum terhubung. Silakan hubungkan API Key terlebih dahulu.");
         }
       }
     };
@@ -162,14 +167,14 @@ export default function SignInForm() {
             </p>
           </div>
 
-          {error && !is2FAModalOpen && !error.includes("Sistem belum terhubung") && (
+          {error && !is2FAModalOpen && !error.includes("belum terhubung") && (
             <div className="p-4 mb-6 text-sm text-error-600 bg-error-50 border border-error-100 rounded-xl dark:bg-error-500/10 dark:border-error-500/20">
               {error}
             </div>
           )}
 
           <div>
-            {error && error.includes("Sistem belum terhubung") ? (
+            {error && error.includes("belum terhubung") ? (
               <div>
                 <div className="p-4 mb-6 text-sm text-yellow-800 bg-yellow-100 border border-yellow-200 rounded-xl dark:bg-yellow-500/10 dark:text-yellow-400 dark:border-yellow-900/30">
                   <h3 className="font-semibold mb-1">Sekolah Belum Terhubung</h3>

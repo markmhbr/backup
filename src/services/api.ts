@@ -63,7 +63,7 @@ api.interceptors.response.use(
       // agar tidak menendang user keluar (sesi berakhir) saat setup awal/sinkronisasi
       const errorMessage = error.response?.data?.message || '';
       if (
-        errorMessage.includes('Sistem belum terhubung') ||
+        errorMessage.includes('belum terhubung') ||
         errorMessage.includes('API Key')
       ) {
         return Promise.reject(error);
