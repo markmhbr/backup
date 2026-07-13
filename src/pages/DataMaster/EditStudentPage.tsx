@@ -208,10 +208,24 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
       { key: 'tahunLahirWali', label: 'Tahun Lahir Wali' },
       { key: 'jenjang_pendidikan_wali', label: 'Pendidikan Wali' },
       { key: 'pekerjaan_id_wali', label: 'Pekerjaan Wali' },
-      { key: 'penghasilan_id_wali', label: 'Penghasilan Wali' }
+      { key: 'penghasilan_id_wali', label: 'Penghasilan Wali' },
+      { key: 'doc_ijazah', label: 'Dokumen Ijazah Sekolah Asal' },
+      { key: 'doc_kk', label: 'Dokumen Kartu Keluarga' },
+      { key: 'doc_akta', label: 'Dokumen Akta Kelahiran' },
+      { key: 'doc_ktp_ayah', label: 'Dokumen KTP Ayah' },
+      { key: 'doc_ktp_ibu', label: 'Dokumen KTP Ibu' }
     ];
 
     const checkFilled = (field: any) => {
+      if (field.key.startsWith('doc_')) {
+        const docKey = field.key === 'doc_ijazah' ? 'ijazah_sekolah_asal'
+                     : field.key === 'doc_kk' ? 'kartu_keluarga'
+                     : field.key === 'doc_akta' ? 'akta_kelahiran'
+                     : field.key === 'doc_ktp_ayah' ? 'ktp_ayah'
+                     : 'ktp_ibu';
+        return uploadedDocs.some(f => f.startsWith(docKey));
+      }
+
       if (field.key === 'provinsi' || field.key === 'kabupaten' || field.key === 'kecamatan') {
         const desa = formData['desaKelurahan'] || formData['desaKelurahanCode'];
         const prov = formData['provinsi'];

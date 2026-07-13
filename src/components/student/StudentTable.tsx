@@ -41,6 +41,16 @@ export default function StudentTable({ onSelectionChange, searchTerm, completene
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   
   const isFieldFilled = (item: any, key: string) => {
+    if (key.startsWith('doc_')) {
+      const docKey = key === 'doc_ijazah' ? 'ijazah_sekolah_asal'
+                   : key === 'doc_kk' ? 'kartu_keluarga'
+                   : key === 'doc_akta' ? 'akta_kelahiran'
+                   : key === 'doc_ktp_ayah' ? 'ktp_ayah'
+                   : 'ktp_ibu';
+      const uploadedList = item.uploaded_docs || [];
+      return uploadedList.some((f: string) => f.startsWith(docKey));
+    }
+
     const value = item[key];
     if (value && value !== '-' && value !== '' && value !== 0 && value !== '0') {
       return true;
@@ -103,7 +113,7 @@ export default function StudentTable({ onSelectionChange, searchTerm, completene
           // Add completeness data
           fetchedData = fetchedData.map((item: any) => ({
             ...item,
-            lengkapData: calculateCompleteness(item)
+            lengkapData: item.lengkapData !== undefined && item.lengkapData !== null ? item.lengkapData : calculateCompleteness(item)
           }));
 
           setData(fetchedData);
@@ -327,7 +337,12 @@ export default function StudentTable({ onSelectionChange, searchTerm, completene
                 { key: 'tahun_lahir_wali', label: 'Tahun Lahir Wali' },
                 { key: 'jenjang_pendidikan_wali', label: 'Pendidikan Wali' },
                 { key: 'pekerjaan_id_wali', label: 'Pekerjaan Wali' },
-                { key: 'penghasilan_id_wali', label: 'Penghasilan Wali' }
+                { key: 'penghasilan_id_wali', label: 'Penghasilan Wali' },
+                { key: 'doc_ijazah', label: 'Dokumen Ijazah Sekolah Asal' },
+                { key: 'doc_kk', label: 'Dokumen Kartu Keluarga' },
+                { key: 'doc_akta', label: 'Dokumen Akta Kelahiran' },
+                { key: 'doc_ktp_ayah', label: 'Dokumen KTP Ayah' },
+                { key: 'doc_ktp_ibu', label: 'Dokumen KTP Ibu' }
               ].filter((field) => {
                 if (field.key.endsWith('_wali')) {
                   const item = selectedItemForCompleteness;
