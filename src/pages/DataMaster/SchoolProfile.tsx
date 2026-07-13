@@ -134,7 +134,8 @@ export default function SchoolProfile() {
           }));
 
           if (s.logo) {
-            setLogoPreview(s.logo);
+            const absoluteLogo = `${getFotoUrl(s.logo, "")}?t=${Date.now()}`;
+            setLogoPreview(absoluteLogo);
           }
 
           setAlamatData(prev => ({
