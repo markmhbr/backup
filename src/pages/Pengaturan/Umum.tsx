@@ -30,6 +30,11 @@ export default function Umum() {
   const [members, setMembers] = useState<any[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
 
+  // GTK Presence Mode States
+  const [gtks, setGtks] = useState<any[]>([]);
+  const [loadingGtks, setLoadingGtks] = useState(false);
+  const [guruMode, setGuruMode] = useState(0);
+
   // Load Classes for PD Category
   useEffect(() => {
     if (isResetModalOpen && resetCategory === "pd" && classes.length === 0) {
@@ -148,11 +153,23 @@ export default function Umum() {
               waktu_sampai_pengajuan: cfg.waktu_sampai_pengajuan || "",
             });
           }
+
+          // Fetch GTKs for settings
+          setLoadingGtks(true);
+          const res = await dapodikService.getGTK(999, "", 1);
+          if (res?.status === "success" && res.data) {
+            setGtks(res.data);
+            const firstGuru = res.data.find((g: any) => g.jenis_ptk_id_str === "Guru");
+            if (firstGuru) {
+              setGuruMode(firstGuru.mode_presensi || 0);
+            }
+          }
         }
       } catch (error) {
         console.error("Gagal mengambil data pengaturan:", error);
       } finally {
         setLoading(false);
+        setLoadingGtks(false);
       }
     };
     fetchSettings();
@@ -198,12 +215,31 @@ export default function Umum() {
         waktu_sampai_pengajuan: pengaturanData.waktu_sampai_pengajuan || null,
       });
 
+      // Update GTK Modes in database
+      const updatePromises = gtks.map((gtk) => {
+        const isTendik = gtk.jenis_ptk_id_str === "Tenaga Kependidikan";
+        const targetMode = isTendik ? 0 : guruMode;
+        if (gtk.mode_presensi !== targetMode) {
+          return dapodikService.updateGtkMode(sekolahId, gtk.ptk_id, targetMode);
+        }
+        return Promise.resolve();
+      });
+      await Promise.all(updatePromises);
+
+      // Reload GTKs to sync local state
+      const res = await dapodikService.getGTK(999, "", 1);
+      if (res?.status === "success" && res.data) {
+        setGtks(res.data);
+      }
+
       Swal.fire({
         title: "Berhasil!",
         text: "Pengaturan umum berhasil disimpan.",
         icon: "success",
         timer: 1500,
         showConfirmButton: false,
+        toast: true,
+        position: "top-end",
       });
     } catch (err: any) {
       console.error(err);
@@ -287,7 +323,38 @@ export default function Umum() {
             </div>
           </div>
 
+          {/* Card Pengaturan Presensi GTK */}
+          <div className="border-t border-gray-100 dark:border-white/[0.05] pt-6 space-y-4">
+            <div>
+              <h4 className="text-base font-bold text-gray-800 dark:text-white/90">
+                Pengaturan Mode Presensi GTK (Guru & Tendik)
+              </h4>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Atur jenis batas waktu presensi harian. Guru dapat mengikuti jam mengajar (Dinamis) atau mengikuti jam masuk harian sekolah (Harian). Tenaga Kependidikan (Tendik) dikunci otomatis menggunakan mode Harian (sama seperti Peserta Didik).
+              </p>
+            </div>
 
+            {loadingGtks ? (
+              <p className="text-sm text-gray-500 text-center py-4">Memuat data...</p>
+            ) : (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gray-50 dark:bg-white/[0.01] p-5 rounded-2xl border border-gray-100 dark:border-white/[0.05]">
+                <div className="flex-grow">
+                  <Label className="font-bold text-gray-800 dark:text-white/90">Mode Presensi Guru</Label>
+                  <p className="text-xs text-gray-400 mt-1">Berlaku untuk seluruh GTK berjenis Guru.</p>
+                </div>
+                <div className="w-56">
+                  <select
+                    value={guruMode}
+                    onChange={(e) => setGuruMode(parseInt(e.target.value))}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  >
+                    <option value={0}>Harian (Ikuti PD)</option>
+                    <option value={1}>Dinamis (Jadwal Kelas)</option>
+                  </select>
+                </div>
+              </div>
+            )}
+          </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-white/[0.05]">
             <Button variant="outline" type="button" onClick={() => setIsResetModalOpen(true)}>

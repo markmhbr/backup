@@ -819,7 +819,7 @@ const RekapPresensi: React.FC = () => {
             margin: 0;
         }
         body {
-            font-family: 'Times New Roman', Times, serif;
+            font-family: Arial, Helvetica, sans-serif;
             font-size: 11px;
             color: #333;
             line-height: 1.4;
@@ -976,7 +976,7 @@ const RekapPresensi: React.FC = () => {
                 border-radius: 2px;
                 flex-shrink: 0;
                 transform-origin: top center;
-                transform: scale(var(--pdf-zoom, 1));
+                zoom: var(--pdf-zoom, 1);
                 overflow: hidden;
             }
             /* Landscape rotated wrapper for Periodik (Bulanan/Semesteran) inside Portrait Page */
@@ -1058,6 +1058,7 @@ const RekapPresensi: React.FC = () => {
                 box-shadow: none !important;
                 margin: 0 auto !important;
                 transform: none !important;
+                zoom: 1 !important;
                 overflow: hidden !important;
             }
             .landscape-rotated-wrapper {
@@ -1088,7 +1089,7 @@ const RekapPresensi: React.FC = () => {
         }
         .header-text {
             text-align: center;
-            font-family: 'Times New Roman', Times, serif;
+            font-family: Arial, Helvetica, sans-serif;
         }
         .header-title-1 {
             font-size: 14px;

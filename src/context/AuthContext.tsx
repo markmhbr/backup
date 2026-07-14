@@ -6,6 +6,8 @@ interface User {
   nama: string;
   email: string;
   role: string;
+  ptk_id?: string | null;
+  peserta_didik_id?: string | null;
 }
 
 interface LoginResult {
@@ -26,6 +28,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   isAuthenticated: boolean;
   setAuthData: (user: User) => void;
+  allowedMenus: string[];
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -43,6 +46,7 @@ const isTokenExpired = (token: string): boolean => {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [allowedMenus, setAllowedMenus] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -61,8 +65,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               if (userData) {
                 localStorage.setItem('user_data', JSON.stringify(userData));
                 setUser(userData);
+                await fetchMenusForUser(userData);
               } else {
-                setUser(JSON.parse(savedUser));
+                const parsed = JSON.parse(savedUser);
+                setUser(parsed);
+                await fetchMenusForUser(parsed);
               }
             } catch (refreshErr) {
               // Refresh failed, clear session and log out
@@ -71,7 +78,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setUser(null);
             }
           } else {
-            setUser(JSON.parse(savedUser));
+            const parsed = JSON.parse(savedUser);
+            setUser(parsed);
+            await fetchMenusForUser(parsed);
           }
         } catch (err) {
           localStorage.removeItem('auth_token');
@@ -85,8 +94,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     checkAuth();
   }, []);
 
-  const setAuthData = (userData: User) => {
+  const fetchMenusForUser = async (userData: User) => {
+    const isOperator = userData.role.toLowerCase().includes("operator") || userData.role.toLowerCase().includes("admin");
+    if (isOperator) {
+      setAllowedMenus([]);
+      return;
+    }
+    try {
+      const res = await api.get('/dapodik/menu-roles/my-menus');
+      if (res.data && res.data.data) {
+        setAllowedMenus(res.data.data);
+      }
+    } catch (err) {
+      console.error("Gagal mengambil menu yang diizinkan:", err);
+    }
+  };
+
+  const setAuthData = async (userData: User) => {
     setUser(userData);
+    await fetchMenusForUser(userData);
   };
 
   const login = async (username: string, password: string): Promise<LoginResult> => {
@@ -101,6 +127,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('auth_token', accessToken);
     localStorage.setItem('user_data', JSON.stringify(userData));
     setUser(userData);
+    await fetchMenusForUser(userData);
   };
 
   const logout = async () => {
@@ -110,6 +137,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.removeItem('auth_token');
       localStorage.removeItem('user_data');
       setUser(null);
+      setAllowedMenus([]);
       window.location.href = '/signin';
     }
   };
@@ -122,7 +150,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       verify2FA, 
       logout, 
       isAuthenticated: !!user,
-      setAuthData
+      setAuthData,
+      allowedMenus
     }}>
       {children}
     </AuthContext.Provider>

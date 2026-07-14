@@ -22,9 +22,10 @@ interface StudentTableProps {
   completenessFilter: string;
   gradeFilter: string;
   itemsPerPage: number;
+  rombelFilter?: string;
 }
 
-export default function StudentTable({ onSelectionChange, searchTerm, completenessFilter, gradeFilter, itemsPerPage }: StudentTableProps) {
+export default function StudentTable({ onSelectionChange, searchTerm, completenessFilter, gradeFilter, itemsPerPage, rombelFilter }: StudentTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const navigate = useNavigate();
   const [isCompletenessModalOpen, setIsCompletenessModalOpen] = useState(false);
@@ -102,7 +103,7 @@ export default function StudentTable({ onSelectionChange, searchTerm, completene
           itemsPerPage, 
           searchTerm, 
           currentPage, 
-          undefined, 
+          rombelFilter || undefined, 
           'aktif', 
           gradeFilter === 'all' ? undefined : gradeFilter,
           completenessFilter
@@ -126,7 +127,7 @@ export default function StudentTable({ onSelectionChange, searchTerm, completene
       }
     };
     fetchData();
-  }, [itemsPerPage, searchTerm, currentPage, gradeFilter, completenessFilter]);
+  }, [itemsPerPage, searchTerm, currentPage, gradeFilter, completenessFilter, rombelFilter]);
   
   const totalPages = Math.ceil(total / itemsPerPage) || 1;
 

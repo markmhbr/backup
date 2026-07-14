@@ -24,6 +24,7 @@ import EditStudentPage from "./pages/DataMaster/EditStudentPage";
 import EditGTKPage from "./pages/DataMaster/EditGTKPage";
 import GTKPerbaikan from "./pages/DataMaster/GTKPerbaikan";
 import StudentPerbaikan from "./pages/DataMaster/StudentPerbaikan";
+import StudentMutasi from "./pages/DataMaster/StudentMutasi";
 import ClassData from "./pages/DataMaster/ClassData";
 import ClassDetail from "./pages/DataMaster/ClassDetail";
 import SubjectData from "./pages/DataMaster/SubjectData";
@@ -57,6 +58,8 @@ import MenuSettings from "./pages/Pengaturan/Menu";
 import BackupPage from "./pages/Pengaturan/Backup";
 import Umum from "./pages/Pengaturan/Umum";
 import ProfilePage from "./pages/DataMaster/ProfilePage";
+import WaliClassData from "./pages/WaliKelas/WaliClassData";
+import WaliClassRapor from "./pages/WaliKelas/WaliClassRapor";
 
 function HomeRedirect() {
   const { user, isAuthenticated } = useAuth();
@@ -93,6 +96,7 @@ export default function App() {
             <Route path="student-data" element={<StudentData />} />
             <Route path="student-data/edit/:id" element={<EditStudentPage />} />
             <Route path="student-perbaikan" element={<StudentPerbaikan />} />
+            <Route path="student-mutasi" element={<StudentMutasi />} />
             <Route path="class-data" element={<ClassData />} />
             <Route path="class-data/detail/:id" element={<ClassDetail />} />
             <Route path="subject-data" element={<SubjectData />} />
@@ -101,6 +105,10 @@ export default function App() {
             <Route path="student-buku-induk" element={<StudentBukuInduk />} />
             <Route path="gtk-tugas" element={<TugasGTKPage />} />
             <Route path="student-tugas" element={<TugasPDPage />} />
+
+            {/* Wali Kelas */}
+            <Route path="wali/class-data" element={<WaliClassData />} />
+            <Route path="wali/class-rapor" element={<WaliClassRapor />} />
 
             {/* Academic */}
             <Route path="academic/year" element={<TahunPelajaran />} />

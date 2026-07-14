@@ -16,7 +16,7 @@ import { useSidebar } from "../context/SidebarContext";
 import SidebarWidget from "./SidebarWidget";
 import { useAuth } from "../context/AuthContext";
 import { getRoleSlug } from "../services/roleUtils";
-import api from "../services/api";
+import { dapodikService } from "../services/dapodikService";
 
 type NavItem = {
   name: string;
@@ -151,6 +151,12 @@ const navItems: NavItem[] = [
             id: "pd-perbaikan",
           },
           {
+            name: "Pengajuan Mutasi",
+            path: "/student-mutasi",
+            icon: <DotIcon />,
+            id: "pd-mutasi",
+          },
+          {
             name: "PD Keluar",
             path: "/student-data?tab=keluar",
             icon: <DotIcon />,
@@ -214,6 +220,25 @@ const navItems: NavItem[] = [
         path: "/sarpras-data",
         icon: <DotIcon />,
         id: "sarpras",
+      },
+    ],
+  },
+  {
+    icon: <GroupIcon />,
+    name: "Wali Kelas",
+    id: "wali-kelas",
+    subItems: [
+      {
+        name: "Data Kelas",
+        path: "/wali/class-data",
+        icon: <DotIcon />,
+        id: "wali-kelas-data",
+      },
+      {
+        name: "Rapor Kelas",
+        path: "/wali/class-rapor",
+        icon: <DotIcon />,
+        id: "wali-kelas-rapor",
       },
     ],
   },
@@ -439,8 +464,27 @@ const navItems: NavItem[] = [
 
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
-  const { user } = useAuth();
+  const { user, allowedMenus } = useAuth();
   const location = useLocation();
+
+  const [isWaliKelas, setIsWaliKelas] = useState(false);
+
+  useEffect(() => {
+    if (user?.ptk_id) {
+      const checkWali = async () => {
+        try {
+          const res = await dapodikService.getRombonganBelajar("reguler", 100);
+          if (res?.status === "success" && res.data) {
+            const hasClass = res.data.some((rombel: any) => rombel.ptk_id === user.ptk_id);
+            setIsWaliKelas(hasClass);
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      };
+      checkWali();
+    }
+  }, [user]);
 
   const rolePrefix = user ? `/${getRoleSlug(user.role)}` : "";
 
@@ -453,32 +497,18 @@ const AppSidebar: React.FC = () => {
     return `${rolePrefix}${path}`;
   };
 
-  const [allowedMenus, setAllowedMenus] = useState<string[]>([]);
-
-  useEffect(() => {
-    const fetchAllowedMenus = async () => {
-      if (!user) return;
-      const isOperator = user.role.toLowerCase().includes("operator") || user.role.toLowerCase().includes("admin");
-      if (isOperator) return;
-
-      try {
-        const res = await api.get("/dapodik/menu-roles/my-menus");
-        if (res.data && res.data.data) {
-          setAllowedMenus(res.data.data);
-        }
-      } catch (err) {
-        console.error("Failed to fetch allowed menus:", err);
-      }
-    };
-    fetchAllowedMenus();
-  }, [user]);
-
   const isOperator = user?.role.toLowerCase().includes("operator") || user?.role.toLowerCase().includes("admin");
 
   const filterNavItems = (items: NavItem[]): NavItem[] => {
     if (isOperator) return items;
     return items
       .map((item) => {
+        if (item.id === "wali-kelas" && isWaliKelas) {
+          return item;
+        }
+        if (item.id && (item.id === "wali-kelas-data" || item.id === "wali-kelas-rapor") && isWaliKelas) {
+          return item;
+        }
         if (item.subItems) {
           const filteredSubs = filterNavItems(item.subItems);
           if (filteredSubs.length > 0) {

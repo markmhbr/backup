@@ -4,7 +4,6 @@ import PageMeta from "../../components/common/PageMeta";
 import Input from "../../components/form/input/InputField";
 import Label from "../../components/form/Label";
 import Button from "../../components/ui/button/Button";
-import Select from "../../components/form/Select";
 import FileInput from "../../components/form/input/FileInput";
 import Swal from "sweetalert2";
 import { DownloadIcon, PrinterIcon, PlusIcon, TrashBinIcon } from "../../icons";
@@ -335,10 +334,6 @@ export default function SchoolProfile() {
         });
       }
     }
-  };
-
-  const handleSelectChange = (value: string, name: string) => {
-    setProfileData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleAlamatChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -734,7 +729,7 @@ export default function SchoolProfile() {
             .pdf-content-wrapper { display: flex; flex: 1; overflow: hidden; }
             .pdf-sidebar { width: 200px; background-color: #323639; border-right: 1px solid #1c1f21; overflow-y: auto; padding: 20px 10px; display: flex; flex-direction: column; align-items: center; gap: 24px; }
             .pdf-main-pane { flex: 1; background-color: #525659; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; align-items: center; scroll-behavior: smooth; }
-            .page-container { width: 210mm; height: 297mm; margin-bottom: 24px; background: white; box-shadow: 0 4px 8px rgba(0,0,0,0.3); padding: 1cm 1.5cm; box-sizing: border-box; position: relative; transform-origin: top center; transform: scale(var(--pdf-zoom, 1)); flex-shrink: 0; }
+            .page-container { width: 210mm; height: 297mm; margin-bottom: 24px; background: white; box-shadow: 0 4px 8px rgba(0,0,0,0.3); padding: 1cm 1.5cm; box-sizing: border-box; position: relative; transform-origin: top center; zoom: var(--pdf-zoom, 1); flex-shrink: 0; }
             .thumbnail-wrapper { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; width: 100%; }
             .thumbnail-container { width: 110px; height: 156px; border: 3px solid transparent; border-radius: 4px; background-color: #fff; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
             .thumbnail-container.active { border-color: #8ab4f8; }
@@ -745,7 +740,7 @@ export default function SchoolProfile() {
             .pdf-toolbar, .pdf-sidebar { display: none !important; }
             .pdf-content-wrapper { display: block !important; overflow: visible !important; }
             .pdf-main-pane { display: block !important; padding: 0 !important; background-color: transparent !important; }
-            .page-container { width: 210mm !important; height: 297mm !important; padding: 1cm 1.5cm !important; box-sizing: border-box !important; position: relative !important; background: transparent !important; box-shadow: none !important; margin: 0 auto !important; transform: none !important; }
+            .page-container { width: 210mm !important; height: 297mm !important; padding: 1cm 1.5cm !important; box-sizing: border-box !important; position: relative !important; background: transparent !important; box-shadow: none !important; margin: 0 auto !important; transform: none !important; zoom: 1 !important; }
         }
         .header-table { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
         .logo { max-width: 70px; max-height: 70px; }
@@ -1198,7 +1193,7 @@ export default function SchoolProfile() {
                 <div className="lg:col-span-4 no-print">
                   <div className="flex flex-col items-center gap-4 p-6 border border-dashed border-gray-200 dark:border-gray-800 rounded-xl bg-gray-50/50 dark:bg-white/[0.01]">
                     <div className="relative group">
-                      <div className="w-32 h-32 rounded-2xl overflow-hidden border-4 border-white dark:border-gray-900 shadow-md bg-white dark:bg-gray-800 flex items-center justify-center">
+                      <div className="w-40 h-40 rounded-2xl overflow-hidden border-8 border-white dark:border-gray-900 shadow-md bg-white dark:bg-gray-800 flex items-center justify-center">
                         {logoPreview ? (
                           <img
                             src={logoPreview}
@@ -1279,14 +1274,14 @@ export default function SchoolProfile() {
                       />
                     </div>
                     <div>
-                      <Label>Cabang Dinas <span className="text-red-500">*</span></Label>
-                      <Select
-                        options={cadisdikOptions}
-                        value={profileData.cadisdik_id}
-                        placeholder="Pilih Cabang Dinas"
-                        onChange={(value) =>
-                          handleSelectChange(value, "cadisdik_id")
+                      <Label>Cabang Dinas</Label>
+                      <Input
+                        value={
+                          cadisdikOptions.find(o => o.value === profileData.cadisdik_id)?.label || 
+                          profileData.cadisdik_id || 
+                          "-"
                         }
+                        disabled
                       />
                     </div>
                     <div>

@@ -579,5 +579,78 @@ export const dapodikService = {
       console.error('Gagal mengambil data custom jumlah jam:', error);
       throw error;
     }
+  },
+
+  updateGtkMode: async (sekolahId: string, ptkId: string, modePresensi: number) => {
+    try {
+      const response = await api.patch(`/kurikulum/presensi/gtk-mode/${sekolahId}/${ptkId}`, { mode_presensi: modePresensi });
+      return response.data;
+    } catch (error: any) {
+      console.error('Gagal memperbarui mode presensi GTK:', error);
+      throw error;
+    }
+  },
+
+  getJenisKeluarRef: async () => {
+    try {
+      const response = await api.get('/kurikulum/mutasi-pd/reference');
+      return response.data;
+    } catch (error: any) {
+      console.error('Gagal mengambil data referensi jenis keluar:', error);
+      throw error;
+    }
+  },
+
+  getMutasiPd: async (sekolahId: string) => {
+    try {
+      const response = await api.get(`/kurikulum/mutasi-pd/${sekolahId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Gagal mengambil data mutasi:', error);
+      throw error;
+    }
+  },
+
+  createMutasiPd: async (payload: { peserta_didik_id: string; jenis_keluar_id: string; alasan?: string }, file?: File) => {
+    try {
+      const formData = new FormData();
+      formData.append('peserta_didik_id', payload.peserta_didik_id);
+      formData.append('jenis_keluar_id', payload.jenis_keluar_id);
+      if (payload.alasan) {
+        formData.append('alasan', payload.alasan);
+      }
+      if (file) {
+        formData.append('file', file);
+      }
+      const response = await api.post('/kurikulum/mutasi-pd', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Gagal membuat pengajuan mutasi:', error);
+      throw error;
+    }
+  },
+
+  approveMutasiPd: async (id: string) => {
+    try {
+      const response = await api.patch(`/kurikulum/mutasi-pd/${id}/approve`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Gagal menyetujui pengajuan mutasi:', error);
+      throw error;
+    }
+  },
+
+  rejectMutasiPd: async (id: string, alasanTolak: string) => {
+    try {
+      const response = await api.patch(`/kurikulum/mutasi-pd/${id}/reject`, { alasan_tolak: alasanTolak });
+      return response.data;
+    } catch (error: any) {
+      console.error('Gagal menolak pengajuan mutasi:', error);
+      throw error;
+    }
   }
 };

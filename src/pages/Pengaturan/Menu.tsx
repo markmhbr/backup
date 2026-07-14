@@ -52,6 +52,7 @@ const menuTree: MenuNode[] = [
           { id: "pd-rekap", name: "Rekap PD" },
           { id: "pd-kartu", name: "Kartu ID PD" },
           { id: "pd-perbaikan", name: "Pengajuan Perbaikan" },
+          { id: "pd-mutasi", name: "Pengajuan Mutasi" },
           { id: "pd-keluar", name: "PD Keluar" },
         ],
       },
@@ -69,6 +70,14 @@ const menuTree: MenuNode[] = [
       },
       { id: "mata-pelajaran", name: "Mata Pelajaran" },
       { id: "sarpras", name: "Sarpras" },
+    ],
+  },
+  {
+    id: "wali-kelas",
+    name: "Wali Kelas",
+    children: [
+      { id: "wali-kelas-data", name: "Data Kelas" },
+      { id: "wali-kelas-rapor", name: "Rapor Kelas" },
     ],
   },
   {
