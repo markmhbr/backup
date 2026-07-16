@@ -494,9 +494,9 @@ export const dapodikService = {
     }
   },
 
-  tolakPengajuan: async (id: string) => {
+  tolakPengajuan: async (id: string, alasanTolak?: string) => {
     try {
-      const response = await api.post(`/pengajuan-perbaikan/${id}/tolak`);
+      const response = await api.post(`/pengajuan-perbaikan/${id}/tolak`, { alasan_tolak: alasanTolak });
       return response.data;
     } catch (error: any) {
       console.error('Gagal menolak pengajuan:', error);

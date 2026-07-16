@@ -65,7 +65,7 @@ export default function TendikTable({ onSelectionChange, searchTerm, completenes
       'nama_dusun', 'desa_kelurahan', 'provinsi', 'kabupaten_kota', 'kecamatan',
       'kode_pos', 'lintang', 'bujur', 'sumber_gaji', 'id_bank', 'rekening_bank',
       'rekening_atas_nama', 'nama_kcp', 'no_hp', 'no_whatsapp', 'id_telegram',
-      'email'
+      'email', 'tanda_tangan'
     ];
 
     const fields = allFields.filter(key => {
@@ -314,7 +314,8 @@ export default function TendikTable({ onSelectionChange, searchTerm, completenes
                 { key: 'no_hp', label: 'Nomor HP' },
                 { key: 'no_whatsapp', label: 'Nomor WhatsApp' },
                 { key: 'id_telegram', label: 'ID Telegram' },
-                { key: 'email', label: 'Email' }
+                { key: 'email', label: 'Email' },
+                { key: 'tanda_tangan', label: 'Tanda Tangan' }
               ].filter((field) => {
                 if (field.key === 'id_bank' || field.key === 'rekening_bank' || field.key === 'rekening_atas_nama' || field.key === 'nama_kcp') {
                   return selectedItemForCompleteness.memilikiSertifikasi === 'Ya';

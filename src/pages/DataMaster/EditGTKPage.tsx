@@ -324,7 +324,8 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
       { key: 'noHp', label: 'Nomor HP' },
       { key: 'noWa', label: 'Nomor WhatsApp' },
       { key: 'idTelegram', label: 'ID Telegram' },
-      { key: 'email', label: 'Email' }
+      { key: 'email', label: 'Email' },
+      { key: 'tandaTangan', label: 'Tanda Tangan' }
     ];
 
     const checkFilled = (field: any) => {
@@ -1342,6 +1343,9 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
     if (!formData.noWa) { newErrors.noWa = true; hasError = true; }
     if (!formData.idTelegram) { newErrors.idTelegram = true; hasError = true; }
 
+    // Tanda Tangan
+    if (!formData.tandaTangan) { newErrors.tandaTangan = true; hasError = true; }
+
     // Validate staged documents
     const newDocsForValidation = pendingDocs.filter((d) => d.isNew);
     if (newDocsForValidation.length > 0) {
@@ -1862,11 +1866,13 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
 
                 {/* Tanda Tangan Digital Section */}
                 <div className="mt-6 w-full border-t border-gray-150 dark:border-white/[0.05] pt-6 space-y-4">
-                  <Label>Tanda Tangan Digital</Label>
+                  <Label className={errors.tandaTangan ? "text-error-500" : ""}>
+                    Tanda Tangan Digital <span className="text-red-500">*</span>
+                  </Label>
                   
                   {!isEditingSignature && formData.tandaTangan ? (
                     <div className="space-y-4">
-                      <div className="w-full h-32 rounded-2xl border border-gray-200 dark:border-gray-800 flex items-center justify-center bg-gray-50 dark:bg-white/[0.02] p-2 overflow-hidden">
+                      <div className={`w-full h-32 rounded-2xl border ${errors.tandaTangan ? 'border-red-500 bg-red-50/20' : 'border-gray-200 dark:border-gray-800'} flex items-center justify-center bg-gray-50 dark:bg-white/[0.02] p-2 overflow-hidden`}>
                         <img 
                           src={getFotoUrl(formData.tandaTangan)} 
                           alt="Tanda Tangan" 
@@ -1888,7 +1894,7 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                       <span className="text-xs text-gray-500 dark:text-gray-400">
                         Gambarkan tanda tangan Anda di area canvas di bawah:
                       </span>
-                      <div className="relative w-full h-36 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden flex justify-center items-center">
+                      <div className={`relative w-full h-36 rounded-2xl border-2 border-dashed ${errors.tandaTangan ? 'border-red-500 bg-red-50/20' : 'border-gray-200 dark:border-gray-800'} bg-white dark:bg-gray-900 overflow-hidden flex justify-center items-center`}>
                         <canvas
                           ref={signatureCanvasRef}
                           width={300}
