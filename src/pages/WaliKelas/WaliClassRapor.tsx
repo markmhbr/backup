@@ -2,12 +2,14 @@ import { useState, useEffect } from "react";
 import PageMeta from "../../components/common/PageMeta";
 import { useAuth } from "../../context/AuthContext";
 import { dapodikService } from "../../services/dapodikService";
+import { presensiService } from "../../services/presensiService";
+import { indisiplinerService } from "../../services/indisiplinerService";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "../../components/ui/table";
 import Input from "../../components/form/input/InputField";
 import { SearchIcon } from "../../icons";
 import Pagination from "../../components/common/Pagination";
-import Swal from "sweetalert2";
 import Button from "../../components/ui/button/Button";
+import { printRapor } from "../../utils/printRapor";
 
 export default function WaliClassRapor() {
   const { user } = useAuth();
@@ -21,6 +23,8 @@ export default function WaliClassRapor() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [searchQuery, setSearchQuery] = useState("");
+  const [attendanceData, setAttendanceData] = useState<any[]>([]);
+  const [violationsData, setViolationsData] = useState<any[]>([]);
 
   useEffect(() => {
     if (user?.ptk_id) {
@@ -69,21 +73,99 @@ export default function WaliClassRapor() {
         "aktif"
       );
       if (result.status === "success") {
-        setStudents(result.data || []);
+        const studentList = result.data || [];
+        setStudents(studentList);
         setTotal(result.meta?.total || 0);
+
+        // Fetch attendance and violations for the whole class
+        if (studentList.length > 0) {
+          try {
+            const sekolahRes = await dapodikService.getSekolah();
+            const sekolah = sekolahRes.data || {};
+            const start = rombelInfo.tanggal_mulai 
+              ? rombelInfo.tanggal_mulai.substring(0, 10) 
+              : `${new Date().getFullYear()}-07-01`;
+            const end = rombelInfo.tanggal_selesai 
+              ? rombelInfo.tanggal_selesai.substring(0, 10) 
+              : `${new Date().getFullYear()}-12-31`;
+
+            // 1. Fetch Attendance
+            const attRes = await presensiService.getRekapPeriodik(
+              sekolah.sekolah_id,
+              rombelInfo.nama,
+              start,
+              end,
+              "pd"
+            );
+            setAttendanceData(attRes.data || []);
+
+            // 2. Fetch Violations
+            const violRes = await indisiplinerService.getPelanggaran(sekolah.sekolah_id);
+            setViolationsData(Array.isArray(violRes) ? violRes : (violRes?.data || []));
+
+          } catch (err) {
+            console.error("Gagal memuat rekap absensi/pelanggaran kelas:", err);
+          }
+        }
       }
     } catch (e) {
       console.error("Gagal mengambil data siswa kelas:", e);
     }
   };
 
-  const handleAction = (nama: string) => {
-    Swal.fire({
-      title: "Rapor Siswa",
-      text: `Fitur pengisian dan cetak rapor untuk ${nama} sedang dipersiapkan dan akan segera aktif.`,
-      icon: "info",
-      confirmButtonColor: "#465fff"
-    });
+  const getStudentAttendance = (studentId: string) => {
+    const myAtt = attendanceData.find((item: any) => item.peserta_didik_id === studentId);
+    if (!myAtt) return { sakit: 0, izin: 0, alfa: 0 };
+
+    const rekapAbsensi = { sakit: 0, izin: 0, alfa: 0 };
+    const countedDates = new Set<string>();
+
+    if (Array.isArray(myAtt.presensi)) {
+      myAtt.presensi.forEach((p: any) => {
+        if (!p.tanggal) return;
+        const dateStr = new Date(p.tanggal).toISOString().split('T')[0];
+        if (p.status_masuk === 4) {
+          rekapAbsensi.sakit++;
+          countedDates.add(dateStr);
+        } else if (p.status_masuk === 3) {
+          rekapAbsensi.izin++;
+          countedDates.add(dateStr);
+        } else if (p.status_masuk === 5) {
+          rekapAbsensi.alfa++;
+          countedDates.add(dateStr);
+        }
+      });
+    }
+
+    if (Array.isArray(myAtt.izin)) {
+      myAtt.izin.forEach((i: any) => {
+        if (!i.tanggal) return;
+        const dateStr = new Date(i.tanggal).toISOString().split('T')[0];
+        if (countedDates.has(dateStr)) return;
+
+        if (i.jenis === 5) {
+          rekapAbsensi.sakit++;
+          countedDates.add(dateStr);
+        } else if (i.jenis === 4) {
+          rekapAbsensi.izin++;
+          countedDates.add(dateStr);
+        } else if (i.jenis === 6) {
+          rekapAbsensi.alfa++;
+          countedDates.add(dateStr);
+        }
+      });
+    }
+
+    return rekapAbsensi;
+  };
+
+  const getStudentViolationPoints = (studentId: string) => {
+    const studentViols = violationsData.filter((v: any) => v.peserta_didik_id === studentId);
+    return studentViols.reduce((acc, curr) => acc + (curr.poin || curr.jenis_pelanggaran?.poin || 0), 0);
+  };
+
+  const handlePrintRapor = async (studentId: string) => {
+    await printRapor(studentId, rombelInfo);
   };
 
   const totalPages = Math.ceil(total / itemsPerPage) || 1;
@@ -176,57 +258,59 @@ export default function WaliClassRapor() {
                   <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">No</TableCell>
                   <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Nama Siswa</TableCell>
                   <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">NISN</TableCell>
-                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Kehadiran (S/I/A)</TableCell>
-                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Catatan Wali</TableCell>
-                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Nilai Akademik</TableCell>
+                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-center text-theme-xs dark:text-gray-400">Sakit</TableCell>
+                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-center text-theme-xs dark:text-gray-400">Izin</TableCell>
+                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-center text-theme-xs dark:text-gray-400">Alfa</TableCell>
+                  <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-center text-theme-xs dark:text-gray-400">Poin Pelanggaran</TableCell>
                   <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-right text-theme-xs dark:text-gray-400">Aksi</TableCell>
                 </TableRow>
               </TableHeader>
               <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
                 {students.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
+                    <TableCell colSpan={8} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
                       Tidak ada data siswa ditemukan.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  students.map((item, idx) => (
-                    <TableRow key={item.peserta_didik_id} className="hover:bg-gray-50/50 dark:hover:bg-white/[0.01]">
-                      <TableCell className="px-5 py-4 text-sm text-gray-500 dark:text-gray-400">
-                        {(currentPage - 1) * itemsPerPage + idx + 1}
-                      </TableCell>
-                      <TableCell className="px-5 py-4 text-sm font-semibold text-gray-800 dark:text-white/90">
-                        {item.nama}
-                      </TableCell>
-                      <TableCell className="px-5 py-4 text-sm text-gray-500 dark:text-gray-400">
-                        {item.nisn || "-"}
-                      </TableCell>
-                      <TableCell className="px-5 py-4 text-sm">
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
-                          Lengkap
-                        </span>
-                      </TableCell>
-                      <TableCell className="px-5 py-4 text-sm">
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
-                          Belum Isi
-                        </span>
-                      </TableCell>
-                      <TableCell className="px-5 py-4 text-sm">
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
-                          Terisi
-                        </span>
-                      </TableCell>
-                      <TableCell className="px-5 py-4 text-sm text-right whitespace-nowrap">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleAction(item.nama)}
-                        >
-                          Kelola Rapor
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  students.map((item, idx) => {
+                    const att = getStudentAttendance(item.peserta_didik_id);
+                    const points = getStudentViolationPoints(item.peserta_didik_id);
+                    return (
+                      <TableRow key={item.peserta_didik_id} className="hover:bg-gray-50/50 dark:hover:bg-white/[0.01]">
+                        <TableCell className="px-5 py-4 text-sm text-gray-500 dark:text-gray-400">
+                          {(currentPage - 1) * itemsPerPage + idx + 1}
+                        </TableCell>
+                        <TableCell className="px-5 py-4 text-sm font-semibold text-gray-800 dark:text-white/90">
+                          {item.nama}
+                        </TableCell>
+                        <TableCell className="px-5 py-4 text-sm text-gray-500 dark:text-gray-400">
+                          {item.nisn || "-"}
+                        </TableCell>
+                        <TableCell className="px-5 py-4 text-sm text-center font-medium text-gray-700 dark:text-gray-300">
+                          {att.sakit} hari
+                        </TableCell>
+                        <TableCell className="px-5 py-4 text-sm text-center font-medium text-gray-700 dark:text-gray-300">
+                          {att.izin} hari
+                        </TableCell>
+                        <TableCell className="px-5 py-4 text-sm text-center font-medium text-gray-700 dark:text-gray-300">
+                          {att.alfa} hari
+                        </TableCell>
+                        <TableCell className="px-5 py-4 text-sm text-center font-bold text-gray-800 dark:text-white/90">
+                          {points}
+                        </TableCell>
+                        <TableCell className="px-5 py-4 text-sm text-right whitespace-nowrap">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handlePrintRapor(item.peserta_didik_id)}
+                          >
+                            Cetak Rapor
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>

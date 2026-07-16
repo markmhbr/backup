@@ -281,13 +281,19 @@ const RekapPresensi: React.FC = () => {
     });
 
     if (izin) {
-      if (izin.jenis === 4) {
+      if (izin.jenis === 5) {
         return { char: "S", style: "text-blue-500 font-bold bg-blue-50 dark:bg-blue-900/30 rounded px-1.5" }; // Sakit
+      }
+      if (izin.jenis === 4) {
+        return { char: "I", style: "text-amber-500 font-bold bg-amber-50 dark:bg-amber-900/30 rounded px-1.5" }; // Izin
+      }
+      if (izin.jenis === 6) {
+        return { char: "A", style: "text-red-500 font-bold bg-red-50 dark:bg-red-900/30 rounded px-1.5" }; // Alpha
       }
       // Jika jenis izin adalah 1 (Terlambat) atau 3 (Pulang Awal), mereka tetap hadir masuk kelas.
       // Maka kita abaikan di pengecekan Izin tidak masuk, agar lanjut ke status presensi di bawah.
       if (izin.jenis !== 1 && izin.jenis !== 3) {
-        return { char: "I", style: "text-amber-500 font-bold bg-amber-50 dark:bg-amber-900/30 rounded px-1.5" }; // Izin Tidak Masuk
+        return { char: "I", style: "text-amber-500 font-bold bg-amber-50 dark:bg-amber-900/30 rounded px-1.5" }; // Fallback Izin Tidak Masuk
       }
     }
 
