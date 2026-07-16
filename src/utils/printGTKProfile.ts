@@ -549,7 +549,7 @@ export const printGTKProfile = async (selectedGTKIds: string[]) => {
       const fotoUrl = getFotoUrl(gtk.foto);
 
       // Tanda tangan URL
-      const ttdUrl = getFotoUrl(gtk.tandatangan, '');
+      const ttdUrl = getFotoUrl(gtk.tanda_tangan, '');
 
       // SK Pengangkatan priority logic
       const rankList = gtk.rwy_kepangkatan || [];

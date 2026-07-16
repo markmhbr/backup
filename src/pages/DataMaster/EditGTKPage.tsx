@@ -218,6 +218,9 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
   const [anakErrors, setAnakErrors] = useState<any>({});
   const [tempCoords, setTempCoords] = useState<{lat: string, lng: string} | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const signatureCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [isDrawingSignature, setIsDrawingSignature] = useState(false);
+  const [isEditingSignature, setIsEditingSignature] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
 
@@ -833,8 +836,9 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                 nomorPeserta: s.nomor_peserta || "",
                 kualifikasi: s.kualifikasi || "",
               })) : [],
-              memilikiSertifikasi: data.rwy_sertifikasi && data.rwy_sertifikasi.length > 0 ? "Ya" : "Tidak",
+               memilikiSertifikasi: data.rwy_sertifikasi && data.rwy_sertifikasi.length > 0 ? "Ya" : "Tidak",
               avatar: data.foto ? `${data.foto}${data.foto.includes('?') ? '&' : '?'}t=${Date.now()}` : "",
+              tandaTangan: data.tanda_tangan ? `${data.tanda_tangan}${data.tanda_tangan.includes('?') ? '&' : '?'}t=${Date.now()}` : "",
               
               idBank: data.id_bank || "",
               namaBank: data.id_bank || "",
@@ -843,6 +847,7 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
               atasNamaRekening: data.rekening_atas_nama || "",
               qr_token: data.qr_token || "",
             });
+            setIsEditingSignature(!data.tanda_tangan);
           }
         } catch (error) {
           Swal.fire("Error", "Gagal mengambil data GTK", "error");
@@ -970,6 +975,94 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
       } finally {
         setLoading(false);
       }
+    }
+  };
+
+  const getMousePos = (canvas: HTMLCanvasElement, evt: any) => {
+    const rect = canvas.getBoundingClientRect();
+    const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+    const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+    return {
+      x: (clientX - rect.left) * (canvas.width / rect.width),
+      y: (clientY - rect.top) * (canvas.height / rect.height)
+    };
+  };
+
+  const startDrawingSignature = (e: any) => {
+    e.preventDefault();
+    const canvas = signatureCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "#000000";
+    
+    const pos = getMousePos(canvas, e);
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+    setIsDrawingSignature(true);
+  };
+
+  const drawSignature = (e: any) => {
+    if (!isDrawingSignature) return;
+    e.preventDefault();
+    const canvas = signatureCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    
+    const pos = getMousePos(canvas, e);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+  };
+
+  const stopDrawingSignature = () => {
+    setIsDrawingSignature(false);
+  };
+
+  const clearSignatureCanvas = () => {
+    const canvas = signatureCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  };
+
+  const handleSaveSignature = async () => {
+    const canvas = signatureCanvasRef.current;
+    if (!canvas || !id) return;
+    
+    const blank = document.createElement('canvas');
+    blank.width = canvas.width;
+    blank.height = canvas.height;
+    if (canvas.toDataURL() === blank.toDataURL()) {
+      Swal.fire("Info", "Silakan coret tanda tangan terlebih dahulu pada area canvas.", "info");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob((b) => resolve(b), "image/png"));
+      if (!blob) throw new Error("Gagal mengonversi canvas ke gambar.");
+      
+      const file = new File([blob], "tanda_tangan.png", { type: "image/png" });
+      const result = await dapodikService.uploadGtkTandaTangan(id, file);
+      if (result.status === "success" && result.data) {
+        const relativePath = result.data.filePath;
+        const host = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace("/api", "") : (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
+        const fullUrl = `${host}${relativePath}?t=${Date.now()}`;
+        setFormData((prev: any) => ({ ...prev, tandaTangan: fullUrl }));
+        Swal.fire({ title: "Berhasil", text: "Tanda tangan digital berhasil diperbarui", icon: "success", confirmButtonColor: "#465FFF" });
+        clearSignatureCanvas();
+        setIsEditingSignature(false);
+      }
+    } catch (error: any) {
+      Swal.fire("Error", error.response?.data?.message || "Gagal mengunggah tanda tangan digital", "error");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1765,6 +1858,89 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                       </div>
                     </div>
                   </div>
+                </div>
+
+                {/* Tanda Tangan Digital Section */}
+                <div className="mt-6 w-full border-t border-gray-150 dark:border-white/[0.05] pt-6 space-y-4">
+                  <Label>Tanda Tangan Digital</Label>
+                  
+                  {!isEditingSignature && formData.tandaTangan ? (
+                    <div className="space-y-4">
+                      <div className="w-full h-32 rounded-2xl border border-gray-200 dark:border-gray-800 flex items-center justify-center bg-gray-50 dark:bg-white/[0.02] p-2 overflow-hidden">
+                        <img 
+                          src={getFotoUrl(formData.tandaTangan)} 
+                          alt="Tanda Tangan" 
+                          className="h-full object-contain max-w-full" 
+                        />
+                      </div>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full text-gray-800 dark:text-gray-200" 
+                        onClick={() => setIsEditingSignature(true)}
+                      >
+                        Update Tanda Tangan
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        Gambarkan tanda tangan Anda di area canvas di bawah:
+                      </span>
+                      <div className="relative w-full h-36 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden flex justify-center items-center">
+                        <canvas
+                          ref={signatureCanvasRef}
+                          width={300}
+                          height={140}
+                          className="cursor-crosshair w-full h-full touch-none"
+                          onMouseDown={startDrawingSignature}
+                          onMouseMove={drawSignature}
+                          onMouseUp={stopDrawingSignature}
+                          onMouseLeave={stopDrawingSignature}
+                          onTouchStart={startDrawingSignature}
+                          onTouchMove={drawSignature}
+                          onTouchEnd={stopDrawingSignature}
+                        />
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm" 
+                          className="flex-1 text-xs" 
+                          onClick={clearSignatureCanvas}
+                        >
+                          Bersihkan
+                        </Button>
+                        <Button 
+                          type="button" 
+                          variant="primary" 
+                          size="sm" 
+                          className="flex-1 text-xs" 
+                          onClick={handleSaveSignature}
+                          disabled={loading}
+                        >
+                          Simpan TTD
+                        </Button>
+                        {formData.tandaTangan && (
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex-1 text-xs text-red-500 border-red-200 hover:bg-red-50 dark:border-red-900/30 dark:hover:bg-red-950/20" 
+                            onClick={() => {
+                              clearSignatureCanvas();
+                              setIsEditingSignature(false);
+                            }}
+                          >
+                            Batal
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
               

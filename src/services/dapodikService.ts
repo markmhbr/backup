@@ -420,6 +420,15 @@ export const dapodikService = {
     return response.data;
   },
 
+  uploadGtkTandaTangan: async (uuid: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post(`/dapodik/gtk/${uuid}/upload-tanda-tangan`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
   getTanah: async (limit: number = 10, search: string = '', page: number = 1) => {
     try {
       const response = await api.get(`/dapodik/tanah?limit=${limit}&page=${page}&search=${search}`);

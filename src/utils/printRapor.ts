@@ -30,6 +30,17 @@ export const printRapor = async (studentId: string, rombelInfo: any) => {
     const rombelId = rombel.rombongan_belajar_id;
     const rombelName = rombel.nama || "-";
 
+    // Fetch Wali Kelas details if available to get their signature
+    let waliKelas: any = null;
+    if (rombel.ptk_id) {
+      try {
+        const wkRes = await dapodikService.getGtkDetail(rombel.ptk_id);
+        waliKelas = wkRes.data || null;
+      } catch (e) {
+        console.error("Gagal memuat data wali kelas:", e);
+      }
+    }
+
     // 2. Fetch Pembelajaran/Mapel
     let pembelajaranList: any[] = [];
     if (rombelId) {
@@ -141,6 +152,8 @@ export const printRapor = async (studentId: string, rombelInfo: any) => {
 
     const studentPhoto = getFotoUrl(student.foto);
     const schoolLogo = getFotoUrl(sekolah.logo, "https://upload.wikimedia.org/wikipedia/commons/9/9c/Logo_Tut_Wuri_Handayani.png");
+    const wkTtdUrl = waliKelas?.tanda_tangan ? getFotoUrl(waliKelas.tanda_tangan) : "";
+    const ksTtdUrl = sekolah.tanda_tangan_kepala_sekolah ? getFotoUrl(sekolah.tanda_tangan_kepala_sekolah) : "";
 
     // Map level name dynamically
     let bentukPendidikan = sekolah.bentuk_pendidikan_id_str || "";
@@ -299,7 +312,9 @@ export const printRapor = async (studentId: string, rombelInfo: any) => {
                 </div>
                 <div style="float: right; width: 250px; text-align: left;">
                     <p>${sekolah.kabupaten || sekolah.kabupaten_kota || "-"}, ${todayFormatted}<br>Kepala Sekolah,</p>
-                    <br><br><br>
+                    <div style="height: 50px; display: flex; align-items: center; justify-content: flex-start; margin: 5px 0;">
+                        ${ksTtdUrl ? `<img src="${ksTtdUrl}" style="max-height: 50px; max-width: 150px;">` : '<br><br>'}
+                    </div>
                     <p class="font-bold" style="text-decoration: underline;">${sekolah.nama_kepala_sekolah || "(..........................................)"}</p>
                     <p>NIP. ${sekolah.nip_kepala_sekolah || "-"}</p>
                 </div>
@@ -528,9 +543,11 @@ export const printRapor = async (studentId: string, rombelInfo: any) => {
                 
                 <div style="float: right; width: 220px; text-align: center;">
                     <p>${sekolah.kabupaten || sekolah.kabupaten_kota || "-"}, ${todayFormatted}<br>Wali Kelas</p>
-                    <br><br><br>
-                    <p class="font-bold" style="text-decoration: underline;">${rombel.ptk_id_str || "(..........................................)"}</p>
-                    <p>NIP. -</p>
+                    <div style="height: 50px; display: flex; align-items: center; justify-content: center; margin: 5px 0;">
+                        ${wkTtdUrl ? `<img src="${wkTtdUrl}" style="max-height: 50px; max-width: 150px;">` : '<br><br>'}
+                    </div>
+                    <p class="font-bold" style="text-decoration: underline;">${waliKelas?.nama || rombel.ptk_id_str || "(..........................................)"}</p>
+                    <p>NIP. ${waliKelas?.nip || "-"}</p>
                 </div>
                 <div style="clear: both;"></div>
                 
@@ -539,7 +556,9 @@ export const printRapor = async (studentId: string, rombelInfo: any) => {
                         <td width="35%"></td>
                         <td width="65%">
                             <p>Mengetahui,<br>Kepala Sekolah</p>
-                            <br><br><br>
+                            <div style="height: 50px; display: flex; align-items: center; justify-content: center; margin: 5px 0;">
+                                ${ksTtdUrl ? `<img src="${ksTtdUrl}" style="max-height: 50px; max-width: 150px;">` : '<br><br>'}
+                            </div>
                             <p class="font-bold" style="text-decoration: underline;">${sekolah.nama_kepala_sekolah || "(..........................................)"}</p>
                             <p>NIP. ${sekolah.nip_kepala_sekolah || "-"}</p>
                         </td>
