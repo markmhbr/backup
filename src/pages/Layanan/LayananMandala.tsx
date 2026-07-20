@@ -137,7 +137,21 @@ export default function LayananMandala() {
     const baseUrl = import.meta.env.VITE_API_URL 
       ? import.meta.env.VITE_API_URL.replace(/\/api$/, '') 
       : (import.meta.env.DEV ? 'http://localhost:3000' : window.location.origin);
-    return `${baseUrl}${url}`;
+    
+    let cleanUrl = url;
+    const storageIndex = url.indexOf('/storage/');
+    if (storageIndex !== -1) {
+      cleanUrl = url.substring(storageIndex);
+    }
+    
+    let fullPath = `${baseUrl}${cleanUrl}`;
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      const urlWithoutToken = fullPath.replace(/([?&])token=[^&]*(&|$)/, '$1').replace(/[?&]$/, '');
+      const separator = urlWithoutToken.includes('?') ? '&' : '?';
+      fullPath = `${urlWithoutToken}${separator}token=${token}`;
+    }
+    return fullPath;
   };
 
   const handleUploadFile = async (e: React.ChangeEvent<HTMLInputElement>, syaratId: string) => {

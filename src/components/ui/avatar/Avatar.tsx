@@ -1,3 +1,5 @@
+import { getFotoUrl } from "../../../utils/image";
+
 interface AvatarProps {
   src?: string; // URL of the avatar image
   alt?: string; // Alt text for the avatar
@@ -35,7 +37,7 @@ const Avatar: React.FC<AvatarProps> = ({
   size = "medium",
   status = "none",
 }) => {
-  const avatarSrc = src || "/images/default/profile.jpg";
+  const avatarSrc = getFotoUrl(src);
 
   return (
     <div className={`relative rounded-full ${sizeClasses[size]}`}>

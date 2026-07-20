@@ -1,3 +1,4 @@
+import { getFotoUrl } from "../utils/image";
 import { useSekolah } from "../context/SekolahContext";
 
 export default function SidebarWidget() {
@@ -12,7 +13,7 @@ export default function SidebarWidget() {
     >
       <div className="flex justify-center mb-3">
         {sekolah.logo ? (
-          <img src={sekolah.logo} alt="Logo" className="w-12 h-12 object-contain" />
+          <img src={getFotoUrl(sekolah.logo)} alt="Logo" className="w-12 h-12 object-contain" />
         ) : (
           <div className="w-12 h-12 bg-brand-500 rounded-full flex items-center justify-center text-white font-bold text-xl">
             {sekolah.nama.charAt(0)}

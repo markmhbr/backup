@@ -91,13 +91,17 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
 
   const getImageSlides = () => {
     const slides: any[] = [];
+    const token = localStorage.getItem('auth_token');
     studentDocTypes.forEach((docType) => {
       const existingFile = uploadedDocs.find(f => f.startsWith(docType.key));
       if (existingFile) {
         const ext = existingFile.substring(existingFile.lastIndexOf('.')).toLowerCase();
         const isImage = ['.jpg', '.jpeg', '.png', '.webp'].includes(ext);
         if (isImage) {
-          const fileUrl = `${apiBaseUrl}/storage/${formData.sekolahId}/siswa/${id}/dokumen/${existingFile}?t=${Date.now()}`;
+          let fileUrl = `${apiBaseUrl}/storage/${formData.sekolahId}/siswa/${id}/dokumen/${existingFile}?t=${Date.now()}`;
+          if (token) {
+            fileUrl += `&token=${token}`;
+          }
           slides.push({
             src: fileUrl,
             title: docType.name,
@@ -118,7 +122,12 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
       setLightboxIndex(idx >= 0 ? idx : 0);
       setLightboxOpen(true);
     } else {
-      const cacheBustUrl = `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`;
+      let finalUrl = url;
+      const token = localStorage.getItem('auth_token');
+      if (token && !url.includes('token=')) {
+        finalUrl = `${url}${url.includes('?') ? '&' : '?'}token=${token}`;
+      }
+      const cacheBustUrl = `${finalUrl}${finalUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
       window.open(cacheBustUrl, '_blank');
     }
   };
