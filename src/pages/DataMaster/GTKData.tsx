@@ -77,7 +77,7 @@ export default function GTKData() {
 
   const handleEditData = () => {
     if (selectedGTKIds.length === 1) {
-      navigate(`/${role}/gtk-data/edit/${selectedGTKIds[0]}`);
+      navigate(`/${role}/gtk-data/edit/${selectedGTKIds[0]}?tab=${activeTab}`);
     }
   };
 
@@ -2305,14 +2305,15 @@ export default function GTKData() {
           return val !== null && val !== undefined && val !== '-' && val !== '' && val !== 0 && val !== '0';
         };
 
-        const completenessFields = [
+         const completenessFields = [
           'nama', 'nik', 'no_kk', 'jenis_kelamin', 'tempat_lahir', 'tanggal_lahir',
           'nama_ibu_kandung', 'agama_id_str', 'status_perkawinan', 'nama_suami_istri',
           'pekerjaan_suami_istri', 'nm_wp', 'npwp', 'alamat_jalan', 'rt', 'rw',
-          'nama_dusun', 'desa_kelurahan', 'provinsi', 'kabupaten_kota', 'kecamatan',
+          'desa_kelurahan', 'provinsi', 'kabupaten_kota', 'kecamatan',
           'kode_pos', 'lintang', 'bujur', 'sumber_gaji', 'id_bank', 'rekening_bank',
           'rekening_atas_nama', 'nama_kcp', 'no_hp', 'no_whatsapp', 'id_telegram',
-          'email'
+          'email', 'tanda_tangan',
+          'doc_kk', 'doc_ktp', 'doc_akte', 'doc_ijazah_sd', 'doc_ijazah_smp', 'doc_ijazah_sma', 'doc_ijazah_s1'
         ];
 
         const fields = completenessFields.filter(key => {

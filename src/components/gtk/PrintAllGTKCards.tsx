@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { dapodikService } from "../../services/dapodikService";
 import { QRCodeSVG } from "qrcode.react";
+import { getFotoUrl } from "../../utils/image";
 
 interface GTKCardData {
   ptk_id: string;
@@ -71,7 +72,7 @@ const PrintAllGTKCards: React.FC<PrintAllGTKCardsProps> = ({ isOpen, onClose, ty
       const timer = setTimeout(() => {
         window.print();
         onClose();
-      }, 500);
+      }, 2000);
       return () => clearTimeout(timer);
     }
   }, [loading, personList, isOpen, onClose]);
@@ -94,11 +95,7 @@ const PrintAllGTKCards: React.FC<PrintAllGTKCardsProps> = ({ isOpen, onClose, ty
                   className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 justify-items-center print-page print:grid-cols-3"
                 >
                   {pagePersons.map((person) => {
-                    const avatarUrl = person.foto 
-                      ? (person.foto.startsWith("http") || person.foto.startsWith("data:")
-                          ? person.foto 
-                          : `${import.meta.env.VITE_API_URL || ""}/uploads/foto/${person.foto}`)
-                      : "/images/default/profile.jpg";
+                    const avatarUrl = getFotoUrl(person.foto);
 
                     return (
                       <div 

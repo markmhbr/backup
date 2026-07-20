@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, useSearchParams } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import Button from "../../components/ui/button/Button";
 import OriginalInput from "../../components/form/input/InputField";
@@ -191,6 +191,8 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
   const { role, id: paramId } = useParams<{ role: string; id: string }>();
   const id = profileId || paramId;
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnTab = searchParams.get("tab");
 
   const [activeTab, setActiveTab] = useState("profil");
 
@@ -198,6 +200,7 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
     { id: "profil", label: "Profil & Identitas" },
     { id: "alamat", label: "Alamat Rumah" },
     { id: "kepegawaian", label: "Kepegawaian" },
+    { id: "tugas", label: "Tugas & Pembelajaran" },
     { id: "pendidikan", label: "Pendidikan" },
     { id: "sertifikasi", label: "Sertifikasi & Rekening" },
     { id: "kontak", label: "Kontak" },
@@ -257,6 +260,29 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
   };
   // Document Upload State
   const [pendingDocs, setPendingDocs] = useState<any[]>([]); 
+  
+  const initializePendingDocs = (existingDocs: any[]) => {
+    const mandatoryList = ["KK", "KTP", "Akte Kelahiran", "Ijazah SD", "Ijazah SMP", "Ijazah SMA", "Ijazah S1"];
+    const finalDocs = [...existingDocs];
+    mandatoryList.forEach(name => {
+      const normalizedName = name.replace(/\s+/g, '').toUpperCase();
+      const exists = existingDocs.some((d: any) => {
+        const normalizedExisting = (d.nama || '').replace(/\s+/g, '').toUpperCase();
+        return normalizedExisting.startsWith(normalizedName);
+      });
+      if (!exists) {
+        finalDocs.push({
+          id: `mandatory-${name}-${Date.now()}-${Math.random()}`,
+          nama: name,
+          isNew: true,
+          isMandatory: true,
+          file: null
+        });
+      }
+    });
+    return finalDocs;
+  };
+
   const [errors, setErrors] = useState<any>({});
 
   const isMarried = formData?.statusPerkawinan === '1' || formData?.statusPerkawinan === 1;
@@ -277,6 +303,9 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
     }
     if (tabId === "kontak") {
       return !!(errors.noTelpRumah || errors.noHp || errors.noWa || errors.idTelegram);
+    }
+    if (tabId === "dokumen") {
+      return !!errors.dokumen;
     }
     return false;
   };
@@ -325,7 +354,14 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
       { key: 'noWa', label: 'Nomor WhatsApp' },
       { key: 'idTelegram', label: 'ID Telegram' },
       { key: 'email', label: 'Email' },
-      { key: 'tandaTangan', label: 'Tanda Tangan' }
+      { key: 'tandaTangan', label: 'Tanda Tangan' },
+      { key: 'doc_kk', label: 'Dokumen KK' },
+      { key: 'doc_ktp', label: 'Dokumen KTP' },
+      { key: 'doc_akte', label: 'Dokumen Akte Kelahiran' },
+      { key: 'doc_ijazah_sd', label: 'Dokumen Ijazah SD' },
+      { key: 'doc_ijazah_smp', label: 'Dokumen Ijazah SMP' },
+      { key: 'doc_ijazah_sma', label: 'Dokumen Ijazah SMA' },
+      { key: 'doc_ijazah_s1', label: 'Dokumen Ijazah S1' }
     ];
 
     const checkFilled = (field: any) => {
@@ -335,6 +371,29 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
         const kab = formData['kotaKabupaten'];
         const kec = formData['kecamatan'];
         return !!((desa && desa !== '-' && desa !== '') || (prov && prov !== '-' && prov !== '') || (kab && kab !== '-' && kab !== '') || (kec && kec !== '-' && kec !== ''));
+      }
+
+      if (field.key.startsWith('doc_')) {
+        const docNameMap: Record<string, string> = {
+          doc_kk: "KK",
+          doc_ktp: "KTP",
+          doc_akte: "Akte Kelahiran",
+          doc_ijazah_sd: "Ijazah SD",
+          doc_ijazah_smp: "Ijazah SMP",
+          doc_ijazah_sma: "Ijazah SMA",
+          doc_ijazah_s1: "Ijazah S1"
+        };
+        const targetName = docNameMap[field.key];
+        if (!targetName) return false;
+        
+        const normalizedTarget = targetName.replace(/\s+/g, '').toUpperCase();
+        return pendingDocs.some((d: any) => {
+          const normalizedExisting = (d.nama || '').replace(/\s+/g, '').toUpperCase();
+          if (normalizedExisting.startsWith(normalizedTarget)) {
+            return !d.isNew || (d.isNew && d.file !== null);
+          }
+          return false;
+        });
       }
 
       const val = formData[field.key];
@@ -742,7 +801,7 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
             const data = result.data;
             
             // Set dynamic list of documents from backend if present
-            setPendingDocs(data.foto_dokumen || []);
+            setPendingDocs(initializePendingDocs(data.foto_dokumen || []));
 
             // Set main formData state (mapping snake_case db fields to camelCase template keys)
             setFormData({
@@ -805,6 +864,7 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                 jumlahJam: t.jumlah_jam_diakui !== undefined ? Number(t.jumlah_jam_diakui) : (t.jumlah_jam !== null && t.jumlah_jam !== undefined ? Number(t.jumlah_jam) : 0),
               })) : [],
 
+              pembelajaran: data.pembelajaran || [],
               anak: data.anak || [],
               
               pendidikanTerakhir: data.pendidikan_terakhir || "",
@@ -1119,6 +1179,17 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
         return d;
       })
     );
+
+    setErrors((prev: any) => {
+      const next = { ...prev };
+      delete next[rowId];
+      // Check if there are other mandatory document errors left
+      const hasOtherDocErrors = Object.keys(next).some(k => k !== "dokumen" && next[k] === true);
+      if (!hasOtherDocErrors) {
+        delete next.dokumen;
+      }
+      return next;
+    });
   };
 
   const handleRowNameChange = (rowId: string, name: string) => {
@@ -1184,7 +1255,7 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
       // Reload GTK documents list
       const result = await dapodikService.getGtkDetail(id!);
       if (result.status === "success" && result.data) {
-        setPendingDocs(result.data.foto_dokumen || []);
+        setPendingDocs(initializePendingDocs(result.data.foto_dokumen || []));
       }
     } catch (err: any) {
       console.error("Gagal mengunggah dokumen", err);
@@ -1234,7 +1305,7 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
         // Reload list
         const result = await dapodikService.getGtkDetail(id!);
         if (result.status === "success" && result.data) {
-          setPendingDocs(result.data.foto_dokumen || []);
+          setPendingDocs(initializePendingDocs(result.data.foto_dokumen || []));
         }
       } catch (err: any) {
         console.error("Gagal menghapus dokumen", err);
@@ -1246,7 +1317,18 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
         });
       }
     } else {
-      setPendingDocs((prev) => prev.filter((d) => d.id !== doc.id));
+      if (doc.isMandatory) {
+        setPendingDocs((prev) =>
+          prev.map((d) => {
+            if (d.id === doc.id) {
+              return { ...d, file: null, fileUrl: "" };
+            }
+            return d;
+          })
+        );
+      } else {
+        setPendingDocs((prev) => prev.filter((d) => d.id !== doc.id));
+      }
       Swal.fire({ 
         title: "Berhasil", 
         text: `Dokumen "${doc.nama}" berhasil dihapus`, 
@@ -1346,16 +1428,14 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
     // Tanda Tangan
     if (!formData.tandaTangan) { newErrors.tandaTangan = true; hasError = true; }
 
-    // Validate staged documents
-    const newDocsForValidation = pendingDocs.filter((d) => d.isNew);
-    if (newDocsForValidation.length > 0) {
-      Swal.fire({
-        title: "Dokumen Belum Disimpan",
-        text: "Terdapat dokumen baru yang belum diunggah. Silakan klik tombol 'Simpan' pada kartu dokumen tersebut terlebih dahulu atau hapus kartu tersebut.",
-        icon: "warning",
-        confirmButtonColor: "#465FFF"
+    // Validate mandatory documents
+    const missingMandatoryDocs = pendingDocs.filter(d => d.isMandatory && d.isNew && !d.file);
+    if (missingMandatoryDocs.length > 0) {
+      newErrors.dokumen = true;
+      missingMandatoryDocs.forEach(d => {
+        newErrors[d.id] = true;
       });
-      return;
+      hasError = true;
     }
 
     if (hasError) {
@@ -1439,13 +1519,21 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
         rekening_atas_nama: formData.atasNamaRekening,
       };
 
+      // Auto-save any new documents that have files selected
+      const newDocsToUpload = pendingDocs.filter((d) => d.isNew && d.file);
+      if (newDocsToUpload.length > 0) {
+        for (const doc of newDocsToUpload) {
+          await dapodikService.uploadGtkDokumen(id!, doc.file, doc.nama);
+        }
+      }
+
       await dapodikService.updateGtk(id, updatePayload);
 
       // Reload GTK data to get final clean URLs/IDs from backend
       try {
         const result = await dapodikService.getGtkDetail(id);
         if (result.status === "success" && result.data) {
-          setPendingDocs(result.data.foto_dokumen || []);
+          setPendingDocs(initializePendingDocs(result.data.foto_dokumen || []));
         }
       } catch (e) {
         console.error("Gagal memuat ulang data dokumen setelah disimpan", e);
@@ -1459,7 +1547,7 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
         showConfirmButton: false,
       });
       if (!profileId) {
-        navigate(`/${role}/gtk-data`);
+        navigate(returnTab ? `/${role}/gtk-data?tab=${returnTab}` : `/${role}/gtk-data`);
       }
     } catch (error) {
       Swal.fire({
@@ -1700,7 +1788,7 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
           <div>
             {!profileId && (
               <button
-                onClick={() => navigate(`/${role}/gtk-data`)}
+                onClick={() => navigate(returnTab ? `/${role}/gtk-data?tab=${returnTab}` : `/${role}/gtk-data`)}
                 className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white transition-colors mb-2"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1721,7 +1809,7 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => navigate(`/${role}/gtk-data`)}
+                onClick={() => navigate(returnTab ? `/${role}/gtk-data?tab=${returnTab}` : `/${role}/gtk-data`)}
               >
                 Batal
               </Button>
@@ -2339,6 +2427,127 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
           </div>
           )}
 
+          {/* Card 3.5: Tugas & Pembelajaran */}
+          {activeTab === "tugas" && (
+            <div className="space-y-6">
+              {/* Rekapitulasi Pembelajaran */}
+              <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-4">
+                <div className="border-b border-gray-100 dark:border-white/[0.05] pb-3">
+                  <h4 className="text-lg font-bold text-gray-800 dark:text-white/90">
+                    Rekapitulasi Pembelajaran (Tugas Pokok)
+                  </h4>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <Table className="w-full">
+                    <TableHeader className="border-b border-gray-100 dark:border-white/[0.05] bg-gray-50/50 dark:bg-transparent">
+                      <TableRow>
+                        <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">No</TableCell>
+                        <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Mata Pelajaran</TableCell>
+                        <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Kelas / Rombel</TableCell>
+                        <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Status Kurikulum</TableCell>
+                        <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-right text-xs dark:text-gray-400 whitespace-nowrap">Jml Jam/Minggu</TableCell>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody className="divide-y divide-gray-200 dark:divide-gray-800">
+                      {formData.pembelajaran && formData.pembelajaran.length > 0 ? (
+                        formData.pembelajaran.map((pemb: any, idx: number) => (
+                          <TableRow key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-850">
+                            <TableCell className="px-5 py-3.5 text-sm text-gray-850 dark:text-white/80">{idx + 1}</TableCell>
+                            <TableCell className="px-5 py-3.5 text-sm font-semibold text-gray-850 dark:text-white/80">
+                              {pemb.nama_mata_pelajaran || pemb.rombongan_belajar?.nama || "-"}
+                            </TableCell>
+                            <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/80">
+                              {pemb.rombongan_belajar?.nama || "-"}
+                            </TableCell>
+                            <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/80">
+                              {pemb.status_kurikulum_id_str || "-"}
+                            </TableCell>
+                            <TableCell className="px-5 py-3.5 text-sm text-gray-855 dark:text-white/80 text-right">
+                              {pemb.jam_mengajar_per_minggu || 0} Jam
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={5} className="px-5 py-6 text-center text-sm text-gray-400 italic">
+                            Tidak ada data pembelajaran (tugas pokok) ditemukan.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      <TableRow className="bg-gray-50/30 dark:bg-transparent font-semibold border-t-2 border-gray-100 dark:border-gray-800">
+                        <TableCell colSpan={4} className="px-5 py-3.5 text-sm text-gray-700 dark:text-gray-300 text-right">Total Jam Mengajar</TableCell>
+                        <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/80 text-right">
+                          {(formData.pembelajaran || []).reduce((sum: number, p: any) => sum + Number(p.jam_mengajar_per_minggu || 0), 0)} Jam
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+
+              {/* Tugas Tambahan */}
+              <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-4">
+                <div className="border-b border-gray-100 dark:border-white/[0.05] pb-3">
+                  <h4 className="text-lg font-bold text-gray-800 dark:text-white/90">
+                    Tugas Tambahan
+                  </h4>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <Table className="w-full">
+                    <TableHeader className="border-b border-gray-100 dark:border-white/[0.05] bg-gray-50/50 dark:bg-transparent">
+                      <TableRow>
+                        <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">No</TableCell>
+                        <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Tugas Tambahan</TableCell>
+                        <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-right text-xs dark:text-gray-400 whitespace-nowrap">Jml Jam/Minggu</TableCell>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody className="divide-y divide-gray-200 dark:divide-gray-800">
+                      {formData.tugasTambahan && formData.tugasTambahan.length > 0 ? (
+                        formData.tugasTambahan.map((tugas: any, idx: number) => (
+                          <TableRow key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-850">
+                            <TableCell className="px-5 py-3.5 text-sm text-gray-850 dark:text-white/80">{idx + 1}</TableCell>
+                            <TableCell className="px-5 py-3.5 text-sm text-gray-850 dark:text-white/80">
+                              <span className="font-semibold text-gray-800 dark:text-white/90">
+                                {tugas.jabatan || "-"}
+                              </span>
+                              {tugas.nomorSk && (
+                                <span className="block text-xs text-gray-500 mt-0.5">SK: {tugas.nomorSk}</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="px-5 py-3.5 text-sm text-gray-855 dark:text-white/80 text-right">
+                              {tugas.jumlahJam || 0} Jam
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={3} className="px-5 py-6 text-center text-sm text-gray-400 italic">
+                            Tidak ada data tugas tambahan.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      <TableRow className="bg-gray-50/30 dark:bg-transparent font-semibold border-t-2 border-gray-100 dark:border-gray-800">
+                        <TableCell colSpan={2} className="px-5 py-3.5 text-sm text-gray-700 dark:text-gray-300 text-right">Total Jam Tugas Tambahan</TableCell>
+                        <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/80 text-right">
+                          {(formData.tugasTambahan || []).reduce((sum: number, t: any) => sum + Number(t.jumlahJam || 0), 0)} Jam
+                        </TableCell>
+                      </TableRow>
+                      <TableRow className="bg-gray-50/30 dark:bg-transparent font-bold border-t border-gray-200 dark:border-gray-700">
+                        <TableCell colSpan={2} className="px-5 py-3.5 text-sm text-brand-600 dark:text-brand-450 text-right">Total Jam Mengajar + Tugas Tambahan</TableCell>
+                        <TableCell className="px-5 py-3.5 text-sm text-brand-600 dark:text-brand-450 text-right">
+                          {((formData.pembelajaran || []).reduce((sum: number, p: any) => sum + Number(p.jam_mengajar_per_minggu || 0), 0)) + 
+                           ((formData.tugasTambahan || []).reduce((sum: number, t: any) => sum + Number(t.jumlahJam || 0), 0))} Jam
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Card 4: Pendidikan */}
           {activeTab === "pendidikan" && (
             <>
@@ -2737,13 +2946,20 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {pendingDocs.map((doc: any) => {
                       if (doc.isNew) {
+                        const hasCardError = !!errors[doc.id];
                         return (
-                          <div key={doc.id} className="border border-dashed border-gray-300 dark:border-white/[0.08] bg-gray-50/50 dark:bg-white/[0.01] rounded-2xl p-5 flex flex-col justify-between min-h-[190px] shadow-sm">
+                          <div key={doc.id} className={`border rounded-2xl p-5 flex flex-col justify-between min-h-[190px] shadow-sm ${
+                            hasCardError 
+                              ? "border-red-500 bg-red-50/10 dark:bg-red-500/5 animate-shake" 
+                              : "border-dashed border-gray-300 dark:border-white/[0.08] bg-gray-50/50 dark:bg-white/[0.01]"
+                          }`}>
                             <div className="space-y-3">
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                  <span className="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></span>
-                                  <span className="text-[10px] text-brand-500 font-semibold tracking-wider uppercase">Unggahan Baru</span>
+                                  <span className={`w-2 h-2 rounded-full animate-pulse ${doc.isMandatory ? "bg-amber-500" : "bg-brand-500"}`}></span>
+                                  <span className={`text-[10px] font-semibold tracking-wider uppercase ${doc.isMandatory ? "text-amber-500" : "text-brand-500"}`}>
+                                    {doc.isMandatory ? "Dokumen Wajib" : "Unggahan Baru"}
+                                  </span>
                                 </div>
                                 <button
                                   type="button"
@@ -2761,6 +2977,7 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                                 onChange={(e) => handleRowNameChange(doc.id, e.target.value)} 
                                 placeholder="Nama File (KTP / Ijazah)" 
                                 className="h-9 text-xs"
+                                disabled={doc.isMandatory}
                               />
                               <input 
                                 type="file" 
@@ -2770,6 +2987,9 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
                               />
                               {doc.file && (
                                 <p className="text-[10px] text-brand-600 font-medium truncate">Terpilih: {doc.file.name}</p>
+                              )}
+                              {hasCardError && (
+                                <p className="text-[10px] text-red-500 font-semibold mt-1">Berkas PDF wajib diunggah.</p>
                               )}
                             </div>
                           </div>

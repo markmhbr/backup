@@ -25,9 +25,7 @@ export default function SidebarWidget() {
       <p className="mb-4 text-gray-500 text-xs dark:text-gray-400">
         NPSN: {sekolah.npsn}
       </p>
-      <div className="text-[10px] font-medium text-brand-600 dark:text-brand-400 bg-brand-100 dark:bg-brand-500/20 py-1 px-2 rounded-full inline-block">
-        Sistem Informasi Sekolah
-      </div>
+
     </div>
   );
 }

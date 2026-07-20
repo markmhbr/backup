@@ -86,7 +86,7 @@ const PrintPDCardPreview: React.FC<PrintPDCardPreviewProps> = ({ isOpen, onClose
       const timer = setTimeout(() => {
         window.print();
         onClose();
-      }, 500);
+      }, 2000);
       return () => clearTimeout(timer);
     }
   }, [loading, students, isOpen, onClose, student]);

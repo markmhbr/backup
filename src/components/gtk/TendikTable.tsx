@@ -62,10 +62,11 @@ export default function TendikTable({ onSelectionChange, searchTerm, completenes
       'nama', 'nik', 'no_kk', 'jenis_kelamin', 'tempat_lahir', 'tanggal_lahir',
       'nama_ibu_kandung', 'agama_id_str', 'status_perkawinan', 'nama_suami_istri',
       'pekerjaan_suami_istri', 'nm_wp', 'npwp', 'alamat_jalan', 'rt', 'rw',
-      'nama_dusun', 'desa_kelurahan', 'provinsi', 'kabupaten_kota', 'kecamatan',
+      'desa_kelurahan', 'provinsi', 'kabupaten_kota', 'kecamatan',
       'kode_pos', 'lintang', 'bujur', 'sumber_gaji', 'id_bank', 'rekening_bank',
       'rekening_atas_nama', 'nama_kcp', 'no_hp', 'no_whatsapp', 'id_telegram',
-      'email', 'tanda_tangan'
+      'email', 'tanda_tangan',
+      'doc_kk', 'doc_ktp', 'doc_akte', 'doc_ijazah_sd', 'doc_ijazah_smp', 'doc_ijazah_sma', 'doc_ijazah_s1'
     ];
 
     const fields = allFields.filter(key => {
@@ -298,7 +299,6 @@ export default function TendikTable({ onSelectionChange, searchTerm, completenes
                 { key: 'alamat_jalan', label: 'Alamat Jalan' },
                 { key: 'rt', label: 'RT' },
                 { key: 'rw', label: 'RW' },
-                { key: 'nama_dusun', label: 'Nama Dusun' },
                 { key: 'desa_kelurahan', label: 'Desa/Kelurahan' },
                 { key: 'provinsi', label: 'Provinsi' },
                 { key: 'kabupaten_kota', label: 'Kabupaten/Kota' },
@@ -315,7 +315,14 @@ export default function TendikTable({ onSelectionChange, searchTerm, completenes
                 { key: 'no_whatsapp', label: 'Nomor WhatsApp' },
                 { key: 'id_telegram', label: 'ID Telegram' },
                 { key: 'email', label: 'Email' },
-                { key: 'tanda_tangan', label: 'Tanda Tangan' }
+                { key: 'tanda_tangan', label: 'Tanda Tangan' },
+                { key: 'doc_kk', label: 'Dokumen KK' },
+                { key: 'doc_ktp', label: 'Dokumen KTP' },
+                { key: 'doc_akte', label: 'Dokumen Akte Kelahiran' },
+                { key: 'doc_ijazah_sd', label: 'Dokumen Ijazah SD' },
+                { key: 'doc_ijazah_smp', label: 'Dokumen Ijazah SMP' },
+                { key: 'doc_ijazah_sma', label: 'Dokumen Ijazah SMA' },
+                { key: 'doc_ijazah_s1', label: 'Dokumen Ijazah S1' }
               ].filter((field) => {
                 if (field.key === 'id_bank' || field.key === 'rekening_bank' || field.key === 'rekening_atas_nama' || field.key === 'nama_kcp') {
                   return selectedItemForCompleteness.memilikiSertifikasi === 'Ya';
@@ -357,7 +364,7 @@ export default function TendikTable({ onSelectionChange, searchTerm, completenes
                 size="sm" 
                 onClick={() => {
                   const role = window.location.pathname.split("/")[1];
-                  navigate(`/${role}/gtk-data/edit/${selectedItemForCompleteness.ptk_id}`);
+                  navigate(`/${role}/gtk-data/edit/${selectedItemForCompleteness.ptk_id}?tab=tendik`);
                 }}
               >
                 Lengkapi Data

@@ -51,6 +51,7 @@ export default function StudentData() {
   }, [searchQuery]);
   const [completenessFilter, setCompletenessFilter] = useState("all");
   const [gradeFilter, setGradeFilter] = useState("all");
+  const [rombelFilter, setRombelFilter] = useState("all");
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
@@ -98,6 +99,13 @@ export default function StudentData() {
     { value: "10", label: "Tingkat 10" },
     { value: "11", label: "Tingkat 11" },
     { value: "12", label: "Tingkat 12" },
+  ];
+
+  const rombelOptions = [
+    { value: "all", label: "Semua Rombel" },
+    ...[...rombels]
+      .sort((a, b) => a.nama.localeCompare(b.nama))
+      .map((r: any) => ({ value: r.nama, label: r.nama }))
   ];
 
   const rowsPerPageOptions = [
@@ -1461,6 +1469,13 @@ export default function StudentData() {
                             onChange={(value) => setCompletenessFilter(value)}
                         />
                     </div>
+                    <div className="w-full sm:w-56">
+                        <Select
+                             options={rombelOptions}
+                             defaultValue={rombelFilter}
+                             onChange={(value) => setRombelFilter(value)}
+                        />
+                    </div>
                   </>
                 )}
               </div>
@@ -1475,6 +1490,7 @@ export default function StudentData() {
                 completenessFilter={completenessFilter}
                 gradeFilter={gradeFilter}
                 itemsPerPage={itemsPerPage}
+                rombelFilter={rombelFilter === 'all' ? undefined : rombelFilter}
             />
           )}
 

@@ -686,7 +686,7 @@ export default function KeuanganData() {
                                     {item.peserta_didik?.nama}
                                   </TableCell>
                                   <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/80">{item.peserta_didik?.nisn || "-"}</TableCell>
-                                  <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/80">{item.peserta_didik?.nama_rombel || "-"}</TableCell>
+                                  <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/80">{item.peserta_didik?.rombongan_belajar?.nama || "-"}</TableCell>
                                   <TableCell className="px-5 py-3.5 text-sm text-gray-850 dark:text-white/80">{item.nama_tagihan}</TableCell>
                                   <TableCell className="px-5 py-3.5 font-medium text-gray-800 dark:text-white/80 text-sm">
                                     {formatCurrency(item.nominal_tagihan)}
@@ -1167,7 +1167,7 @@ export default function KeuanganData() {
             NISN: <span className="font-semibold">{selectedTagihan?.peserta_didik?.nisn}</span>
           </div>
           <div>
-            Kelas: <span className="font-semibold">{selectedTagihan?.peserta_didik?.nama_rombel}</span>
+            Kelas: <span className="font-semibold">{selectedTagihan?.peserta_didik?.rombongan_belajar?.nama || "-"}</span>
           </div>
           <div>
             Tagihan: <span className="font-semibold">{selectedSubSpp?.pengaturan_tagihan?.nama_tagihan || "-"}</span>
@@ -1231,9 +1231,6 @@ export default function KeuanganData() {
                 >
                   <option value={1}>Pembayaran (Uang SPP)</option>
                   <option value={2}>Beasiswa</option>
-                  <option value={3}>Denda</option>
-                  <option value={4}>Pengurangan Tagihan</option>
-                  <option value={5}>Pengembalian Dana (Refund)</option>
                 </select>
               </div>
 

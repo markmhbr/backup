@@ -83,6 +83,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
   const [loading, setLoading] = useState(!!id);
   const [uploadedDocs, setUploadedDocs] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const originalParentDataRef = useRef<any>({ ayah: {}, ibu: {} });
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
@@ -878,6 +879,8 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
               penghasilanWali: data.penghasilan_wali_nama || "",
               penghasilan_id_wali: data.penghasilan_id_wali || "",
               qrToken: data.qr_token || "",
+              status_hidup_ayah: data.status_hidup_ayah !== null && data.status_hidup_ayah !== undefined ? Number(data.status_hidup_ayah) : 0,
+              status_hidup_ibu: data.status_hidup_ibu !== null && data.status_hidup_ibu !== undefined ? Number(data.status_hidup_ibu) : 0,
             });
 
             // Regional data is directly populated to formData above and rendered as disabled Input. No mapping needed.
@@ -898,6 +901,87 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
     if (errors[field]) {
       setErrors((prev: any) => ({ ...prev, [field]: false }));
     }
+  };
+
+  const handleStatusHidupChange = (parent: "ayah" | "ibu", status: "hidup" | "wafat") => {
+    const isAyah = parent === "ayah";
+    const pekerjaanKey = isAyah ? "pekerjaan_id_ayah" : "pekerjaan_id_ibu";
+    const pekerjaanNamaKey = isAyah ? "pekerjaanAyah" : "pekerjaanIbu";
+    const penghasilanKey = isAyah ? "penghasilan_id_ayah" : "penghasilan_id_ibu";
+    const penghasilanNamaKey = isAyah ? "penghasilanAyah" : "penghasilanIbu";
+    const kebutuhanKey = isAyah ? "kebutuhan_khusus_id_ayah" : "kebutuhan_khusus_id_ibu";
+    const kebutuhanNamaKey = isAyah ? "kebutuhanKhususAyah" : "kebutuhanKhususIbu";
+
+    setFormData((prev: any) => {
+      const isAyah = parent === "ayah";
+      const pendidikanKey = isAyah ? "jenjang_pendidikan_ayah" : "jenjang_pendidikan_ibu";
+      const pendidikanNamaKey = isAyah ? "pendidikanAyah" : "pendidikanIbu";
+
+      const statusHidupKey = isAyah ? "status_hidup_ayah" : "status_hidup_ibu";
+      const isCurrentlyWafat = prev[statusHidupKey] === 1;
+
+      if (status === "wafat") {
+        if (!isCurrentlyWafat) {
+          originalParentDataRef.current[parent] = {
+            pekerjaan_id: prev[pekerjaanKey] || "",
+            pekerjaanNama: prev[pekerjaanNamaKey] || "",
+            penghasilan_id: prev[penghasilanKey] || "",
+            penghasilanNama: prev[penghasilanNamaKey] || "",
+            kebutuhan_id: prev[kebutuhanKey] || 0,
+            kebutuhanNama: prev[kebutuhanNamaKey] || "",
+            pendidikan_id: prev[pendidikanKey] || "",
+            pendidikanNama: prev[pendidikanNamaKey] || "",
+          };
+        }
+
+        const pekerjaanOpt = (refOptions?.pekerjaan || []).find((p: any) => String(p.pekerjaan_id || p.id) === "1");
+        const pekerjaanNama = pekerjaanOpt?.nama || pekerjaanOpt?.pekerjaan || "Tidak bekerja";
+
+        const penghasilanOpt = (refOptions?.penghasilan || []).find((p: any) => String(p.penghasilan_id || p.id) === "99");
+        const penghasilanNama = penghasilanOpt?.nama || penghasilanOpt?.penghasilan || "Tidak memiliki penghasilan";
+
+        const pendidikanOpt = (refOptions?.jenjang_pendidikan || []).find((p: any) => String(p.jenjang_pendidikan_id || p.id) === "0");
+        const pendidikanNama = pendidikanOpt?.nama || pendidikanOpt?.jenjang_pendidikan || "Tidak sekolah";
+
+        return {
+          ...prev,
+          [statusHidupKey]: 1,
+          [pekerjaanKey]: "1",
+          [pekerjaanNamaKey]: pekerjaanNama,
+          [penghasilanKey]: "99",
+          [penghasilanNamaKey]: penghasilanNama,
+          [kebutuhanKey]: 0,
+          [kebutuhanNamaKey]: "Tidak ada",
+          [pendidikanKey]: "0",
+          [pendidikanNamaKey]: pendidikanNama,
+        };
+      } else {
+        const backup = originalParentDataRef.current[parent] || {};
+        return {
+          ...prev,
+          [statusHidupKey]: 0,
+          [pekerjaanKey]: backup.pekerjaan_id || "",
+          [pekerjaanNamaKey]: backup.pekerjaanNama || "",
+          [penghasilanKey]: backup.penghasilan_id || "",
+          [penghasilanNamaKey]: backup.penghasilanNama || "",
+          [kebutuhanKey]: backup.kebutuhan_id || 0,
+          [kebutuhanNamaKey]: backup.kebutuhanNama || "Tidak ada",
+          [pendidikanKey]: backup.pendidikan_id || "",
+          [pendidikanNamaKey]: backup.pendidikanNama || "",
+        };
+      }
+    });
+
+    const nikKey = isAyah ? "nikAyah" : "nikIbu";
+    const tahunLahirKey = isAyah ? "tahunLahirAyah" : "tahunLahirIbu";
+    
+    setErrors((prev: any) => ({
+      ...prev,
+      [nikKey]: false,
+      [tahunLahirKey]: false,
+      [pekerjaanKey]: false,
+      [penghasilanKey]: false,
+    }));
   };
 
   const compressImage = async (file: File, maxSizeBytes: number): Promise<File> => {
@@ -1110,7 +1194,9 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
         "waktuTempuh",
         "menitTempuh",
         "jarakRumahKm",
-        "lingkarKepala"
+        "lingkarKepala",
+        "tahunLahirAyah",
+        "tahunLahirIbu"
       ].includes(key);
 
       if (isZeroAllowed && (val === 0 || val === "0" || (typeof val === "string" && val.trim() === "0"))) {
@@ -1161,19 +1247,25 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
     if (v("idCita")) newErrors.idCita = true;
 
     // Orang Tua - Ayah
+    const isAyahWafat = formData.status_hidup_ayah === 1;
     if (v("namaAyah")) newErrors.namaAyah = true;
-    if (v("nikAyah")) newErrors.nikAyah = true;
-    if (v("tahunLahirAyah")) newErrors.tahunLahirAyah = true;
-    if (v("pekerjaan_id_ayah")) newErrors.pekerjaan_id_ayah = true;
-    if (v("jenjang_pendidikan_ayah")) newErrors.jenjang_pendidikan_ayah = true;
-    if (v("penghasilan_id_ayah")) newErrors.penghasilan_id_ayah = true;
+    if (!isAyahWafat) {
+      if (v("nikAyah")) newErrors.nikAyah = true;
+      if (v("tahunLahirAyah")) newErrors.tahunLahirAyah = true;
+      if (v("pekerjaan_id_ayah")) newErrors.pekerjaan_id_ayah = true;
+      if (v("jenjang_pendidikan_ayah")) newErrors.jenjang_pendidikan_ayah = true;
+      if (v("penghasilan_id_ayah")) newErrors.penghasilan_id_ayah = true;
+    }
 
     // Orang Tua - Ibu
-    if (v("nikIbu")) newErrors.nikIbu = true;
-    if (v("tahunLahirIbu")) newErrors.tahunLahirIbu = true;
-    if (v("pekerjaan_id_ibu")) newErrors.pekerjaan_id_ibu = true;
-    if (v("jenjang_pendidikan_ibu")) newErrors.jenjang_pendidikan_ibu = true;
-    if (v("penghasilan_id_ibu")) newErrors.penghasilan_id_ibu = true;
+    const isIbuWafat = formData.status_hidup_ibu === 1;
+    if (!isIbuWafat) {
+      if (v("nikIbu")) newErrors.nikIbu = true;
+      if (v("tahunLahirIbu")) newErrors.tahunLahirIbu = true;
+      if (v("pekerjaan_id_ibu")) newErrors.pekerjaan_id_ibu = true;
+      if (v("jenjang_pendidikan_ibu")) newErrors.jenjang_pendidikan_ibu = true;
+      if (v("penghasilan_id_ibu")) newErrors.penghasilan_id_ibu = true;
+    }
 
     // Wali (only if isWali)
     if (isWaliMode) {
@@ -1395,6 +1487,9 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
   };
 
   const banner = getBannerConfig();
+
+  const isAyahWafat = formData.status_hidup_ayah === 1;
+  const isIbuWafat = formData.status_hidup_ibu === 1;
 
   return (
     <>
@@ -2197,6 +2292,33 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
               </h5>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
+                  <Label>Status Hidup <span className="text-red-500">*</span></Label>
+                  <div className="flex items-center gap-4 h-11">
+                    <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700 dark:text-gray-300">
+                      <input
+                        type="radio"
+                        name="statusHidupAyah"
+                        value="hidup"
+                        checked={!isAyahWafat}
+                        onChange={() => handleStatusHidupChange("ayah", "hidup")}
+                        className="rounded-full border-gray-300 text-brand-500 focus:ring-brand-500 size-4 bg-transparent"
+                      />
+                      Hidup
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700 dark:text-gray-300">
+                      <input
+                        type="radio"
+                        name="statusHidupAyah"
+                        value="wafat"
+                        checked={isAyahWafat}
+                        onChange={() => handleStatusHidupChange("ayah", "wafat")}
+                        className="rounded-full border-gray-300 text-brand-500 focus:ring-brand-500 size-4 bg-transparent"
+                      />
+                      Wafat
+                    </label>
+                  </div>
+                </div>
+                <div className="space-y-2">
                   <Label>Nama Lengkap <span className="text-red-500">*</span></Label>
                   <Input 
                     error={errors.namaAyah}
@@ -2212,6 +2334,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                     value={formData.nikAyah || ""} 
                     maxLength={16}
                     placeholder="Masukkan NIK Ayah" 
+                    disabled={isAyahWafat}
                     onChange={(e) => handleInputChange("nikAyah", e.target.value.replace(/\D/g, ''))} 
                   />
                 </div>
@@ -2219,6 +2342,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                    <Label>Pekerjaan <span className="text-red-500">*</span></Label>
                    <select
                      value={formData.pekerjaan_id_ayah || ""}
+                     disabled={isAyahWafat}
                      onChange={(e) => {
                        const opt = (refOptions?.pekerjaan || []).find((p: any) => String(p.pekerjaan_id || p.id) === e.target.value);
                        setFormData((prev: any) => ({
@@ -2242,6 +2366,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                      error={errors.tahunLahirAyah}
                      value={formData.tahunLahirAyah || ""} 
                      placeholder="Masukkan Tahun Lahir Ayah" 
+                     disabled={isAyahWafat}
                      onChange={(e) => handleInputChange("tahunLahirAyah", e.target.value)} 
                    />
                  </div>
@@ -2249,6 +2374,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                    <Label>Pendidikan <span className="text-red-500">*</span></Label>
                    <select
                      value={formData.jenjang_pendidikan_ayah || ""}
+                     disabled={isAyahWafat}
                      onChange={(e) => {
                        const opt = (refOptions?.jenjang_pendidikan || []).find((p: any) => String(p.jenjang_pendidikan_id || p.id) === e.target.value);
                        setFormData((prev: any) => ({
@@ -2269,6 +2395,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                    <Label>Penghasilan <span className="text-red-500">*</span></Label>
                    <select
                      value={formData.penghasilan_id_ayah || ""}
+                     disabled={isAyahWafat}
                      onChange={(e) => {
                        const opt = (refOptions?.penghasilan || []).find((p: any) => String(p.penghasilan_id || p.id) === e.target.value);
                        setFormData((prev: any) => ({
@@ -2289,8 +2416,9 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                     <Label>Berkebutuhan Khusus</Label>
                     <button
                       type="button"
+                      disabled={isAyahWafat}
                       onClick={() => setIsKkAyahDropdownOpen(!isKkAyahDropdownOpen)}
-                      className="w-full flex items-center justify-between rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white bg-white text-left cursor-pointer"
+                      className="w-full flex items-center justify-between rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white bg-white text-left cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <span className="truncate">
                         {formData.kebutuhanKhususAyah || "Tidak ada"}
@@ -2345,6 +2473,33 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
               </h5>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
+                  <Label>Status Hidup <span className="text-red-500">*</span></Label>
+                  <div className="flex items-center gap-4 h-11">
+                    <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700 dark:text-gray-300">
+                      <input
+                        type="radio"
+                        name="statusHidupIbu"
+                        value="hidup"
+                        checked={!isIbuWafat}
+                        onChange={() => handleStatusHidupChange("ibu", "hidup")}
+                        className="rounded-full border-gray-300 text-brand-500 focus:ring-brand-500 size-4 bg-transparent"
+                      />
+                      Hidup
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700 dark:text-gray-300">
+                      <input
+                        type="radio"
+                        name="statusHidupIbu"
+                        value="wafat"
+                        checked={isIbuWafat}
+                        onChange={() => handleStatusHidupChange("ibu", "wafat")}
+                        className="rounded-full border-gray-300 text-brand-500 focus:ring-brand-500 size-4 bg-transparent"
+                      />
+                      Wafat
+                    </label>
+                  </div>
+                </div>
+                <div className="space-y-2">
                   <Label>Nama Lengkap</Label>
                   <Input value={formData.namaIbu || ""} placeholder="Data kosong dari Dapodik" disabled />
                 </div>
@@ -2355,6 +2510,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                     value={formData.nikIbu || ""} 
                     maxLength={16}
                     placeholder="Masukkan NIK Ibu" 
+                    disabled={isIbuWafat}
                     onChange={(e) => handleInputChange("nikIbu", e.target.value.replace(/\D/g, ''))} 
                   />
                 </div>
@@ -2362,6 +2518,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                    <Label>Pekerjaan <span className="text-red-500">*</span></Label>
                    <select
                      value={formData.pekerjaan_id_ibu || ""}
+                     disabled={isIbuWafat}
                      onChange={(e) => {
                        const opt = (refOptions?.pekerjaan || []).find((p: any) => String(p.pekerjaan_id || p.id) === e.target.value);
                        setFormData((prev: any) => ({
@@ -2385,6 +2542,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                      error={errors.tahunLahirIbu}
                      value={formData.tahunLahirIbu || ""} 
                      placeholder="Masukkan Tahun Lahir Ibu" 
+                     disabled={isIbuWafat}
                      onChange={(e) => handleInputChange("tahunLahirIbu", e.target.value)} 
                    />
                  </div>
@@ -2392,6 +2550,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                    <Label>Pendidikan <span className="text-red-500">*</span></Label>
                    <select
                      value={formData.jenjang_pendidikan_ibu || ""}
+                     disabled={isIbuWafat}
                      onChange={(e) => {
                        const opt = (refOptions?.jenjang_pendidikan || []).find((p: any) => String(p.jenjang_pendidikan_id || p.id) === e.target.value);
                        setFormData((prev: any) => ({
@@ -2412,6 +2571,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                    <Label>Penghasilan <span className="text-red-500">*</span></Label>
                    <select
                      value={formData.penghasilan_id_ibu || ""}
+                     disabled={isIbuWafat}
                      onChange={(e) => {
                        const opt = (refOptions?.penghasilan || []).find((p: any) => String(p.penghasilan_id || p.id) === e.target.value);
                        setFormData((prev: any) => ({
@@ -2432,8 +2592,9 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                     <Label>Berkebutuhan Khusus</Label>
                     <button
                       type="button"
+                      disabled={isIbuWafat}
                       onClick={() => setIsKkIbuDropdownOpen(!isKkIbuDropdownOpen)}
-                      className="w-full flex items-center justify-between rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white bg-white text-left cursor-pointer"
+                      className="w-full flex items-center justify-between rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-800 dark:bg-white/[0.03] dark:text-white bg-white text-left cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <span className="truncate">
                         {formData.kebutuhanKhususIbu || "Tidak ada"}

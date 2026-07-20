@@ -79,9 +79,22 @@ export default function StudentTable({ onSelectionChange, searchTerm, completene
       'nama_wali', 'nik_wali', 'tahun_lahir_wali', 'jenjang_pendidikan_wali', 'pekerjaan_id_wali', 'penghasilan_id_wali'
     ];
 
+    const isAyahWafat = (item.jenjang_pendidikan_ayah === 0 || item.jenjang_pendidikan_ayah === '0') &&
+                         (item.pekerjaan_id_ayah === 1 || item.pekerjaan_id_ayah === '1') &&
+                         (item.penghasilan_id_ayah === 99 || item.penghasilan_id_ayah === '99');
+    const isIbuWafat = (item.jenjang_pendidikan_ibu === 0 || item.jenjang_pendidikan_ibu === '0') &&
+                        (item.pekerjaan_id_ibu === 1 || item.pekerjaan_id_ibu === '1') &&
+                        (item.penghasilan_id_ibu === 99 || item.penghasilan_id_ibu === '99');
+
     const fields = allFields.filter(key => {
       if (key.endsWith('_wali')) {
         return item['is_wali'] === true || item['is_wali'] === 1 || item['is_wali'] === '1' || !!(item['nama_wali'] || item['nik_wali']);
+      }
+      if (isAyahWafat && (key === 'nik_ayah' || key === 'tahun_lahir_ayah' || key === 'jenjang_pendidikan_ayah' || key === 'pekerjaan_id_ayah' || key === 'penghasilan_id_ayah')) {
+        return false;
+      }
+      if (isIbuWafat && (key === 'nik_ibu' || key === 'tahun_lahir_ibu' || key === 'jenjang_pendidikan_ibu' || key === 'pekerjaan_id_ibu' || key === 'penghasilan_id_ibu')) {
+        return false;
       }
       return true;
     });
