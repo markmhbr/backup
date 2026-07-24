@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router";
+import PublicProfile from "./pages/OtherPage/PublicProfile";
 import SignIn from "./pages/AuthPages/SignIn";
 import SignUp from "./pages/AuthPages/SignUp";
 import NotFound from "./pages/OtherPage/NotFound";
@@ -70,10 +71,29 @@ function HomeRedirect() {
 }
 
 export default function App() {
+  // Check if pathname is a raw UUID (scanned QR code pointing to domain.com/uuid)
+  const pathname = window.location.pathname;
+  const uuidRegex = /^\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+  const match = pathname.match(uuidRegex);
+
+  if (match) {
+    return (
+      <Router>
+        <Routes>
+          <Route path="*" element={<Navigate to={`/public-profile/${match[1]}`} replace />} />
+          <Route path="/public-profile/:id" element={<PublicProfile />} />
+        </Routes>
+      </Router>
+    );
+  }
+
   return (
     <Router>
       <ScrollToTop />
       <Routes>
+        {/* Public QR scan page */}
+        <Route path="/public-profile/:id" element={<PublicProfile />} />
+
         {/* Dashboard Layout */}
         <Route
           element={
