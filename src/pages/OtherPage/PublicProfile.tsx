@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import axios from 'axios';
+import api from '../../services/api';
 
 interface ProfileData {
   id: string;
@@ -19,17 +19,7 @@ export default function PublicProfile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const getApiUrl = () => {
-    const viteApiUrl = import.meta.env.VITE_API_URL;
-    if (viteApiUrl) {
-      return viteApiUrl.endsWith('/api') ? viteApiUrl : `${viteApiUrl}/api`;
-    }
-    return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-      ? 'http://localhost:3000/api'
-      : '/api';
-  };
-
-  const apiUrl = getApiUrl();
+  const apiUrl = api.defaults.baseURL || '';
   const photoUrl = id ? `${apiUrl}/auth/public-profile/photo/${id}` : '';
 
   useEffect(() => {
@@ -41,7 +31,7 @@ export default function PublicProfile() {
 
     const fetchProfile = async () => {
       try {
-        const response = await axios.get(`${apiUrl}/auth/public-profile/${id}`);
+        const response = await api.get(`/auth/public-profile/${id}`);
         setProfile(response.data);
       } catch (err: any) {
         console.error(err);
