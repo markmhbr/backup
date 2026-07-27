@@ -36,6 +36,7 @@ const IzinSakit: React.FC = () => {
   const [activeIzins, setActiveIzins] = useState<any[]>([]);
   const [isHoliday, setIsHoliday] = useState(false);
   const [holidayReason, setHolidayReason] = useState("");
+  const [checkingHoliday, setCheckingHoliday] = useState(true);
 
   // Check Holiday Status
   useEffect(() => {
@@ -73,6 +74,8 @@ const IzinSakit: React.FC = () => {
         }
       } catch (err) {
         console.error("Failed to check holiday status:", err);
+      } finally {
+        setCheckingHoliday(false);
       }
     };
 
@@ -279,6 +282,14 @@ const IzinSakit: React.FC = () => {
       setLoading(false);
     }
   };
+
+  if (checkingHoliday) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-500"></div>
+      </div>
+    );
+  }
 
   if (isHoliday) {
     return (
