@@ -36,6 +36,7 @@ interface GtkAttendance {
     jenis: number;
     keterangan: string;
   } | null;
+  hasJadwalToday?: boolean;
 }
 
 const PresensiGTK: React.FC = () => {
@@ -53,6 +54,7 @@ const PresensiGTK: React.FC = () => {
     return `${year}-${month}-${day}`;
   });
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedGtkType, setSelectedGtkType] = useState<string>("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
@@ -114,6 +116,7 @@ const PresensiGTK: React.FC = () => {
   useEffect(() => {
     setCurrentPage(1);
     setSearchTerm("");
+    setSelectedGtkType("");
   }, [activeTab]);
 
 
@@ -136,23 +139,45 @@ const PresensiGTK: React.FC = () => {
     fetchAttendance();
   }, [fetchAttendance]);
 
-  // Filtered list (Hadir / Terlambat / Izin / Sakit)
+  // Filtered list (Hadir / Terlambat / Izin / Sakit / Tidak ada jadwal)
   const filteredData = data.filter((item) => {
     const hasStatus = item.presensi?.status_masuk;
-    const isPresent = hasStatus === 1 || hasStatus === 2 || hasStatus === 3 || hasStatus === 4;
+    const isPresent = hasStatus === 1 || hasStatus === 2 || hasStatus === 3 || hasStatus === 4 || item.hasJadwalToday === false;
     if (!isPresent) return false;
 
+    let matchGtkType = true;
+    if (selectedGtkType) {
+      const isGuru = (item.jenis_ptk_id_str || "").toLowerCase().includes("guru");
+      if (selectedGtkType === "guru") {
+        matchGtkType = isGuru;
+      } else if (selectedGtkType === "tendik") {
+        matchGtkType = !isGuru;
+      }
+    }
+
     return (
-      item.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.nuptk && item.nuptk.includes(searchTerm))
+      matchGtkType &&
+      (item.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.nuptk && item.nuptk.includes(searchTerm)))
     );
   });
 
   // Filtered list for Kelola tab (tampilkan semua GTK)
   const kelolaFilteredData = data.filter((item) => {
+    let matchGtkType = true;
+    if (selectedGtkType) {
+      const isGuru = (item.jenis_ptk_id_str || "").toLowerCase().includes("guru");
+      if (selectedGtkType === "guru") {
+        matchGtkType = isGuru;
+      } else if (selectedGtkType === "tendik") {
+        matchGtkType = !isGuru;
+      }
+    }
+
     return (
-      item.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.nuptk && item.nuptk.includes(searchTerm))
+      matchGtkType &&
+      (item.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.nuptk && item.nuptk.includes(searchTerm)))
     );
   });
 
@@ -258,7 +283,22 @@ const PresensiGTK: React.FC = () => {
                   />
                 </div>
 
-                <div className="w-full sm:w-48">
+                <div className="w-full sm:w-44">
+                  <Select
+                    options={[
+                      { value: "", label: "Semua GTK" },
+                      { value: "guru", label: "Guru" },
+                      { value: "tendik", label: "Tenaga Kependidikan" },
+                    ]}
+                    defaultValue={selectedGtkType}
+                    onChange={(value) => {
+                      setSelectedGtkType(value);
+                      setCurrentPage(1);
+                    }}
+                  />
+                </div>
+
+                <div className="w-full sm:w-44">
                   <Input
                     type="date"
                     value={selectedDate}
@@ -311,7 +351,9 @@ const PresensiGTK: React.FC = () => {
                         // Status determination
                         let statusBadge = <Badge color="light">Belum Presensi</Badge>;
 
-                        if (statusMasuk === 3) {
+                        if (item.hasJadwalToday === false) {
+                          statusBadge = <Badge color="light">Tidak ada jadwal ngajar</Badge>;
+                        } else if (statusMasuk === 3) {
                           statusBadge = <Badge color="info">Izin</Badge>;
                         } else if (statusMasuk === 4) {
                           statusBadge = <Badge color="warning">Sakit</Badge>;
@@ -405,7 +447,22 @@ const PresensiGTK: React.FC = () => {
                   />
                 </div>
 
-                <div className="w-full sm:w-48">
+                <div className="w-full sm:w-44">
+                  <Select
+                    options={[
+                      { value: "", label: "Semua GTK" },
+                      { value: "guru", label: "Guru" },
+                      { value: "tendik", label: "Tenaga Kependidikan" },
+                    ]}
+                    defaultValue={selectedGtkType}
+                    onChange={(value) => {
+                      setSelectedGtkType(value);
+                      setCurrentPage(1);
+                    }}
+                  />
+                </div>
+
+                <div className="w-full sm:w-44">
                   <Input
                     type="date"
                     value={selectedDate}
@@ -451,7 +508,9 @@ const PresensiGTK: React.FC = () => {
                         const statusMasuk = item.presensi?.status_masuk;
 
                         let statusBadge = <Badge color="light">Belum Presensi</Badge>;
-                        if (statusMasuk === 1) {
+                        if (item.hasJadwalToday === false) {
+                          statusBadge = <Badge color="light">Tidak ada jadwal ngajar</Badge>;
+                        } else if (statusMasuk === 1) {
                           statusBadge = <Badge color="success">Hadir</Badge>;
                         } else if (statusMasuk === 2) {
                           statusBadge = <Badge color="warning">Terlambat</Badge>;
@@ -488,52 +547,57 @@ const PresensiGTK: React.FC = () => {
                                 value={keteranganMap[item.ptk_id] || ""}
                                 onChange={(e) => handleKeteranganChange(item.ptk_id, e.target.value)}
                                 placeholder="Tambah keterangan..."
-                                className="w-full min-w-[150px] px-2 py-1 text-xs border rounded-lg border-gray-200 dark:border-gray-800 bg-transparent text-gray-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-500 focus:border-brand-500 transition-colors"
+                                disabled={item.hasJadwalToday === false}
+                                className="w-full min-w-[150px] px-2 py-1 text-xs border rounded-lg border-gray-200 dark:border-gray-800 bg-transparent text-gray-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-500 focus:border-brand-500 transition-colors disabled:opacity-50"
                               />
                             </TableCell>
                             <TableCell className="px-5 py-3.5">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <button
-                                  onClick={() => handleQuickAbsent(item.ptk_id, "7")}
-                                  className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all duration-150 ${
-                                    isHadirActive 
-                                      ? "bg-green-500 text-white border-green-500" 
-                                      : "border-green-500 text-green-600 hover:bg-green-50 dark:hover:bg-green-950/20"
-                                  }`}
-                                >
-                                  Hadir
-                                </button>
-                                <button
-                                  onClick={() => handleQuickAbsent(item.ptk_id, "5")}
-                                  className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all duration-150 ${
-                                    isSakitActive 
-                                      ? "bg-blue-500 text-white border-blue-500" 
-                                      : "border-blue-500 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/20"
-                                  }`}
-                                >
-                                  Sakit
-                                </button>
-                                <button
-                                  onClick={() => handleQuickAbsent(item.ptk_id, "4")}
-                                  className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all duration-150 ${
-                                    isIzinActive 
-                                      ? "bg-yellow-500 text-white border-yellow-500" 
-                                      : "border-yellow-500 text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-950/20"
-                                  }`}
-                                >
-                                  Izin
-                                </button>
-                                <button
-                                  onClick={() => handleQuickAbsent(item.ptk_id, "6")}
-                                  className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all duration-150 ${
-                                    isAlphaActive 
-                                      ? "bg-red-500 text-white border-red-500" 
-                                      : "border-red-500 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
-                                  }`}
-                                >
-                                  Alpha
-                                </button>
-                              </div>
+                              {item.hasJadwalToday === false ? (
+                                <span className="text-gray-400 text-xs italic">Tidak ada jadwal ngajar</span>
+                              ) : (
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <button
+                                    onClick={() => handleQuickAbsent(item.ptk_id, "7")}
+                                    className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all duration-150 ${
+                                      isHadirActive 
+                                        ? "bg-green-500 text-white border-green-500" 
+                                        : "border-green-500 text-green-600 hover:bg-green-50 dark:hover:bg-green-950/20"
+                                    }`}
+                                  >
+                                    Hadir
+                                  </button>
+                                  <button
+                                    onClick={() => handleQuickAbsent(item.ptk_id, "5")}
+                                    className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all duration-150 ${
+                                      isSakitActive 
+                                        ? "bg-blue-500 text-white border-blue-500" 
+                                        : "border-blue-500 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/20"
+                                    }`}
+                                  >
+                                    Sakit
+                                  </button>
+                                  <button
+                                    onClick={() => handleQuickAbsent(item.ptk_id, "4")}
+                                    className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all duration-150 ${
+                                      isIzinActive 
+                                        ? "bg-yellow-500 text-white border-yellow-500" 
+                                        : "border-yellow-500 text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-950/20"
+                                    }`}
+                                  >
+                                    Izin
+                                  </button>
+                                  <button
+                                    onClick={() => handleQuickAbsent(item.ptk_id, "6")}
+                                    className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all duration-150 ${
+                                      isAlphaActive 
+                                        ? "bg-red-500 text-white border-red-500" 
+                                        : "border-red-500 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+                                    }`}
+                                  >
+                                    Alpha
+                                  </button>
+                                </div>
+                              )}
                             </TableCell>
                           </TableRow>
                         );

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import PageMeta from "../../../components/common/PageMeta";
 import { presensiService } from "../../../services/presensiService";
 import { dapodikService } from "../../../services/dapodikService";
+import { jadwalService } from "../../../services/jadwalService";
 import ComponentCard from "../../../components/common/ComponentCard";
 import { useSekolah } from "../../../context/SekolahContext";
 import Swal from "sweetalert2";
@@ -33,6 +34,50 @@ const IzinSakit: React.FC = () => {
   const [manualToken, setManualToken] = useState("");
   const [scannedSubjects, setScannedSubjects] = useState<Record<string, any>>({});
   const [activeIzins, setActiveIzins] = useState<any[]>([]);
+  const [isHoliday, setIsHoliday] = useState(false);
+  const [holidayReason, setHolidayReason] = useState("");
+
+  // Check Holiday Status
+  useEffect(() => {
+    const checkHolidayStatus = async () => {
+      if (!sekolah?.sekolah_id) return;
+      try {
+        const wibDate = new Date(new Date().getTime() + 7 * 60 * 60 * 1000);
+        const todayStr = wibDate.toISOString().split('T')[0];
+
+        // 1. Check scheduled holidays
+        const holidays = await presensiService.getHariLibur(sekolah.sekolah_id);
+        const matchHoliday = holidays?.find((h: any) => {
+          const start = new Date(h.tanggal_mulai).toISOString().split('T')[0];
+          const end = new Date(h.tanggal_selesai).toISOString().split('T')[0];
+          return todayStr >= start && todayStr <= end;
+        });
+
+        if (matchHoliday) {
+          setIsHoliday(true);
+          setHolidayReason(`Hari ini sekolah sedang libur: ${matchHoliday.nama}`);
+          return;
+        }
+
+        // 2. Check weekly holiday
+        const jenisRes = await jadwalService.getJenisJadwal();
+        const activeSchedule = jenisRes.data?.find((j: any) => j.aktif);
+        if (activeSchedule) {
+          const activeDays = activeSchedule.pengaturan_hari?.filter((h: any) => h.aktif).map((h: any) => h.hari) || [1, 2, 3, 4, 5, 6];
+          const dayOfWeek = wibDate.getUTCDay() === 0 ? 7 : wibDate.getUTCDay();
+          if (!activeDays.includes(dayOfWeek)) {
+            setIsHoliday(true);
+            setHolidayReason("Hari ini merupakan libur akhir pekan");
+            return;
+          }
+        }
+      } catch (err) {
+        console.error("Failed to check holiday status:", err);
+      }
+    };
+
+    checkHolidayStatus();
+  }, [sekolah?.sekolah_id]);
 
   const getCurrentTimeStr = (offsetHours = 0) => {
     const d = new Date();
@@ -49,14 +94,14 @@ const IzinSakit: React.FC = () => {
       try {
         const rombelRes = await dapodikService.getRombonganBelajar('reguler', 100);
         setRombels(rombelRes.data || []);
-        
+
         const gtkRes = await dapodikService.getGTK(200, '', 1);
         setGtks(gtkRes.data || []);
       } catch (err) {
         console.error("Failed to load search data for permission:", err);
       }
     };
-    
+
     loadInitialData();
   }, [sekolah?.sekolah_id]);
 
@@ -74,7 +119,7 @@ const IzinSakit: React.FC = () => {
         console.error("Failed to load students for rombel:", err);
       }
     };
-    
+
     loadStudents();
     setSelectedIds([]); // Clear selection when rombel changes
   }, [selectedRombel]);
@@ -101,10 +146,10 @@ const IzinSakit: React.FC = () => {
       if (res && res.data) {
         const id = res.type === 'pd' ? res.data.peserta_didik_id : res.data.ptk_id;
         const name = res.data.nama;
-        
+
         // Add to scanned subjects lookup map to render name later
         setScannedSubjects(prev => ({ ...prev, [id]: res.data }));
-        
+
         // Set type and check checkbox
         setSubjectType(res.type);
         setSelectedIds(prev => prev.includes(id) ? prev : [...prev, id]);
@@ -157,22 +202,7 @@ const IzinSakit: React.FC = () => {
     }
   };
 
-  const handleSetujuiIzin = async (izinId: string) => {
-    if (!sekolah) return;
-    try {
-      await presensiService.setujuiIzinKeluar(sekolah.sekolah_id, izinId);
-      Swal.fire({
-        title: 'Disetujui!',
-        text: 'Siswa diperbolehkan melakukan presensi pulang.',
-        icon: 'success',
-        timer: 1500,
-        showConfirmButton: false,
-      });
-      loadActiveIzins();
-    } catch (err: any) {
-      Swal.fire('Gagal!', err.response?.data?.message || 'Gagal menyetujui', 'error');
-    }
-  };
+
 
   const handleDeleteIzin = async (izinId: string) => {
     if (!sekolah) return;
@@ -201,7 +231,7 @@ const IzinSakit: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedIds.length === 0 || !sekolah) return;
-    
+
     setLoading(true);
     try {
       // Loop through all checked IDs and trigger createIzin in parallel
@@ -215,7 +245,7 @@ const IzinSakit: React.FC = () => {
       });
 
       await Promise.all(promises);
-      
+
       loadActiveIzins(); // Refresh exit permissions list
 
       Swal.fire({
@@ -226,7 +256,7 @@ const IzinSakit: React.FC = () => {
         background: document.documentElement.classList.contains('dark') ? '#1e293b' : '#ffffff',
         color: document.documentElement.classList.contains('dark') ? '#f1f5f9' : '#1e293b',
       });
-      
+
       // Clear selection and reset
       setSelectedIds([]);
       setFormData({
@@ -250,13 +280,35 @@ const IzinSakit: React.FC = () => {
     }
   };
 
+  if (isHoliday) {
+    return (
+      <>
+        <PageMeta
+          title="Input Izin | SIMAK"
+          description="Halaman input izin peserta didik dan GTK"
+        />
+        <div className="flex flex-col items-center justify-center min-h-[400px] p-6 bg-white dark:bg-white/[0.03] border border-gray-200 dark:border-gray-800 rounded-2xl text-center">
+          <div className="w-16 h-16 bg-amber-50 dark:bg-amber-500/10 text-amber-500 rounded-full flex items-center justify-center mb-4 text-2xl font-bold">
+            ⚠️
+          </div>
+          <h3 className="text-lg font-bold text-gray-800 dark:text-white/90">
+            Sekolah Libur
+          </h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 max-w-md">
+            {holidayReason}. Tidak dapat melakukan pencatatan atau input izin pada hari libur.
+          </p>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <PageMeta
         title="Input Izin | SIMAK"
         description="Halaman input izin peserta didik dan GTK"
       />
-      
+
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 mb-6">
         <div>
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
@@ -274,7 +326,7 @@ const IzinSakit: React.FC = () => {
             <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">
               Pilih kategori subjek (Peserta Didik atau GTK) untuk mencatat izin.
             </p>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
@@ -304,11 +356,10 @@ const IzinSakit: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowScanner(!showScanner)}
-                  className={`w-full flex items-center justify-center gap-2 rounded-lg border py-2.5 px-4 text-sm font-semibold transition-colors cursor-pointer ${
-                    showScanner
+                  className={`w-full flex items-center justify-center gap-2 rounded-lg border py-2.5 px-4 text-sm font-semibold transition-colors cursor-pointer ${showScanner
                       ? "border-brand-500 bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400"
                       : "border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-                  }`}
+                    }`}
                 >
                   <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h.01M16 20h2M16 8h2m-2 4h2m-6-8h2M6 20h2M6 16h2M6 12h2M6 8h2m-2-4h2" />
@@ -320,7 +371,7 @@ const IzinSakit: React.FC = () => {
               {showScanner && (
                 <div className="space-y-4 pt-2 border-t border-gray-100 dark:border-gray-800">
                   <QrScanner onScanSuccess={handleScan} />
-                  
+
                   <div>
                     <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
                       Input Kode Manual
@@ -530,7 +581,7 @@ const IzinSakit: React.FC = () => {
                   <span className="text-sm font-semibold text-brand-600 dark:text-brand-400 block mb-2">Subjek Terpilih ({selectedIds.length}):</span>
                   <div className="flex flex-wrap gap-2">
                     {selectedIds.map(id => {
-                      const name = subjectType === 'pd' 
+                      const name = subjectType === 'pd'
                         ? students.find(s => s.peserta_didik_id === id)?.nama || scannedSubjects[id]?.nama || "Siswa tidak dikenal"
                         : gtks.find(g => g.ptk_id === id)?.nama || scannedSubjects[id]?.nama || "GTK tidak dikenal";
                       return (
@@ -548,12 +599,12 @@ const IzinSakit: React.FC = () => {
                       Jenis Izin
                     </label>
                     <div className="relative">
-                      <select 
+                      <select
                         value={formData.jenis}
                         onChange={(e) => {
                           const val = parseInt(e.target.value);
-                          setFormData({ 
-                            ...formData, 
+                          setFormData({
+                            ...formData,
                             jenis: val,
                             jam_keluar: val === 2 ? getCurrentTimeStr() : "",
                             jam_kembali_estimasi: val === 2 ? getCurrentTimeStr(1) : "",
@@ -643,13 +694,11 @@ const IzinSakit: React.FC = () => {
             )}
           </ComponentCard>
         </div>
-      </div>
-
-      <div className="mt-6">
-        <ComponentCard title="Daftar Izin Keluar Hari Ini">
+      </div>      <div className="mt-6">
+        <ComponentCard title="Daftar Izin Hari Ini">
           {activeIzins.length === 0 ? (
             <p className="text-center py-8 text-gray-500 dark:text-gray-400 text-sm">
-              Tidak ada data izin keluar untuk hari ini.
+              Tidak ada data izin untuk hari ini.
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -658,11 +707,8 @@ const IzinSakit: React.FC = () => {
                   <tr>
                     <th className="px-6 py-4 font-medium">Subjek</th>
                     <th className="px-6 py-4 font-medium">Tipe</th>
-                    <th className="px-6 py-4 font-medium">Jam Keluar</th>
-                    <th className="px-6 py-4 font-medium">Jam Kembali (Estimasi)</th>
-                    <th className="px-6 py-4 font-medium">Jam Kembali (Aktual)</th>
+                    <th className="px-6 py-4 font-medium">Jenis Izin</th>
                     <th className="px-6 py-4 font-medium">Keterangan</th>
-                    <th className="px-6 py-4 font-medium">Status</th>
                     <th className="px-6 py-4 font-medium text-right">Aksi</th>
                   </tr>
                 </thead>
@@ -671,58 +717,16 @@ const IzinSakit: React.FC = () => {
                     const isPD = !!iz.peserta_didik_id;
                     const nama = isPD ? iz.peserta_didik?.nama : iz.gtk?.nama;
                     const identitas = isPD ? iz.peserta_didik?.nama_rombel : iz.gtk?.nuptk || "-";
-                    const tipeLabel = isPD ? "Siswa" : "GTK";
-
-                    // Format timestamps
-                    const formatTime = (timeStr?: string) => {
-                      if (!timeStr) return "-";
-                      const date = new Date(timeStr);
-                      return date.toLocaleTimeString("id-ID", { hour: '2-digit', minute: '2-digit' }) + " WIB";
-                    };
-
-                    const jamKeluar = formatTime(iz.jam_keluar);
-                    const jamEstimasi = formatTime(iz.jam_kembali_estimasi);
-                    const jamKembali = formatTime(iz.jam_kembali);
-
-                    // Determine Status and Badge Color
-                    let statusLabel = "Belum Kembali";
-                    let badgeClass = "bg-yellow-100 text-yellow-800 dark:bg-yellow-500/15 dark:text-yellow-400";
-
-                    const now = new Date();
-                    const isReturned = iz.jam_kembali !== null;
-                    const actualReturn = isReturned ? new Date(iz.jam_kembali) : null;
-                    const estimatedReturn = iz.jam_kembali_estimasi ? new Date(iz.jam_kembali_estimasi) : null;
-
-                    const isLate = estimatedReturn && (
-                      isReturned
-                        ? actualReturn! > estimatedReturn
-                        : now > estimatedReturn
-                    );
-
-                    if (isReturned) {
-                      if (isLate) {
-                        if (iz.disetujui) {
-                          statusLabel = "Terlambat (Disetujui)";
-                          badgeClass = "bg-blue-100 text-blue-800 dark:bg-blue-500/15 dark:text-blue-400";
-                        } else {
-                          statusLabel = "Terlambat Kembali";
-                          badgeClass = "bg-red-100 text-red-800 dark:bg-red-500/15 dark:text-red-400";
-                        }
-                      } else {
-                        statusLabel = "Kembali Tepat Waktu";
-                        badgeClass = "bg-green-100 text-green-800 dark:bg-green-500/15 dark:text-green-400";
-                      }
-                    } else {
-                      if (isLate) {
-                        if (iz.disetujui) {
-                          statusLabel = "Terlambat (Disetujui)";
-                          badgeClass = "bg-blue-100 text-blue-800 dark:bg-blue-500/15 dark:text-blue-400";
-                        } else {
-                          statusLabel = "Terlambat (Belum Kembali)";
-                          badgeClass = "bg-red-100 text-red-800 dark:bg-red-500/15 dark:text-red-400";
-                        }
-                      }
-                    }
+                    const tipeLabel = isPD 
+                      ? "Peserta Didik" 
+                      : (((iz.gtk?.jenis_ptk_id_str || "").toLowerCase().includes("guru") || (iz.gtk?.jenis_ptk_id_str || "").toLowerCase().includes("pendidik")) ? "Guru" : "Tendik");
+                    
+                    const jenisIzinLabel = iz.jenis === 1 ? "Izin Terlambat" : (iz.jenis === 2 ? "Izin Keluar" : "Izin Pulang Awal");
+                    const jenisIzinColor = iz.jenis === 1 
+                      ? "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-400" 
+                      : (iz.jenis === 2 
+                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-400"
+                          : "bg-blue-100 text-blue-800 dark:bg-blue-500/15 dark:text-blue-400");
 
                     return (
                       <tr key={iz.izin_id} className="hover:bg-gray-50/50 dark:hover:bg-white/[0.01]">
@@ -731,24 +735,19 @@ const IzinSakit: React.FC = () => {
                           <span className="text-xs text-gray-500 block">{identitas}</span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${
-                            isPD ? "bg-purple-100 text-purple-800 dark:bg-purple-500/15 dark:text-purple-400" : "bg-cyan-100 text-cyan-800 dark:bg-cyan-500/15 dark:text-cyan-400"
-                          }`}>
+                          <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${isPD ? "bg-purple-100 text-purple-800 dark:bg-purple-500/15 dark:text-purple-400" : "bg-cyan-100 text-cyan-800 dark:bg-cyan-500/15 dark:text-cyan-400"}`}>
                             {tipeLabel}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">{jamKeluar}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">{jamEstimasi}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">{jamKembali}</td>
-                        <td className="px-6 py-4 max-w-xs truncate">{iz.keterangan || "-"}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${badgeClass}`}>
-                            {statusLabel}
+                          <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${jenisIzinColor}`}>
+                            {jenisIzinLabel}
                           </span>
                         </td>
+                        <td className="px-6 py-4 max-w-xs truncate">{iz.keterangan || "-"}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <div className="flex justify-end gap-2">
-                            {!isReturned && (
+                            {iz.jenis === 2 && !iz.jam_kembali && (
                               <button
                                 type="button"
                                 onClick={() => handleCatatKembali(iz.izin_id)}
@@ -757,19 +756,10 @@ const IzinSakit: React.FC = () => {
                                 Catat Kembali
                               </button>
                             )}
-                            {isLate && !iz.disetujui && (
-                              <button
-                                type="button"
-                                onClick={() => handleSetujuiIzin(iz.izin_id)}
-                                className="text-xs text-brand-600 hover:text-brand-900 dark:text-brand-400 dark:hover:text-brand-300 font-semibold px-2 py-1 border border-brand-500/30 rounded-lg bg-brand-500/5 hover:bg-brand-500/10 cursor-pointer"
-                              >
-                                Setujui Pulang
-                              </button>
-                            )}
                             <button
                               type="button"
                               onClick={() => handleDeleteIzin(iz.izin_id)}
-                              className="text-xs text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 font-semibold px-2 py-1 border border-red-500/30 rounded-lg bg-red-500/5 hover:bg-red-500/10 cursor-pointer"
+                              className="text-xs text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 font-semibold px-2.5 py-1.5 border border-red-500/30 rounded-lg bg-red-500/5 hover:bg-red-500/10 cursor-pointer"
                             >
                               Hapus
                             </button>

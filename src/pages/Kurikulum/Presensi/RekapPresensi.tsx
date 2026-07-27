@@ -18,6 +18,8 @@ import Input from "../../../components/form/input/InputField";
 import Pagination from "../../../components/common/Pagination";
 import Badge from "../../../components/ui/badge/Badge";
 import { SearchIcon } from "../../../icons";
+import * as XLSX from "xlsx";
+import Swal from "sweetalert2";
 
 interface DailyItem {
   id: string;
@@ -28,6 +30,7 @@ interface DailyItem {
   jamMasuk: string | null;
   jamPulang: string | null;
   status: number | null;
+  hasJadwalToday?: boolean;
 }
 
 interface PeriodikItem {
@@ -75,9 +78,10 @@ const RekapPresensi: React.FC = () => {
   const [selectedYear, setSelectedYear] = useState(() => String(new Date().getFullYear()));
   
   const [rekapMode, setRekapMode] = useState<"bulanan" | "semesteran">("bulanan");
-  const [rekapTarget, setRekapTarget] = useState<"pd" | "gtk">("pd");
+  const [rekapTarget, setRekapTarget] = useState<"pd" | "guru" | "tendik">("pd");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedClass, setSelectedClass] = useState("");
+  const [selectedGtkType, setSelectedGtkType] = useState<string>("");
   const [classes, setClasses] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -134,6 +138,7 @@ const RekapPresensi: React.FC = () => {
           jamMasuk: item.presensi?.jam_masuk || null,
           jamPulang: item.presensi?.jam_pulang || null,
           status: item.presensi?.status_masuk || null,
+          hasJadwalToday: item.hasJadwalToday,
         }));
         setDailyData(mapped);
       } else if (activeTab === "book-presensi") {
@@ -165,29 +170,53 @@ const RekapPresensi: React.FC = () => {
           }
         }
 
-        const response = await presensiService.getRekapPeriodik(sekolah.sekolah_id, selectedClass, start, end, rekapTarget);
+        const targetType = rekapTarget === "pd" ? "pd" : "gtk";
+        const response = await presensiService.getRekapPeriodik(sekolah.sekolah_id, selectedClass, start, end, targetType);
         setPeriodikData(response.data || []);
         setDbHolidays(response.holidays || []);
         setActiveDays(response.activeDays || [1, 2, 3, 4, 5, 6]);
       } else if (activeTab === "no-pulang") {
-        const response = await presensiService.getRekapPesertaDidik(sekolah.sekolah_id, selectedDate);
-        const filtered = response
-          .filter((item: any) => {
-            const hasMasuk = !!item.presensi?.jam_masuk;
-            const noPulang = !item.presensi?.jam_pulang;
-            return hasMasuk && noPulang;
-          })
-          .map((item: any) => ({
-            id: item.peserta_didik_id,
-            nama: item.nama,
-            identitas: item.nisn || "-",
-            rombelOrJabatan: item.nama_rombel || "-",
-            foto: item.foto,
-            jamMasuk: item.presensi?.jam_masuk || null,
-            jamPulang: null,
-            status: item.presensi?.status_masuk || null,
-          }));
-        setNoPulangData(filtered);
+        if (rekapTarget === "pd") {
+          const response = await presensiService.getRekapPesertaDidik(sekolah.sekolah_id, selectedDate);
+          const filtered = response
+            .filter((item: any) => {
+              const hasMasuk = !!item.presensi?.jam_masuk;
+              const noPulang = !item.presensi?.jam_pulang;
+              return hasMasuk && noPulang;
+            })
+            .map((item: any) => ({
+              id: item.peserta_didik_id,
+              nama: item.nama,
+              identitas: item.nisn || "-",
+              rombelOrJabatan: item.nama_rombel || "-",
+              foto: item.foto,
+              jamMasuk: item.presensi?.jam_masuk || null,
+              jamPulang: null,
+              status: item.presensi?.status_masuk || null,
+            }));
+          setNoPulangData(filtered);
+        } else {
+          const response = await presensiService.getRekapGtk(sekolah.sekolah_id, selectedDate);
+          const filtered = response
+            .filter((item: any) => {
+              const hasMasuk = !!item.presensi?.jam_masuk;
+              const noPulang = !item.presensi?.jam_pulang;
+              const isGuru = (item.jenis_ptk_id_str || item.jabatan || "").toLowerCase().includes("guru");
+              const matchesType = rekapTarget === "guru" ? isGuru : !isGuru;
+              return hasMasuk && noPulang && matchesType;
+            })
+            .map((item: any) => ({
+              id: item.ptk_id,
+              nama: item.nama,
+              identitas: item.nuptk || "-",
+              rombelOrJabatan: item.jenis_ptk_id_str || item.jabatan || "Guru/Staf",
+              foto: item.foto,
+              jamMasuk: item.presensi?.jam_masuk || null,
+              jamPulang: null,
+              status: item.presensi?.status_masuk || null,
+            }));
+          setNoPulangData(filtered);
+        }
       }
     } catch (err: any) {
       setError(err.response?.data?.message || "Gagal mengambil data presensi.");
@@ -203,6 +232,7 @@ const RekapPresensi: React.FC = () => {
   useEffect(() => {
     setCurrentPage(1);
     setSearchTerm("");
+    setSelectedGtkType("");
   }, [activeTab, selectedClass, rekapMode, rekapTarget, selectedMonth, selectedSemester, selectedYear]);
 
   // Generate dynamic date list for Book Presensi Grid
@@ -239,13 +269,34 @@ const RekapPresensi: React.FC = () => {
     return dailyData.filter((item) => {
       const matchSearch = item.nama.toLowerCase().includes(searchTerm.toLowerCase()) || item.identitas.includes(searchTerm);
       const matchClass = (activeTab === "daily-pd" && selectedClass) ? item.rombelOrJabatan === selectedClass : true;
-      return matchSearch && matchClass;
+      
+      let matchGtkType = true;
+      if (activeTab === "daily-gtk" && selectedGtkType) {
+        const isGuru = item.rombelOrJabatan.toLowerCase().includes("guru");
+        if (selectedGtkType === "guru") {
+          matchGtkType = isGuru;
+        } else if (selectedGtkType === "tendik") {
+          matchGtkType = !isGuru;
+        }
+      }
+
+      return matchSearch && matchClass && matchGtkType;
     });
   };
 
   const getFilteredPeriodik = () => {
-    return periodikData.filter((item) => {
-      return item.nama.toLowerCase().includes(searchTerm.toLowerCase()) || (item.nisn && item.nisn.includes(searchTerm));
+    return periodikData.filter((item: any) => {
+      const matchSearch = item.nama.toLowerCase().includes(searchTerm.toLowerCase()) || (item.nisn && item.nisn.includes(searchTerm));
+      
+      let matchGtkType = true;
+      const isGuru = (item.jenis_ptk_id_str || "").toLowerCase().includes("guru");
+      if (rekapTarget === "guru") {
+        matchGtkType = isGuru;
+      } else if (rekapTarget === "tendik") {
+        matchGtkType = !isGuru;
+      }
+
+      return matchSearch && matchGtkType;
     });
   };
 
@@ -380,6 +431,119 @@ const RekapPresensi: React.FC = () => {
     return { H, S, I, A };
   };
 
+  const handleExportExcel = () => {
+    try {
+      const isPeriodik = activeTab === "book-presensi";
+      const isNoPulang = activeTab === "no-pulang";
+      const dataList = isPeriodik 
+        ? getFilteredPeriodik() 
+        : (isNoPulang ? getFilteredDaily().filter(i => !!i.jamMasuk && !i.jamPulang) : getFilteredDaily());
+
+      let headers: string[] = [];
+      let rows: any[][] = [];
+      let fileName = "Rekap_Presensi";
+
+      if (activeTab === "daily-pd") {
+        headers = ["No", "Nama", "NISN", "Rombel", "Jam Masuk", "Jam Pulang", "Status"];
+        rows = (dataList as DailyItem[]).map((item, idx) => [
+          idx + 1,
+          item.nama,
+          item.identitas,
+          item.rombelOrJabatan,
+          item.jamMasuk ? formatTime(item.jamMasuk) : "-",
+          item.jamPulang ? formatTime(item.jamPulang) : "Belum Pulang",
+          item.status || "Belum Presensi"
+        ]);
+        fileName = `Rekap_Harian_Siswa_${selectedClass || "Semua"}_${selectedDate}`;
+      } else if (activeTab === "daily-gtk") {
+        headers = ["No", "Nama", "NUPTK", "Jabatan", "Jam Masuk", "Jam Pulang", "Status"];
+        rows = (dataList as DailyItem[]).map((item, idx) => [
+          idx + 1,
+          item.nama,
+          item.identitas,
+          item.rombelOrJabatan,
+          item.jamMasuk ? formatTime(item.jamMasuk) : "-",
+          item.jamPulang ? formatTime(item.jamPulang) : "Belum Pulang",
+          item.status || "Belum Presensi"
+        ]);
+        fileName = `Rekap_Harian_GTK_${selectedDate}`;
+      } else if (activeTab === "no-pulang") {
+        const idLabel = rekapTarget === "pd" ? "NISN" : "NUPTK";
+        const classLabel = rekapTarget === "pd" ? "Rombel" : "Jabatan";
+        headers = ["No", "Nama", idLabel, classLabel, "Jam Masuk", "Status"];
+        rows = (dataList as DailyItem[]).map((item, idx) => [
+          idx + 1,
+          item.nama,
+          item.identitas,
+          item.rombelOrJabatan,
+          item.jamMasuk ? formatTime(item.jamMasuk) : "-",
+          item.status || "Hadir"
+        ]);
+        fileName = `Belum_Presensi_Pulang_${rekapTarget.toUpperCase()}_${selectedDate}`;
+      } else if (activeTab === "book-presensi") {
+        const targetLabel = rekapTarget === "pd" ? "Siswa" : (rekapTarget === "guru" ? "Guru" : "Tendik");
+        if (rekapMode === "bulanan") {
+          headers = ["No", "Nama", ...datesInRange.map(d => d.label), "Hadir (H)", "Sakit (S)", "Izin (I)", "Alpha (A)"];
+          rows = (dataList as PeriodikItem[]).map((student, idx) => {
+            const totals = calculateTotals(student);
+            const statusCols = datesInRange.map((d: any) => {
+              const sym = getStatusSymbol(student, d.dateStr);
+              return sym.char || "-";
+            });
+            return [
+              idx + 1,
+              student.nama,
+              ...statusCols,
+              totals.H,
+              totals.S,
+              totals.I,
+              totals.A
+            ];
+          });
+          fileName = `Rekap_Bulanan_${targetLabel}_${selectedClass || "Semua"}_${selectedMonth}`;
+        } else {
+          headers = ["No", "Nama"];
+          datesInRange.forEach((d: any) => {
+            headers.push(`${d.label} (H)`, `${d.label} (S)`, `${d.label} (I)`, `${d.label} (A)`);
+          });
+          headers.push("Total H", "Total S", "Total I", "Total A");
+
+          rows = (dataList as PeriodikItem[]).map((student, idx) => {
+            const totals = calculateTotals(student);
+            const monthlyCols: number[] = [];
+            datesInRange.forEach((d: any) => {
+              const monthly = calculateMonthlyTotals(student, d.monthNum, d.yearNum);
+              monthlyCols.push(monthly.H, monthly.S, monthly.I, monthly.A);
+            });
+            return [
+              idx + 1,
+              student.nama,
+              ...monthlyCols,
+              totals.H,
+              totals.S,
+              totals.I,
+              totals.A
+            ];
+          });
+          fileName = `Rekap_Semesteran_${targetLabel}_${selectedClass || "Semua"}_Thn_${selectedYear}_Sem_${selectedSemester}`;
+        }
+      }
+
+      const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Rekap Presensi");
+      XLSX.writeFile(workbook, `${fileName}.xlsx`);
+    } catch (error) {
+      console.error("Gagal melakukan export Excel:", error);
+      Swal.fire({
+        title: "Gagal!",
+        text: "Terjadi kesalahan saat mengekspor data ke Excel.",
+        icon: "error",
+        confirmButtonColor: "#ef4444",
+      });
+    }
+  };
+
   const handlePrintPdf = async () => {
     const printWindow = window.open("", "_blank");
     if (!printWindow) {
@@ -388,7 +552,7 @@ const RekapPresensi: React.FC = () => {
     }
 
     const titleText = activeTab === "book-presensi" 
-      ? `Rekap Presensi - ${rekapTarget === "pd" ? "Siswa" : "GTK"} - ${rekapMode === "bulanan" ? "Bulanan" : "Semesteran"}`
+      ? `Rekap Presensi - ${rekapTarget === "pd" ? "Siswa" : (rekapTarget === "guru" ? "Guru" : "Tendik")} - ${rekapMode === "bulanan" ? "Bulanan" : "Semesteran"}`
       : `Rekap Presensi Harian - ${activeTab === "daily-pd" ? "Siswa" : "GTK"}`;
 
     const isPeriodik = activeTab === "book-presensi";
@@ -422,7 +586,7 @@ const RekapPresensi: React.FC = () => {
       : new Date(selectedDate).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
 
     // Cek apakah cetak Harian Siswa per Kelas
-    const isDailyPd = activeTab === "daily-pd" || activeTab === "no-pulang";
+    const isDailyPd = activeTab === "daily-pd" || (activeTab === "no-pulang" && rekapTarget === "pd");
 
     let pagesHtml = "";
     let thumbnailsHtml = "";
@@ -580,45 +744,45 @@ const RekapPresensi: React.FC = () => {
         const headerKopHtml = `
           <div style="font-weight: bold; font-size: 11px; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: flex-end;">
             <div>
-              <div style="font-size: 13px; font-weight: bold; margin-bottom: 4px;">Laporan Rekapitulasi Presensi Kehadiran ${isPeriodik ? (rekapTarget === "pd" ? "Peserta Didik" : "GTK") : "Harian"}</div>
-              ${isPeriodik && rekapTarget === "pd" ? `
-                <div style="font-size: 9px; font-weight: normal; color: #444; display: flex; gap: 15px;">
-                  <span><strong>Kelas:</strong> ${selectedClass || "-"}</span>
-                  <span><strong>Wali Kelas:</strong> ${waliKelasName}</span>
-                  <span><strong>Bulan/Periode:</strong> ${monthLabel}</span>
-                </div>
-              ` : (activeTab !== "daily-gtk" ? `
-                <div style="font-size: 9px; font-weight: normal; color: #444; display: flex; gap: 15px;">
-                  <span><strong>Kelas:</strong> ${selectedClass || "-"}</span>
-                  <span><strong>Wali Kelas:</strong> ${waliKelasName}</span>
-                  <span><strong>Tanggal:</strong> ${monthLabel}</span>
-                </div>
-              ` : `
-                <div style="font-size: 9px; font-weight: normal; color: #444;"><strong>Periode:</strong> ${monthLabel}</div>
-              `)}
-            </div>
-          </div>
-        `;
-
-        // Render Table for current page
-        let tableHtml = "";
-        if (isPeriodik) {
-          const isBulanan = rekapMode === "bulanan";
-          const headers = isBulanan
-            ? `
-              <tr>
-                <th style="width: 25px;">No.</th>
-                <th style="width: 110px; text-align: left;">Nama ${rekapTarget === "pd" ? "Siswa" : "GTK"}</th>
-                ${datesInRange.map(d => `<th style="width: 18px;">${d.label}</th>`).join("")}
-                <th style="width: 18px; color: #16a34a; background: #f0fdf4;">H</th>
-                <th style="width: 18px; color: #2563eb; background: #eff6ff;">S</th>
-                <th style="width: 18px; color: #d97706; background: #fffbeb;">I</th>
-                <th style="width: 18px; color: #dc2626; background: #fef2f2;">A</th>
-              </tr>`
-            : `
-              <tr>
-                <th rowspan="2" style="width: 25px;">No.</th>
-                <th rowspan="2" style="width: 110px; text-align: left;">Nama ${rekapTarget === "pd" ? "Siswa" : "GTK"}</th>
+               <div style="font-size: 13px; font-weight: bold; margin-bottom: 4px;">Laporan Rekapitulasi Presensi Kehadiran ${isPeriodik ? (rekapTarget === "pd" ? "Peserta Didik" : (rekapTarget === "guru" ? "Guru" : "Tendik")) : "Harian"}</div>
+               ${isPeriodik && rekapTarget === "pd" ? `
+                 <div style="font-size: 9px; font-weight: normal; color: #444; display: flex; gap: 15px;">
+                   <span><strong>Kelas:</strong> ${selectedClass || "-"}</span>
+                   <span><strong>Wali Kelas:</strong> ${waliKelasName}</span>
+                   <span><strong>Bulan/Periode:</strong> ${monthLabel}</span>
+                 </div>
+               ` : (activeTab !== "daily-gtk" ? `
+                 <div style="font-size: 9px; font-weight: normal; color: #444; display: flex; gap: 15px;">
+                   <span><strong>Kelas:</strong> ${selectedClass || "-"}</span>
+                   <span><strong>Wali Kelas:</strong> ${waliKelasName}</span>
+                   <span><strong>Tanggal:</strong> ${monthLabel}</span>
+                 </div>
+               ` : `
+                 <div style="font-size: 9px; font-weight: normal; color: #444;"><strong>Periode:</strong> ${monthLabel}</div>
+               `)}
+             </div>
+           </div>
+         `;
+ 
+         // Render Table for current page
+         let tableHtml = "";
+         if (isPeriodik) {
+           const isBulanan = rekapMode === "bulanan";
+           const headers = isBulanan
+             ? `
+               <tr>
+                 <th style="width: 25px;">No.</th>
+                 <th style="width: 110px; text-align: left;">Nama ${rekapTarget === "pd" ? "Siswa" : (rekapTarget === "guru" ? "Guru" : "Tendik")}</th>
+                 ${datesInRange.map(d => `<th style="width: 18px;">${d.label}</th>`).join("")}
+                 <th style="width: 18px; color: #16a34a; background: #f0fdf4;">H</th>
+                 <th style="width: 18px; color: #2563eb; background: #eff6ff;">S</th>
+                 <th style="width: 18px; color: #d97706; background: #fffbeb;">I</th>
+                 <th style="width: 18px; color: #dc2626; background: #fef2f2;">A</th>
+               </tr>`
+             : `
+               <tr>
+                 <th rowspan="2" style="width: 25px;">No.</th>
+                 <th rowspan="2" style="width: 110px; text-align: left;">Nama ${rekapTarget === "pd" ? "Siswa" : (rekapTarget === "guru" ? "Guru" : "Tendik")}</th>
                 ${datesInRange.map(d => `<th colspan="4" style="font-weight: bold;">${d.label}</th>`).join("")}
                 <th rowspan="2" style="width: 22px; color: #16a34a; background: #f0fdf4;">Tot H</th>
                 <th rowspan="2" style="width: 22px; color: #2563eb; background: #eff6ff;">Tot S</th>
@@ -1351,17 +1515,31 @@ const RekapPresensi: React.FC = () => {
           </p>
         </div>
         
-        {/* Tombol Cetak Rekap (Print / PDF Preview) */}
-        <button
-          onClick={handlePrintPdf}
-          disabled={loading || (activeTab === "book-presensi" && rekapTarget === "pd" && !selectedClass)}
-          className="flex items-center justify-center gap-2 rounded-lg bg-red-600 hover:bg-red-700 disabled:bg-gray-300 disabled:dark:bg-gray-800 disabled:text-gray-400 text-white font-semibold text-sm px-4 py-2.5 transition-colors no-print self-start md:self-auto"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-          </svg>
-          Cetak Rekap
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Export to Excel */}
+          <button
+            onClick={handleExportExcel}
+            disabled={loading || (activeTab === "book-presensi" && rekapTarget === "pd" && !selectedClass)}
+            className="flex items-center justify-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 disabled:dark:bg-gray-800 disabled:text-gray-400 text-white font-semibold text-sm px-4 py-2.5 transition-colors no-print cursor-pointer self-start md:self-auto"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Export Excel
+          </button>
+
+          {/* Tombol Cetak Rekap (Print / PDF Preview) */}
+          <button
+            onClick={handlePrintPdf}
+            disabled={loading || (activeTab === "book-presensi" && rekapTarget === "pd" && !selectedClass)}
+            className="flex items-center justify-center gap-2 rounded-lg bg-red-600 hover:bg-red-700 disabled:bg-gray-300 disabled:dark:bg-gray-800 disabled:text-gray-400 text-white font-semibold text-sm px-4 py-2.5 transition-colors no-print cursor-pointer self-start md:self-auto"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            </svg>
+            Cetak Rekap
+          </button>
+        </div>
       </div>
 
       <ComponentCard title="Laporan Presensi">
@@ -1441,12 +1619,13 @@ const RekapPresensi: React.FC = () => {
             </div>
 
             {/* Rekap Target (PD vs GTK) */}
-            {activeTab === "book-presensi" && (
+            {(activeTab === "book-presensi" || activeTab === "no-pulang") && (
               <div className="w-full sm:w-36">
                 <Select
                   options={[
                     { value: "pd", label: "Peserta Didik" },
-                    { value: "gtk", label: "GTK" },
+                    { value: "guru", label: "Guru" },
+                    { value: "tendik", label: "Tendik" },
                   ]}
                   defaultValue={rekapTarget}
                   onChange={(value: any) => {
@@ -1458,13 +1637,31 @@ const RekapPresensi: React.FC = () => {
             )}
 
             {/* Rombel Dropdown */}
-            {activeTab !== "daily-gtk" && !(activeTab === "book-presensi" && rekapTarget === "gtk") && (
+            {activeTab !== "daily-gtk" && !((activeTab === "book-presensi" || activeTab === "no-pulang") && (rekapTarget === "guru" || rekapTarget === "tendik")) && (
               <div className="w-full sm:w-48">
                 <Select
                   options={activeTab === "book-presensi" ? classRequiredOptions : classOptions}
                   defaultValue={selectedClass}
                   onChange={(value) => {
                     setSelectedClass(value);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            )}
+
+            {/* GTK Type Dropdown (Guru vs Tendik) */}
+            {activeTab === "daily-gtk" && (
+              <div className="w-full sm:w-48">
+                <Select
+                  options={[
+                    { value: "", label: "Semua GTK" },
+                    { value: "guru", label: "Guru" },
+                    { value: "tendik", label: "Tenaga Kependidikan" },
+                  ]}
+                  defaultValue={selectedGtkType}
+                  onChange={(value) => {
+                    setSelectedGtkType(value);
                     setCurrentPage(1);
                   }}
                 />
@@ -1610,7 +1807,7 @@ const RekapPresensi: React.FC = () => {
         {/* Print Header Tampilan Cetak */}
         <div className="print-header text-center border-b-2 border-double border-gray-800 pb-3">
           <h2 className="text-xl font-bold uppercase tracking-wider text-gray-900">{sekolah?.nama || "SIMAK SEKOLAH"}</h2>
-          <p className="text-xs text-gray-600 font-medium">Laporan Rekapitulasi Presensi Kehadiran ({activeTab === "book-presensi" ? (rekapTarget === "pd" ? "Peserta Didik" : "GTK") : "Harian"})</p>
+          <p className="text-xs text-gray-600 font-medium">Laporan Rekapitulasi Presensi Kehadiran ({activeTab === "book-presensi" ? (rekapTarget === "pd" ? "Peserta Didik" : (rekapTarget === "guru" ? "Guru" : "Tendik")) : "Harian"})</p>
           <p className="text-[10px] text-gray-500 mt-1">Dicetak pada: {new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })} WIB</p>
         </div>
 
@@ -1842,8 +2039,8 @@ const RekapPresensi: React.FC = () => {
                     <TableRow>
                       <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 whitespace-nowrap">No.</TableCell>
                       <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 whitespace-nowrap">Nama</TableCell>
-                      <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 whitespace-nowrap">{activeTab === "daily-gtk" ? "NUPTK" : "NISN"}</TableCell>
-                      <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 whitespace-nowrap">{activeTab === "daily-gtk" ? "Jabatan" : "Rombel"}</TableCell>
+                      <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 whitespace-nowrap">{(activeTab === "daily-gtk" || (activeTab === "no-pulang" && rekapTarget !== "pd")) ? "NUPTK" : "NISN"}</TableCell>
+                      <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 whitespace-nowrap">{(activeTab === "daily-gtk" || (activeTab === "no-pulang" && rekapTarget !== "pd")) ? "Jabatan" : "Rombel"}</TableCell>
                       <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 whitespace-nowrap">Jam Masuk</TableCell>
                       <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 whitespace-nowrap">Jam Pulang</TableCell>
                       <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 whitespace-nowrap">Status</TableCell>
@@ -1870,7 +2067,9 @@ const RekapPresensi: React.FC = () => {
                           </TableCell>
                           <TableCell className="px-5 py-3.5 text-sm text-gray-500 dark:text-gray-400 font-medium">
                             {item.jamPulang ? formatTime(item.jamPulang) : (
-                              <span className="text-red-500 font-semibold bg-red-50 dark:bg-red-950/20 px-2 py-0.5 rounded text-xs">Belum Pulang</span>
+                              item.hasJadwalToday === false ? "-" : (
+                                <span className="text-red-500 font-semibold bg-red-50 dark:bg-red-950/20 px-2 py-0.5 rounded text-xs">Belum Pulang</span>
+                              )
                             )}
                           </TableCell>
                           <TableCell className="px-5 py-3.5">
@@ -1880,6 +2079,7 @@ const RekapPresensi: React.FC = () => {
                               item.status === 3 ? <Badge color="warning">Izin</Badge> :
                               item.status === 4 ? <Badge color="info">Sakit</Badge> :
                               item.status === 5 ? <Badge color="error">Alpha</Badge> :
+                              item.hasJadwalToday === false ? <Badge color="light">Tidak ada jadwal ngajar</Badge> :
                               <Badge color="light">Belum Presensi</Badge>
                             ) : (
                               item.status === 1 ? <Badge color="success">Hadir</Badge> :
