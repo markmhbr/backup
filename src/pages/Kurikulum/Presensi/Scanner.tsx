@@ -25,6 +25,7 @@ const Scanner: React.FC = () => {
   const faceStreamRef = useRef<MediaStream | null>(null);
   const faceIntervalRef = useRef<any>(null);
   const faceScanCooldownRef = useRef(false);
+  const faceProcessingRef = useRef(false);
 
   const startFaceScan = async () => {
     try {
@@ -39,19 +40,26 @@ const Scanner: React.FC = () => {
       
       const faceApiUrl = `${import.meta.env.VITE_FACE_API_URL || "http://localhost:8000"}/analyze-face`;
       faceIntervalRef.current = setInterval(async () => {
-        if (!faceVideoRef.current || loading || faceScanCooldownRef.current) return;
+        if (!faceVideoRef.current || loading || faceScanCooldownRef.current || faceProcessingRef.current) return;
+        faceProcessingRef.current = true;
         const video = faceVideoRef.current;
         const canvas = document.createElement("canvas");
         canvas.width = video.videoWidth || 640;
         canvas.height = video.videoHeight || 480;
         const ctx = canvas.getContext("2d");
-        if (!ctx) return;
+        if (!ctx) {
+          faceProcessingRef.current = false;
+          return;
+        }
         ctx.translate(canvas.width, 0);
         ctx.scale(-1, 1);
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
         canvas.toBlob(async (blob) => {
-          if (!blob) return;
+          if (!blob) {
+            faceProcessingRef.current = false;
+            return;
+          }
           const formData = new FormData();
           formData.append("file", blob, "face_scan.jpg");
 
@@ -87,6 +95,8 @@ const Scanner: React.FC = () => {
             }
           } catch (err) {
             console.error("Face scan error:", err);
+          } finally {
+            faceProcessingRef.current = false;
           }
         }, "image/jpeg", 0.9);
       }, 1000);
@@ -108,6 +118,7 @@ const Scanner: React.FC = () => {
     setFaceScanActive(false);
     setFaceScanStatus("Kamera dinonaktifkan.");
     faceScanCooldownRef.current = false;
+    faceProcessingRef.current = false;
   };
 
   useEffect(() => {

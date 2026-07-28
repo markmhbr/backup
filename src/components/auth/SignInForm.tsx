@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router";
 import { EyeCloseIcon, EyeIcon } from "../../icons";
 import Label from "../form/Label";
@@ -24,8 +24,107 @@ export default function SignInForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { login, verify2FA, setAuthData } = useAuth();
   const navigate = useNavigate();
+
+  // Face ID States
+  const [showFaceLogin, setShowFaceLogin] = useState(false);
+  const [faceScanActive, setFaceScanActive] = useState(false);
+  const [faceScanStatus, setFaceScanStatus] = useState("");
+  const faceVideoRef = useRef<HTMLVideoElement>(null);
+  const faceStreamRef = useRef<MediaStream | null>(null);
+  const faceIntervalRef = useRef<any>(null);
+  const faceScanCooldownRef = useRef(false);
+  const { login, verify2FA, setAuthData, loginWithFaceId } = useAuth();
+
+  const startFaceLogin = async () => {
+    try {
+      setFaceScanStatus("Mengaktifkan kamera...");
+      setError(null);
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+      faceStreamRef.current = stream;
+      if (faceVideoRef.current) {
+        faceVideoRef.current.srcObject = stream;
+      }
+      setFaceScanActive(true);
+      setFaceScanStatus("Kamera aktif. Silakan posisikan wajah Anda...");
+      
+      const faceApiUrl = `${import.meta.env.VITE_FACE_API_URL || "http://localhost:8000"}/analyze-face`;
+      faceIntervalRef.current = setInterval(async () => {
+        if (!faceVideoRef.current || faceScanCooldownRef.current) return;
+        const video = faceVideoRef.current;
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 480;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        canvas.toBlob(async (blob) => {
+          if (!blob) return;
+          const formData = new FormData();
+          formData.append("file", blob, "face_scan.jpg");
+
+          try {
+            const response = await fetch(faceApiUrl, {
+              method: "POST",
+              body: formData
+            });
+            const data = await response.json();
+            if (data.success && data.embedding) {
+              setFaceScanStatus("Wajah terdeteksi! Mengidentifikasi...");
+              faceScanCooldownRef.current = true;
+              
+              try {
+                const loginRes = await loginWithFaceId(data.embedding);
+                if (loginRes && loginRes.accessToken && loginRes.user) {
+                  setFaceScanStatus("Login Berhasil! Mengalihkan halaman...");
+                  stopFaceLogin();
+                  navigate(`/${getRoleSlug(loginRes.user.role)}`);
+                }
+              } catch (loginErr: any) {
+                setError(loginErr.response?.data?.message || "Identifikasi wajah gagal atau wajah tidak terdaftar.");
+                setFaceScanStatus("Gagal login. Wajah tidak cocok/terdaftar.");
+                setTimeout(() => {
+                  faceScanCooldownRef.current = false;
+                  setFaceScanStatus("Kamera aktif. Silakan posisikan wajah Anda...");
+                }, 3000);
+              }
+            } else {
+              setFaceScanStatus("Mencari wajah...");
+            }
+          } catch (err) {
+            console.error("Face scan error:", err);
+          }
+        }, "image/jpeg", 0.9);
+      }, 1000);
+    } catch (err) {
+      console.error(err);
+      setFaceScanStatus("Gagal mengakses kamera.");
+    }
+  };
+
+  const stopFaceLogin = () => {
+    if (faceIntervalRef.current) {
+      clearInterval(faceIntervalRef.current);
+      faceIntervalRef.current = null;
+    }
+    if (faceStreamRef.current) {
+      faceStreamRef.current.getTracks().forEach(track => track.stop());
+      faceStreamRef.current = null;
+    }
+    setFaceScanActive(false);
+    setFaceScanStatus("Kamera dinonaktifkan.");
+    faceScanCooldownRef.current = false;
+  };
+
+  useEffect(() => {
+    return () => {
+      if (faceIntervalRef.current) clearInterval(faceIntervalRef.current);
+      if (faceStreamRef.current) faceStreamRef.current.getTracks().forEach(track => track.stop());
+    };
+  }, []);
 
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [setupLoading, setSetupLoading] = useState(false);
@@ -274,6 +373,39 @@ export default function SignInForm() {
                   </div>
                 </form>
               </div>
+            ) : showFaceLogin ? (
+              <div className="space-y-6">
+                <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden border-2 border-brand-500 bg-gray-900 shadow-md flex items-center justify-center">
+                  <video 
+                    ref={faceVideoRef} 
+                    className={`w-full h-full object-cover transform scale-x-[-1] ${faceScanActive ? "block" : "hidden"}`} 
+                    autoPlay 
+                    playsInline 
+                  />
+                  {!faceScanActive && (
+                    <div className="text-center p-4 text-xs text-gray-400">
+                      Mengaktifkan kamera...
+                    </div>
+                  )}
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">{faceScanStatus}</p>
+                </div>
+                
+                <div className="flex flex-col gap-3">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    size="sm"
+                    onClick={() => {
+                      stopFaceLogin();
+                      setShowFaceLogin(false);
+                    }}
+                  >
+                    Masuk dengan Username & Password
+                  </Button>
+                </div>
+              </div>
             ) : (
               <>
                 <form onSubmit={handleLogin}>
@@ -337,6 +469,19 @@ export default function SignInForm() {
                       >
                         {loading ? "Processing..." : "Sign In"}
                       </Button>
+                    </div>
+
+                    <div className="pt-4 border-t border-gray-150 dark:border-gray-800 text-center">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowFaceLogin(true);
+                          setTimeout(() => startFaceLogin(), 100);
+                        }}
+                        className="text-sm font-semibold text-brand-500 hover:text-brand-600 dark:text-brand-400 flex items-center justify-center gap-2 mx-auto"
+                      >
+                        👤 Uji Coba: Masuk dengan Face ID
+                      </button>
                     </div>
                   </div>
                 </form>

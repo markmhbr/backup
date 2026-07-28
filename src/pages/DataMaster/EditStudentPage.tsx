@@ -117,11 +117,10 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
       setFaceStatusMsg("Gagal mengakses kamera. Pastikan izin kamera diberikan.");
     }
   };
-
   // Stop webcam
   const stopFaceWebcam = () => {
     if (faceIntervalRef.current) {
-      clearInterval(faceIntervalRef.current);
+      clearTimeout(faceIntervalRef.current);
       faceIntervalRef.current = null;
     }
     if (faceStreamRef.current) {
@@ -139,13 +138,13 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
     
     const faceApiUrl = `${import.meta.env.VITE_FACE_API_URL || "http://localhost:8000"}/analyze-face`;
 
-    faceIntervalRef.current = setInterval(async () => {
-      if (!faceVideoRef.current || !faceVideoActive) return;
+    const captureAndAnalyze = async () => {
+      if (!faceVideoRef.current || !faceStreamRef.current) return;
 
       const video = faceVideoRef.current;
       const canvas = document.createElement("canvas");
-      canvas.width = video.videoWidth || 640;
-      canvas.height = video.videoHeight || 480;
+      canvas.width = 320;
+      canvas.height = 240;
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
@@ -154,10 +153,16 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
       canvas.toBlob(async (blob) => {
-        if (!blob) return;
+        if (!blob) {
+          if (faceStreamRef.current) {
+            faceIntervalRef.current = setTimeout(captureAndAnalyze, 200);
+          }
+          return;
+        }
         const formData = new FormData();
         formData.append("file", blob, "face_stream.jpg");
 
+        let nextStepDelay = 200;
         try {
           const response = await fetch(faceApiUrl, {
             method: "POST",
@@ -174,22 +179,24 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
                 setFaceStatusMsg(`[Langkah 1] Hadap depan... (Deteksi yaw: ${yaw}, pose: ${detectedOrientation})`);
                 if (detectedOrientation === "front") {
                   faceEmbeddingsRef.current.push(data.embedding);
-                  setFaceEnrollLogs("Sampel 1 (Depan) berhasil diambil secara otomatis!\nMenunggu Anda hadap kanan...");
+                  setFaceEnrollLogs("Sampel 1 (Depan) berhasil diambil secara otomatis!\\nMenunggu Anda hadap kanan...");
                   return 2;
                 }
               } else if (currentStep === 2) {
                 setFaceStatusMsg(`[Langkah 2] Silakan HADAP KANAN... (Deteksi yaw: ${yaw}, pose: ${detectedOrientation})`);
                 if (detectedOrientation === "right") {
                   faceEmbeddingsRef.current.push(data.embedding);
-                  setFaceEnrollLogs("Sampel 2 (Kanan) berhasil diambil secara otomatis!\nMenunggu Anda hadap kiri...");
+                  setFaceEnrollLogs("Sampel 2 (Kanan) berhasil diambil secara otomatis!\\nMenunggu Anda hadap kiri...");
                   return 3;
                 }
               } else if (currentStep === 3) {
                 setFaceStatusMsg(`[Langkah 3] Silakan HADAP KIRI... (Deteksi yaw: ${yaw}, pose: ${detectedOrientation})`);
                 if (detectedOrientation === "left") {
                   faceEmbeddingsRef.current.push(data.embedding);
-                  clearInterval(faceIntervalRef.current);
-                  faceIntervalRef.current = null;
+                  if (faceIntervalRef.current) {
+                    clearTimeout(faceIntervalRef.current);
+                    faceIntervalRef.current = null;
+                  }
                   finishFaceEnrollment();
                   return 4;
                 }
@@ -202,8 +209,19 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
         } catch (err) {
           console.error("Face ID Polling error:", err);
         }
-      }, "image/jpeg", 0.9);
-    }, 500);
+
+        if (faceStreamRef.current) {
+          setFaceEnrollStep((step) => {
+            if (step >= 1 && step <= 3) {
+              faceIntervalRef.current = setTimeout(captureAndAnalyze, nextStepDelay);
+            }
+            return step;
+          });
+        }
+      }, "image/jpeg", 0.8);
+    };
+
+    captureAndAnalyze();
   };
 
   const finishFaceEnrollment = async () => {

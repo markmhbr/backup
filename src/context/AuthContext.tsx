@@ -24,6 +24,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (username: string, pass: string) => Promise<LoginResult>;
+  loginWithFaceId: (embedding: number[]) => Promise<any>;
   verify2FA: (tempToken: string, code: string, secret?: string) => Promise<void>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
@@ -120,6 +121,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return response.data;
   };
 
+  const loginWithFaceId = async (embedding: number[]): Promise<any> => {
+    const response = await api.post('/auth/login-face-id', { embedding });
+    const { accessToken, user: userData } = response.data;
+    
+    localStorage.setItem('auth_token', accessToken);
+    localStorage.setItem('user_data', JSON.stringify(userData));
+    setUser(userData);
+    await fetchMenusForUser(userData);
+    return response.data;
+  };
+
   const verify2FA = async (tempToken: string, code: string, secret?: string) => {
     const response = await api.post('/auth/verify-2fa', { tempToken, code, secret });
     const { accessToken, user: userData } = response.data;
@@ -147,6 +159,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       user, 
       loading, 
       login, 
+      loginWithFaceId,
       verify2FA, 
       logout, 
       isAuthenticated: !!user,
