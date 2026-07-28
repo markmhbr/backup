@@ -524,6 +524,26 @@ export const dapodikService = {
     }
   },
 
+  getPengaturanVa: async (sekolahId: string) => {
+    try {
+      const response = await api.get(`/pengaturan-va/${sekolahId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Gagal mengambil pengaturan VA:', error);
+      throw error;
+    }
+  },
+
+  updatePengaturanVa: async (sekolahId: string, data: any) => {
+    try {
+      const response = await api.post(`/pengaturan-va/${sekolahId}`, data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Gagal menyimpan pengaturan VA:', error);
+      throw error;
+    }
+  },
+
   getTugasTambahan: async (limit: number = 10, search: string = '', page: number = 1, index?: number) => {
     try {
       let url = `/dapodik/tugas-tambahan?limit=${limit}&page=${page}&search=${search}`;
@@ -659,6 +679,56 @@ export const dapodikService = {
       return response.data;
     } catch (error: any) {
       console.error('Gagal menolak pengajuan mutasi:', error);
+      throw error;
+    }
+  },
+
+  registerGtkFace: async (id: string, embedding: number[]) => {
+    try {
+      const response = await api.post(`/dapodik/gtk/${id}/face-id`, { embedding });
+      return response.data;
+    } catch (error: any) {
+      console.error('Gagal mendaftarkan Face ID GTK:', error);
+      throw error;
+    }
+  },
+
+  getGtkFace: async (id: string) => {
+    try {
+      const response = await api.get(`/dapodik/gtk/${id}/face-id`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Gagal memeriksa Face ID GTK:', error);
+      throw error;
+    }
+  },
+
+  registerStudentFace: async (id: string, embedding: number[]) => {
+    try {
+      const response = await api.post(`/dapodik/peserta-didik/${id}/face-id`, { embedding });
+      return response.data;
+    } catch (error: any) {
+      console.error('Gagal mendaftarkan Face ID siswa:', error);
+      throw error;
+    }
+  },
+
+  getStudentFace: async (id: string) => {
+    try {
+      const response = await api.get(`/dapodik/peserta-didik/${id}/face-id`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Gagal memeriksa Face ID siswa:', error);
+      throw error;
+    }
+  },
+
+  identifyFace: async (embedding: number[]) => {
+    try {
+      const response = await api.post('/dapodik/face-id/identify', { embedding });
+      return response.data;
+    } catch (error: any) {
+      console.error('Gagal mengidentifikasi Face ID:', error);
       throw error;
     }
   }

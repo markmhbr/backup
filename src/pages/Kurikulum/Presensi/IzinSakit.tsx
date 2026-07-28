@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import PageMeta from "../../../components/common/PageMeta";
 import { presensiService } from "../../../services/presensiService";
 import { dapodikService } from "../../../services/dapodikService";
@@ -37,6 +37,109 @@ const IzinSakit: React.FC = () => {
   const [isHoliday, setIsHoliday] = useState(false);
   const [holidayReason, setHolidayReason] = useState("");
   const [checkingHoliday, setCheckingHoliday] = useState(true);
+
+  // Face ID Scanner States
+  const [showFaceScanner, setShowFaceScanner] = useState(false);
+  const [faceScanActive, setFaceScanActive] = useState(false);
+  const [faceScanStatus, setFaceScanStatus] = useState("");
+  const faceVideoRef = useRef<HTMLVideoElement>(null);
+  const faceStreamRef = useRef<MediaStream | null>(null);
+  const faceIntervalRef = useRef<any>(null);
+
+  const startFaceScan = async () => {
+    try {
+      setFaceScanStatus("Mengaktifkan kamera...");
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+      faceStreamRef.current = stream;
+      if (faceVideoRef.current) {
+        faceVideoRef.current.srcObject = stream;
+      }
+      setFaceScanActive(true);
+      setFaceScanStatus("Kamera aktif. Sedang mendeteksi wajah...");
+      
+      const faceApiUrl = `${import.meta.env.VITE_FACE_API_URL || "http://localhost:8000"}/analyze-face`;
+      faceIntervalRef.current = setInterval(async () => {
+        if (!faceVideoRef.current) return;
+        const video = faceVideoRef.current;
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 480;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        canvas.toBlob(async (blob) => {
+          if (!blob) return;
+          const formData = new FormData();
+          formData.append("file", blob, "face_scan.jpg");
+
+          try {
+            const response = await fetch(faceApiUrl, {
+              method: "POST",
+              body: formData
+            });
+            const data = await response.json();
+            if (data.success && data.embedding) {
+              setFaceScanStatus("Wajah terdeteksi! Mengidentifikasi...");
+              const identifyRes = await dapodikService.identifyFace(data.embedding);
+              if (identifyRes && identifyRes.status === "success" && identifyRes.data && identifyRes.data.type) {
+                const matchedUser = identifyRes.data.data;
+                const type = identifyRes.data.type;
+                const id = type === 'pd' ? matchedUser.peserta_didik_id : matchedUser.ptk_id;
+
+                setScannedSubjects(prev => ({ ...prev, [id]: matchedUser }));
+                setSubjectType(type);
+                setSelectedIds(prev => {
+                  if (prev.includes(id)) return prev;
+                  Swal.fire({
+                    title: 'Berhasil Scan!',
+                    text: `${matchedUser.nama} ditambahkan ke daftar.`,
+                    icon: 'success',
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 1500,
+                  });
+                  return [...prev, id];
+                });
+              } else {
+                setFaceScanStatus("Wajah tidak terdaftar atau tidak cocok.");
+              }
+            } else {
+              setFaceScanStatus("Mencari wajah...");
+            }
+          } catch (err) {
+            console.error("Face scan error:", err);
+          }
+        }, "image/jpeg", 0.9);
+      }, 1000);
+    } catch (err) {
+      console.error(err);
+      setFaceScanStatus("Gagal mengakses kamera.");
+    }
+  };
+
+  const stopFaceScan = () => {
+    if (faceIntervalRef.current) {
+      clearInterval(faceIntervalRef.current);
+      faceIntervalRef.current = null;
+    }
+    if (faceStreamRef.current) {
+      faceStreamRef.current.getTracks().forEach(track => track.stop());
+      faceStreamRef.current = null;
+    }
+    setFaceScanActive(false);
+    setFaceScanStatus("Kamera dinonaktifkan.");
+  };
+
+  useEffect(() => {
+    return () => {
+      if (faceIntervalRef.current) clearInterval(faceIntervalRef.current);
+      if (faceStreamRef.current) faceStreamRef.current.getTracks().forEach(track => track.stop());
+    };
+  }, []);
 
   // Check Holiday Status
   useEffect(() => {
@@ -361,23 +464,70 @@ const IzinSakit: React.FC = () => {
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
                   </span>
                 </div>
-              </div>
-
-              <div className="flex gap-2">
+              </div>              <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => setShowScanner(!showScanner)}
-                  className={`w-full flex items-center justify-center gap-2 rounded-lg border py-2.5 px-4 text-sm font-semibold transition-colors cursor-pointer ${showScanner
+                  onClick={() => {
+                    setShowScanner(!showScanner);
+                    if (showFaceScanner) {
+                      stopFaceScan();
+                      setShowFaceScanner(false);
+                    }
+                  }}
+                  className={`flex-1 flex items-center justify-center gap-2 rounded-lg border py-2.5 px-3 text-xs font-semibold transition-colors cursor-pointer ${showScanner
                       ? "border-brand-500 bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400"
                       : "border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
                     }`}
                 >
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h.01M16 20h2M16 8h2m-2 4h2m-6-8h2M6 20h2M6 16h2M6 12h2M6 8h2m-2-4h2" />
+                  <svg className="h-4.5 w-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h.01M16 20h2M16 8h2m-2 4h2m-6-8h2M6 20h2M6 16h2M6 12h2M6 8h2m-2-4h2" />
                   </svg>
-                  {showScanner ? "Tutup Scanner" : "Scan Kartu QR/Barcode"}
+                  {showScanner ? "Tutup QR" : "QR Scanner"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextVal = !showFaceScanner;
+                    setShowFaceScanner(nextVal);
+                    if (showScanner) setShowScanner(false);
+                    if (nextVal) {
+                      setTimeout(() => startFaceScan(), 100);
+                    } else {
+                      stopFaceScan();
+                    }
+                  }}
+                  className={`flex-1 flex items-center justify-center gap-2 rounded-lg border py-2.5 px-3 text-xs font-semibold transition-colors cursor-pointer ${showFaceScanner
+                      ? "border-brand-500 bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400"
+                      : "border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                    }`}
+                >
+                  <svg className="h-4.5 w-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  {showFaceScanner ? "Tutup Face" : "Face ID Scanner"}
                 </button>
               </div>
+
+              {showFaceScanner && (
+                <div className="space-y-4 pt-2 border-t border-gray-100 dark:border-gray-800">
+                  <div className="relative w-full aspect-[4/3] rounded-xl overflow-hidden border-2 border-brand-500 bg-gray-900 shadow-md flex items-center justify-center">
+                    <video 
+                      ref={faceVideoRef} 
+                      className={`w-full h-full object-cover transform scale-x-[-1] ${faceScanActive ? "block" : "hidden"}`} 
+                      autoPlay 
+                      playsInline 
+                    />
+                    {!faceScanActive && (
+                      <div className="text-center p-4 text-xs text-gray-400">
+                        Mengaktifkan kamera...
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs font-semibold text-gray-600 dark:text-gray-450">{faceScanStatus}</p>
+                  </div>
+                </div>
+              )}
 
               {showScanner && (
                 <div className="space-y-4 pt-2 border-t border-gray-100 dark:border-gray-800">

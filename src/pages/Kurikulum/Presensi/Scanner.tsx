@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import PageMeta from "../../../components/common/PageMeta";
 import { presensiService } from "../../../services/presensiService";
+import { dapodikService } from "../../../services/dapodikService";
 import ComponentCard from "../../../components/common/ComponentCard";
 import QrScanner from "./components/QrScanner";
 import Swal from "sweetalert2";
@@ -15,6 +16,107 @@ const Scanner: React.FC = () => {
   });
   const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [geoError, setGeoError] = useState<string | null>(null);
+
+  // Face ID Scanner States
+  const [showFaceScanner, setShowFaceScanner] = useState(false);
+  const [faceScanActive, setFaceScanActive] = useState(false);
+  const [faceScanStatus, setFaceScanStatus] = useState("");
+  const faceVideoRef = useRef<HTMLVideoElement>(null);
+  const faceStreamRef = useRef<MediaStream | null>(null);
+  const faceIntervalRef = useRef<any>(null);
+  const faceScanCooldownRef = useRef(false);
+
+  const startFaceScan = async () => {
+    try {
+      setFaceScanStatus("Mengaktifkan kamera...");
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+      faceStreamRef.current = stream;
+      if (faceVideoRef.current) {
+        faceVideoRef.current.srcObject = stream;
+      }
+      setFaceScanActive(true);
+      setFaceScanStatus("Kamera aktif. Sedang mendeteksi wajah...");
+      
+      const faceApiUrl = `${import.meta.env.VITE_FACE_API_URL || "http://localhost:8000"}/analyze-face`;
+      faceIntervalRef.current = setInterval(async () => {
+        if (!faceVideoRef.current || loading || faceScanCooldownRef.current) return;
+        const video = faceVideoRef.current;
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 480;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        canvas.toBlob(async (blob) => {
+          if (!blob) return;
+          const formData = new FormData();
+          formData.append("file", blob, "face_scan.jpg");
+
+          try {
+            const response = await fetch(faceApiUrl, {
+              method: "POST",
+              body: formData
+            });
+            const data = await response.json();
+            if (data.success && data.embedding) {
+              setFaceScanStatus("Wajah terdeteksi! Mengidentifikasi...");
+              const identifyRes = await dapodikService.identifyFace(data.embedding);
+              if (identifyRes && identifyRes.status === "success" && identifyRes.data && identifyRes.data.type) {
+                const matchedUser = identifyRes.data.data;
+                const qrToken = matchedUser.qr_token;
+                
+                if (qrToken) {
+                  faceScanCooldownRef.current = true;
+                  setFaceScanStatus("Wajah teridentifikasi! Mencatat kehadiran...");
+                  await handleScan(qrToken);
+                  setTimeout(() => {
+                    faceScanCooldownRef.current = false;
+                    setFaceScanStatus("Kamera aktif. Sedang mendeteksi wajah...");
+                  }, 4000);
+                } else {
+                  setFaceScanStatus("Pengguna ditemukan tetapi belum memiliki QR Token.");
+                }
+              } else {
+                setFaceScanStatus("Wajah tidak terdaftar atau tidak cocok.");
+              }
+            } else {
+              setFaceScanStatus("Mencari wajah...");
+            }
+          } catch (err) {
+            console.error("Face scan error:", err);
+          }
+        }, "image/jpeg", 0.9);
+      }, 1000);
+    } catch (err) {
+      console.error(err);
+      setFaceScanStatus("Gagal mengakses kamera.");
+    }
+  };
+
+  const stopFaceScan = () => {
+    if (faceIntervalRef.current) {
+      clearInterval(faceIntervalRef.current);
+      faceIntervalRef.current = null;
+    }
+    if (faceStreamRef.current) {
+      faceStreamRef.current.getTracks().forEach(track => track.stop());
+      faceStreamRef.current = null;
+    }
+    setFaceScanActive(false);
+    setFaceScanStatus("Kamera dinonaktifkan.");
+    faceScanCooldownRef.current = false;
+  };
+
+  useEffect(() => {
+    return () => {
+      if (faceIntervalRef.current) clearInterval(faceIntervalRef.current);
+      if (faceStreamRef.current) faceStreamRef.current.getTracks().forEach(track => track.stop());
+    };
+  }, []);
+
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -233,11 +335,61 @@ const Scanner: React.FC = () => {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <ComponentCard title="Kamera Scanner">
           <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">
-            Arahkan QR Code Peserta Didik atau Guru ke arah kamera untuk mencatat kehadiran otomatis.
+            Pilih metode pencatatan kehadiran (Scan QR Card atau Scan Face ID).
           </p>
+
+          <div className="flex gap-2 mb-4">
+            <button
+              type="button"
+              onClick={() => {
+                setShowFaceScanner(false);
+                stopFaceScan();
+              }}
+              className={`flex-1 py-2 px-3 text-xs font-semibold rounded-lg border transition-colors cursor-pointer ${!showFaceScanner
+                ? "border-brand-500 bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400"
+                : "border-gray-200 text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-300 dark:hover:bg-gray-800"
+              }`}
+            >
+              Card (QR) Scanner
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowFaceScanner(true);
+                setTimeout(() => startFaceScan(), 100);
+              }}
+              className={`flex-1 py-2 px-3 text-xs font-semibold rounded-lg border transition-colors cursor-pointer ${showFaceScanner
+                ? "border-brand-500 bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400"
+                : "border-gray-200 text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-300 dark:hover:bg-gray-800"
+              }`}
+            >
+              Face ID Scanner
+            </button>
+          </div>
           
           <div className="relative">
-            <QrScanner onScanSuccess={handleScan} />
+            {!showFaceScanner ? (
+              <QrScanner onScanSuccess={handleScan} />
+            ) : (
+              <div className="space-y-4">
+                <div className="relative w-full aspect-[4/3] rounded-xl overflow-hidden border-2 border-brand-500 bg-gray-900 shadow-md flex items-center justify-center">
+                  <video 
+                    ref={faceVideoRef} 
+                    className={`w-full h-full object-cover transform scale-x-[-1] ${faceScanActive ? "block" : "hidden"}`} 
+                    autoPlay 
+                    playsInline 
+                  />
+                  {!faceScanActive && (
+                    <div className="text-center p-4 text-xs text-gray-400">
+                      Mengaktifkan kamera...
+                    </div>
+                  )}
+                </div>
+                <div className="text-center">
+                  <p className="text-xs font-semibold text-gray-600 dark:text-gray-450">{faceScanStatus}</p>
+                </div>
+              </div>
+            )}
             
             {loading && (
                <div className="absolute inset-0 bg-white/40 dark:bg-gray-900/40 flex items-center justify-center backdrop-blur-[2px] rounded-xl z-10">

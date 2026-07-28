@@ -47,6 +47,7 @@ const pathPermissionMap: Record<string, string[]> = {
   '/pengaturan/menu': ['pengaturan-menu'],
   '/pengaturan/backup': ['pengaturan-backup'],
   '/pengaturan/umum': ['pengaturan-umum'],
+  '/pengaturan/va': ['pengaturan-va'],
   '/wali/class-data': ['wali-kelas-data'],
   '/wali/class-rapor': ['wali-kelas-rapor'],
 };

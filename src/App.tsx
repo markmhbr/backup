@@ -58,6 +58,7 @@ import DetailPelaporanSekolahPage from "./pages/Pelaporan/detail";
 import MenuSettings from "./pages/Pengaturan/Menu";
 import BackupPage from "./pages/Pengaturan/Backup";
 import Umum from "./pages/Pengaturan/Umum";
+import VaSettings from "./pages/Pengaturan/Va";
 import ProfilePage from "./pages/DataMaster/ProfilePage";
 import WaliClassData from "./pages/WaliKelas/WaliClassData";
 import WaliClassRapor from "./pages/WaliKelas/WaliClassRapor";
@@ -165,6 +166,7 @@ export default function App() {
             <Route path="pengaturan/menu" element={<MenuSettings />} />
             <Route path="pengaturan/backup" element={<BackupPage />} />
             <Route path="pengaturan/umum" element={<Umum />} />
+            <Route path="pengaturan/va" element={<VaSettings />} />
 
             {/* Other */}
             

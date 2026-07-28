@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { formatDateDMY, formatDateTimeDMY } from "../../utils/formatDate";
 import { useSearchParams } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
@@ -138,6 +138,131 @@ export default function IndisiplinerData() {
   const [scannedSubjects, setScannedSubjects] = useState<Record<string, any>>({});
   const [studentSearchText, setStudentSearchText] = useState("");
   const [gtkSearchText, setGtkSearchText] = useState("");
+
+  // Face ID Scanner States
+  const [showFaceScanner, setShowFaceScanner] = useState(false);
+  const [faceScanActive, setFaceScanActive] = useState(false);
+  const [faceScanStatus, setFaceScanStatus] = useState("");
+  const faceVideoRef = useRef<HTMLVideoElement>(null);
+  const faceStreamRef = useRef<MediaStream | null>(null);
+  const faceIntervalRef = useRef<any>(null);
+  const faceScanCooldownRef = useRef(false);
+
+  const startFaceScan = async () => {
+    try {
+      setFaceScanStatus("Mengaktifkan kamera...");
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+      faceStreamRef.current = stream;
+      if (faceVideoRef.current) {
+        faceVideoRef.current.srcObject = stream;
+      }
+      setFaceScanActive(true);
+      setFaceScanStatus("Kamera aktif. Sedang mendeteksi wajah...");
+      
+      const faceApiUrl = `${import.meta.env.VITE_FACE_API_URL || "http://localhost:8000"}/analyze-face`;
+      faceIntervalRef.current = setInterval(async () => {
+        if (!faceVideoRef.current || faceScanCooldownRef.current) return;
+        const video = faceVideoRef.current;
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 480;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        canvas.toBlob(async (blob) => {
+          if (!blob) return;
+          const formData = new FormData();
+          formData.append("file", blob, "face_scan.jpg");
+
+          try {
+            const response = await fetch(faceApiUrl, {
+              method: "POST",
+              body: formData
+            });
+            const data = await response.json();
+            if (data.success && data.embedding) {
+              setFaceScanStatus("Wajah terdeteksi! Mengidentifikasi...");
+              const identifyRes = await dapodikService.identifyFace(data.embedding);
+              if (identifyRes && identifyRes.status === "success" && identifyRes.data && identifyRes.data.type) {
+                const matchedUser = identifyRes.data.data;
+                const type = identifyRes.data.type;
+                
+                if (defaultTarget && type !== defaultTarget) {
+                  setFaceScanStatus(
+                    defaultTarget === "pd"
+                      ? "Pelaku harus merupakan Peserta Didik pada halaman ini."
+                      : "Pelaku harus merupakan GTK pada halaman ini."
+                  );
+                  return;
+                }
+
+                const id = type === 'pd' ? matchedUser.peserta_didik_id : matchedUser.ptk_id;
+                
+                setScannedSubjects(prev => ({ ...prev, [id]: matchedUser }));
+                
+                setSelectedIds(prev => {
+                  if (prev.includes(id)) return prev;
+                  
+                  Swal.fire({
+                    title: 'Wajah Teridentifikasi!',
+                    text: `${matchedUser.nama} ditambahkan ke daftar pelaku.`,
+                    icon: 'success',
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 1500,
+                  });
+                  return [...prev, id];
+                });
+
+                faceScanCooldownRef.current = true;
+                setFaceScanStatus("Wajah berhasil ditambahkan!");
+                setTimeout(() => {
+                  faceScanCooldownRef.current = false;
+                  setFaceScanStatus("Kamera aktif. Sedang mendeteksi wajah...");
+                }, 4000);
+
+              } else {
+                setFaceScanStatus("Wajah tidak terdaftar atau tidak cocok.");
+              }
+            } else {
+              setFaceScanStatus("Mencari wajah...");
+            }
+          } catch (err) {
+            console.error("Face scan error:", err);
+          }
+        }, "image/jpeg", 0.9);
+      }, 1000);
+    } catch (err) {
+      console.error(err);
+      setFaceScanStatus("Gagal mengakses kamera.");
+    }
+  };
+
+  const stopFaceScan = () => {
+    if (faceIntervalRef.current) {
+      clearInterval(faceIntervalRef.current);
+      faceIntervalRef.current = null;
+    }
+    if (faceStreamRef.current) {
+      faceStreamRef.current.getTracks().forEach(track => track.stop());
+      faceStreamRef.current = null;
+    }
+    setFaceScanActive(false);
+    setFaceScanStatus("Kamera dinonaktifkan.");
+    faceScanCooldownRef.current = false;
+  };
+
+  useEffect(() => {
+    return () => {
+      if (faceIntervalRef.current) clearInterval(faceIntervalRef.current);
+      if (faceStreamRef.current) faceStreamRef.current.getTracks().forEach(track => track.stop());
+    };
+  }, []);
+
 
   const fetchData = useCallback(async () => {
     if (!sekolah?.sekolah_id) return;
@@ -1047,6 +1172,8 @@ export default function IndisiplinerData() {
         setScannedSubjects({});
         setBarcode("");
         setShowScanner(false);
+        setShowFaceScanner(false);
+        stopFaceScan();
         setLookupError(null);
         setSelectedRombel("");
         setStudentSearchText("");
@@ -1054,11 +1181,12 @@ export default function IndisiplinerData() {
       }} className="max-w-[700px] p-6 bg-white dark:bg-gray-900 rounded-3xl">
         <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Catat Pelanggaran Disiplin Baru</h3>
         
+        <div className="max-h-[70vh] overflow-y-auto pr-3 space-y-4">
         {/* Step 1: Scan / Cari Pelaku */}
         <div className="border-b border-gray-100 dark:border-gray-800 pb-4 mb-4">
           <label className="block text-xs font-bold text-gray-500 mb-2 uppercase">Scan Barcode / Token Kartu</label>
           
-          {showScanner ? (
+          {showScanner && (
             <div className="max-w-[400px] mx-auto space-y-3">
               <QrScanner onScanSuccess={handleBarcodeLookup} />
               <button 
@@ -1069,7 +1197,40 @@ export default function IndisiplinerData() {
                 Batalkan Scan
               </button>
             </div>
-          ) : (
+          )}
+
+          {showFaceScanner && (
+            <div className="max-w-[400px] mx-auto space-y-3">
+              <div className="relative w-full aspect-[4/3] rounded-xl overflow-hidden border-2 border-brand-500 bg-gray-900 shadow-md flex items-center justify-center">
+                <video 
+                  ref={faceVideoRef} 
+                  className={`w-full h-full object-cover transform scale-x-[-1] ${faceScanActive ? "block" : "hidden"}`} 
+                  autoPlay 
+                  playsInline 
+                />
+                {!faceScanActive && (
+                  <div className="text-center p-4 text-xs text-gray-400">
+                    Mengaktifkan kamera...
+                  </div>
+                )}
+              </div>
+              <div className="text-center">
+                <p className="text-xs font-semibold text-gray-600 dark:text-gray-450">{faceScanStatus}</p>
+              </div>
+              <button 
+                type="button"
+                onClick={() => {
+                  stopFaceScan();
+                  setShowFaceScanner(false);
+                }}
+                className="w-full rounded-lg border border-gray-300 py-2 text-xs font-bold text-gray-700 dark:border-gray-700 dark:text-gray-300 transition-colors"
+              >
+                Batalkan Scan
+              </button>
+            </div>
+          )}
+
+          {!showScanner && !showFaceScanner && (
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">
                 <input
@@ -1098,13 +1259,25 @@ export default function IndisiplinerData() {
                   )}
                 </button>
               </div>
-              <button 
-                type="button"
-                onClick={() => setShowScanner(true)}
-                className="flex items-center justify-center gap-2 rounded-lg bg-brand-500/10 px-4 py-3 text-xs font-bold text-brand-500 hover:bg-brand-500/20 transition-colors border border-brand-500/20"
-              >
-                📷 Buka Kamera
-              </button>
+              <div className="flex gap-2">
+                <button 
+                  type="button"
+                  onClick={() => setShowScanner(true)}
+                  className="flex items-center justify-center gap-2 rounded-lg bg-brand-500/10 px-4 py-3 text-xs font-bold text-brand-500 hover:bg-brand-500/20 transition-colors border border-brand-500/20"
+                >
+                  📷 QR Scanner
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setShowFaceScanner(true);
+                    setTimeout(() => startFaceScan(), 100);
+                  }}
+                  className="flex items-center justify-center gap-2 rounded-lg bg-brand-500/10 px-4 py-3 text-xs font-bold text-brand-500 hover:bg-brand-500/20 transition-colors border border-brand-500/20"
+                >
+                  👤 Face ID Scanner
+                </button>
+              </div>
             </div>
           )}
           
@@ -1399,6 +1572,7 @@ export default function IndisiplinerData() {
             </div>
           </form>
         )}
+        </div>
       </Modal>
 
       {/* ===================== */}

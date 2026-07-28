@@ -89,6 +89,164 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
   const [tempCoords, setTempCoords] = useState<{lat: string, lng: string} | null>(null);
 
+  // Face ID States
+  const [isFaceRegistered, setIsFaceRegistered] = useState(false);
+  const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
+  const [faceEnrollStep, setFaceEnrollStep] = useState(0); // 0: Idle, 1: Front, 2: Right, 3: Left, 4: Finished
+  const [faceStatusMsg, setFaceStatusMsg] = useState("Menginisialisasi kamera...");
+  const [faceEnrollLogs, setFaceEnrollLogs] = useState("Klik tombol untuk memulai proses.");
+  const [faceVideoActive, setFaceVideoActive] = useState(false);
+  const faceVideoRef = useRef<HTMLVideoElement>(null);
+  const faceStreamRef = useRef<MediaStream | null>(null);
+  const faceIntervalRef = useRef<any>(null);
+  const faceEmbeddingsRef = useRef<number[][]>([]);
+
+  // Start webcam
+  const startFaceWebcam = async () => {
+    try {
+      setFaceStatusMsg("Mengaktifkan kamera...");
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+      faceStreamRef.current = stream;
+      if (faceVideoRef.current) {
+        faceVideoRef.current.srcObject = stream;
+      }
+      setFaceVideoActive(true);
+      setFaceStatusMsg("Kamera aktif. Silakan luruskan wajah Anda.");
+    } catch (err) {
+      console.error("Error akses kamera:", err);
+      setFaceStatusMsg("Gagal mengakses kamera. Pastikan izin kamera diberikan.");
+    }
+  };
+
+  // Stop webcam
+  const stopFaceWebcam = () => {
+    if (faceIntervalRef.current) {
+      clearInterval(faceIntervalRef.current);
+      faceIntervalRef.current = null;
+    }
+    if (faceStreamRef.current) {
+      faceStreamRef.current.getTracks().forEach((track) => track.stop());
+      faceStreamRef.current = null;
+    }
+    setFaceVideoActive(false);
+    setFaceEnrollStep(0);
+  };
+
+  const handleStartEnrollment = () => {
+    faceEmbeddingsRef.current = [];
+    setFaceEnrollStep(1);
+    setFaceEnrollLogs("Mulai mendeteksi... Silakan luruskan wajah Anda menghadap ke depan.");
+    
+    const faceApiUrl = `${import.meta.env.VITE_FACE_API_URL || "http://localhost:8000"}/analyze-face`;
+
+    faceIntervalRef.current = setInterval(async () => {
+      if (!faceVideoRef.current || !faceVideoActive) return;
+
+      const video = faceVideoRef.current;
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        const formData = new FormData();
+        formData.append("file", blob, "face_stream.jpg");
+
+        try {
+          const response = await fetch(faceApiUrl, {
+            method: "POST",
+            body: formData,
+          });
+          const data = await response.json();
+
+          if (data.success) {
+            const detectedOrientation = data.pose.orientation;
+            const yaw = data.pose.yaw.toFixed(1);
+
+            setFaceEnrollStep((currentStep) => {
+              if (currentStep === 1) {
+                setFaceStatusMsg(`[Langkah 1] Hadap depan... (Deteksi yaw: ${yaw}, pose: ${detectedOrientation})`);
+                if (detectedOrientation === "front") {
+                  faceEmbeddingsRef.current.push(data.embedding);
+                  setFaceEnrollLogs("Sampel 1 (Depan) berhasil diambil secara otomatis!\nMenunggu Anda hadap kanan...");
+                  return 2;
+                }
+              } else if (currentStep === 2) {
+                setFaceStatusMsg(`[Langkah 2] Silakan HADAP KANAN... (Deteksi yaw: ${yaw}, pose: ${detectedOrientation})`);
+                if (detectedOrientation === "right") {
+                  faceEmbeddingsRef.current.push(data.embedding);
+                  setFaceEnrollLogs("Sampel 2 (Kanan) berhasil diambil secara otomatis!\nMenunggu Anda hadap kiri...");
+                  return 3;
+                }
+              } else if (currentStep === 3) {
+                setFaceStatusMsg(`[Langkah 3] Silakan HADAP KIRI... (Deteksi yaw: ${yaw}, pose: ${detectedOrientation})`);
+                if (detectedOrientation === "left") {
+                  faceEmbeddingsRef.current.push(data.embedding);
+                  clearInterval(faceIntervalRef.current);
+                  faceIntervalRef.current = null;
+                  finishFaceEnrollment();
+                  return 4;
+                }
+              }
+              return currentStep;
+            });
+          } else {
+            setFaceStatusMsg(`Wajah tidak stabil/spoofing terdeteksi: ${data.error || "Ubah pencahayaan"}`);
+          }
+        } catch (err) {
+          console.error("Face ID Polling error:", err);
+        }
+      }, "image/jpeg", 0.9);
+    }, 500);
+  };
+
+  const finishFaceEnrollment = async () => {
+    setFaceStatusMsg("Pendaftaran Selesai! Mengkalkulasi rata-rata embedding...");
+    
+    const size = 512;
+    const averagedEmbedding = new Array(size).fill(0);
+    const embeddings = faceEmbeddingsRef.current;
+    
+    for (let i = 0; i < size; i++) {
+      let sum = 0;
+      for (const emb of embeddings) {
+        sum += emb[i];
+      }
+      averagedEmbedding[i] = sum / embeddings.length;
+    }
+
+    setFaceEnrollLogs("Menyimpan Face ID ke database...");
+    
+    try {
+      await dapodikService.registerStudentFace(id!, averagedEmbedding);
+      setIsFaceRegistered(true);
+      Swal.fire({
+        title: "Pendaftaran Berhasil",
+        text: "Face ID Siswa berhasil didaftarkan dan diaktifkan.",
+        icon: "success",
+        confirmButtonColor: "#465FFF",
+      });
+      setIsFaceModalOpen(false);
+      stopFaceWebcam();
+    } catch (err: any) {
+      console.error("Gagal menyimpan Face ID:", err);
+      setFaceEnrollLogs("Gagal menyimpan Face ID.");
+      Swal.fire({
+        title: "Gagal Menyimpan",
+        text: err.response?.data?.message || "Terjadi kesalahan saat menyimpan Face ID.",
+        icon: "error",
+        confirmButtonColor: "#465FFF",
+      });
+    }
+  };
+
+
   const getImageSlides = () => {
     const slides: any[] = [];
     const token = localStorage.getItem('auth_token');
@@ -893,6 +1051,14 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
             });
 
             // Regional data is directly populated to formData above and rendered as disabled Input. No mapping needed.
+            try {
+              const faceResult = await dapodikService.getStudentFace(id);
+              if (faceResult.status === "success" && faceResult.data) {
+                setIsFaceRegistered(faceResult.data.registered);
+              }
+            } catch (e) {
+              console.error("Gagal memeriksa status Face ID", e);
+            }
           }
         } catch (error) {
           Swal.fire("Error", "Gagal mengambil data peserta didik", "error");
@@ -1568,6 +1734,13 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
               onClick={handleCheckPengajuan}
             >
               Pengajuan Perbaikan
+            </Button>
+            <Button
+              variant={isFaceRegistered ? "info-outline" : "outline"}
+              size="sm"
+              onClick={() => setIsFaceModalOpen(true)}
+            >
+              {isFaceRegistered ? "Daftar Ulang Face ID" : "Daftarkan Face ID"}
             </Button>
             <Button variant="primary-outline" size="sm" onClick={handleSave} disabled={loading}>
               Simpan Perubahan
@@ -3525,6 +3698,87 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
         slides={getImageSlides()}
         plugins={[Zoom]}
       />
+
+      {/* Modal Face ID Pendaftaran */}
+      <Modal 
+        isOpen={isFaceModalOpen} 
+        onClose={() => {
+          setIsFaceModalOpen(false);
+          stopFaceWebcam();
+        }} 
+        className="max-w-[600px] p-6 overflow-hidden"
+      >
+        <div className="flex justify-between items-center mb-4 border-b border-gray-100 dark:border-white/[0.05] pb-3">
+          <h3 className="text-lg font-bold text-gray-800 dark:text-white/90">Registrasi Face ID</h3>
+          <button 
+            type="button"
+            onClick={() => {
+              setIsFaceModalOpen(false);
+              stopFaceWebcam();
+            }} 
+            className="text-gray-500 hover:text-gray-700 dark:hover:text-white"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="flex flex-col items-center gap-4 py-2">
+          {/* Step dots */}
+          <div className="flex gap-2">
+            {[1, 2, 3].map((step) => {
+              let dotClass = "w-3 h-3 rounded-full transition-all duration-300 ";
+              if (faceEnrollStep > step) {
+                dotClass += "bg-emerald-500 shadow-[0_0_8px_#10b981]";
+              } else if (faceEnrollStep === step) {
+                dotClass += "bg-brand-500 animate-pulse shadow-[0_0_8px_#3b82f6]";
+              } else {
+                dotClass += "bg-gray-300 dark:bg-gray-700";
+              }
+              return <div key={step} className={dotClass}></div>;
+            })}
+          </div>
+
+          <div className="relative w-full max-w-[400px] aspect-[4/3] rounded-2xl overflow-hidden border-2 border-brand-500 bg-gray-900 shadow-lg flex items-center justify-center">
+            <video 
+              ref={faceVideoRef} 
+              className={`w-full h-full object-cover transform scale-x-[-1] ${faceVideoActive ? "block" : "hidden"}`} 
+              autoPlay 
+              playsInline 
+            />
+            {!faceVideoActive && (
+              <div className="text-center p-4">
+                <svg className="w-12 h-12 text-gray-500 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                <p className="text-sm text-gray-400">Kamera tidak aktif. Klik "Aktifkan Kamera" di bawah.</p>
+              </div>
+            )}
+            {faceVideoActive && faceEnrollStep > 0 && faceEnrollStep < 4 && (
+              <div className="absolute inset-0 border-2 border-brand-500/50 rounded-2xl pointer-events-none animate-pulse"></div>
+            )}
+          </div>
+
+          <div className="w-full text-center">
+            <p className="text-sm font-semibold text-gray-700 dark:text-gray-350 min-h-[20px]">{faceStatusMsg}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 whitespace-pre-line">{faceEnrollLogs}</p>
+          </div>
+
+          <div className="flex gap-3 mt-2 w-full justify-center">
+            {!faceVideoActive ? (
+              <Button type="button" size="sm" onClick={startFaceWebcam}>Aktifkan Kamera</Button>
+            ) : (
+              <>
+                {faceEnrollStep === 0 && (
+                  <Button type="button" size="sm" onClick={handleStartEnrollment}>Mulai Pendaftaran Wajah</Button>
+                )}
+                <Button type="button" size="sm" variant="outline" onClick={stopFaceWebcam}>Reset / Matikan Kamera</Button>
+              </>
+            )}
+          </div>
+        </div>
+      </Modal>
     </>
   );
 };

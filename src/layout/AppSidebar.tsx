@@ -458,6 +458,12 @@ const navItems: NavItem[] = [
         icon: <DotIcon />,
         id: "pengaturan-umum",
       },
+      {
+        name: "Virtual Account BJB",
+        path: "/pengaturan/va",
+        icon: <DotIcon />,
+        id: "pengaturan-va",
+      },
     ],
   },
 ];
