@@ -459,7 +459,7 @@ const navItems: NavItem[] = [
         id: "pengaturan-umum",
       },
       {
-        name: "Virtual Account BJB",
+        name: "Virtual Account",
         path: "/pengaturan/va",
         icon: <DotIcon />,
         id: "pengaturan-va",

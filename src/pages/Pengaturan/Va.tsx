@@ -42,7 +42,7 @@ export default function VaSettings() {
           }
         }
       } catch (error) {
-        console.error("Gagal mengambil data pengaturan VA BJB:", error);
+        console.error("Gagal mengambil data pengaturan VA:", error);
       } finally {
         setLoading(false);
       }
@@ -95,7 +95,7 @@ export default function VaSettings() {
 
       Swal.fire({
         title: "Berhasil!",
-        text: "Konfigurasi BJB Virtual Account berhasil disimpan.",
+        text: "Konfigurasi Virtual Account berhasil disimpan.",
         icon: "success",
         timer: 1500,
         showConfirmButton: false,
@@ -126,17 +126,17 @@ export default function VaSettings() {
   return (
     <>
       <PageMeta
-        title="SIMAK | Pengaturan BJB Virtual Account"
-        description="Konfigurasi Integrasi BJB Virtual Account"
+        title="SIMAK | Pengaturan Virtual Account"
+        description="Konfigurasi Integrasi Virtual Account"
       />
       <div className="space-y-6">
         <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 no-print">
           <div>
             <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-              Konfigurasi BJB Virtual Account (VA)
+              Konfigurasi Virtual Account (VA)
             </h3>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              Kelola pengaturan integrasi pembayaran tagihan siswa menggunakan Virtual Account Bank BJB.
+              Kelola pengaturan integrasi pembayaran tagihan siswa menggunakan Virtual Account Bank .
             </p>
           </div>
         </div>
@@ -144,8 +144,8 @@ export default function VaSettings() {
         <form onSubmit={handleSave} className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 space-y-6">
           <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-white/[0.02] rounded-xl border border-gray-100 dark:border-gray-800">
             <div>
-              <Label className="font-bold text-gray-800 dark:text-white/90">Aktifkan Pembayaran VA BJB</Label>
-              <p className="text-xs text-gray-500">Tentukan apakah pembayaran via Virtual Account BJB akan diaktifkan untuk siswa.</p>
+              <Label className="font-bold text-gray-800 dark:text-white/90">Aktifkan Pembayaran VA </Label>
+              <p className="text-xs text-gray-500">Tentukan apakah pembayaran via Virtual Account  akan diaktifkan untuk siswa.</p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
@@ -165,7 +165,7 @@ export default function VaSettings() {
                 id="client_id"
                 name="client_id"
                 type="text"
-                placeholder="Masukkan Biller Code / Client ID BJB"
+                placeholder="Masukkan Biller Code / Client ID "
                 value={vaData.client_id}
                 onChange={handleChange}
               />
@@ -191,7 +191,7 @@ export default function VaSettings() {
                 id="api_url"
                 name="api_url"
                 type="text"
-                placeholder="https://api.bankbjb.co.id/..."
+                placeholder="https:..."
                 value={vaData.api_url}
                 onChange={handleChange}
               />
@@ -223,7 +223,7 @@ export default function VaSettings() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="bjb_public_key">BJB Public Key</Label>
+              <Label htmlFor="bjb_public_key"> Public Key</Label>
               <textarea
                 id="bjb_public_key"
                 name="bjb_public_key"

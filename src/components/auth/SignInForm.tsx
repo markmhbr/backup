@@ -35,7 +35,6 @@ export default function SignInForm() {
   const faceIntervalRef = useRef<any>(null);
   const faceScanCooldownRef = useRef(false);
   const { login, verify2FA, setAuthData, loginWithFaceId } = useAuth();
-
   const startFaceLogin = async () => {
     try {
       setFaceScanStatus("Mengaktifkan kamera...");
@@ -49,12 +48,14 @@ export default function SignInForm() {
       setFaceScanStatus("Kamera aktif. Silakan posisikan wajah Anda...");
       
       const faceApiUrl = `${import.meta.env.VITE_FACE_API_URL || "http://localhost:8000"}/analyze-face`;
-      faceIntervalRef.current = setInterval(async () => {
-        if (!faceVideoRef.current || faceScanCooldownRef.current) return;
+
+      const captureAndAnalyze = async () => {
+        if (!faceVideoRef.current || !faceStreamRef.current || faceScanCooldownRef.current) return;
+
         const video = faceVideoRef.current;
         const canvas = document.createElement("canvas");
-        canvas.width = video.videoWidth || 640;
-        canvas.height = video.videoHeight || 480;
+        canvas.width = 320;
+        canvas.height = 240;
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
         ctx.translate(canvas.width, 0);
@@ -62,10 +63,16 @@ export default function SignInForm() {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
         canvas.toBlob(async (blob) => {
-          if (!blob) return;
+          if (!blob) {
+            if (faceStreamRef.current && !faceScanCooldownRef.current) {
+              faceIntervalRef.current = setTimeout(captureAndAnalyze, 200);
+            }
+            return;
+          }
           const formData = new FormData();
           formData.append("file", blob, "face_scan.jpg");
 
+          let nextScanDelay = 200;
           try {
             const response = await fetch(faceApiUrl, {
               method: "POST",
@@ -82,6 +89,7 @@ export default function SignInForm() {
                   setFaceScanStatus("Login Berhasil! Mengalihkan halaman...");
                   stopFaceLogin();
                   navigate(`/${getRoleSlug(loginRes.user.role)}`);
+                  return;
                 }
               } catch (loginErr: any) {
                 setError(loginErr.response?.data?.message || "Identifikasi wajah gagal atau wajah tidak terdaftar.");
@@ -89,7 +97,10 @@ export default function SignInForm() {
                 setTimeout(() => {
                   faceScanCooldownRef.current = false;
                   setFaceScanStatus("Kamera aktif. Silakan posisikan wajah Anda...");
+                  // resume loop after cooldown
+                  captureAndAnalyze();
                 }, 3000);
+                return;
               }
             } else {
               setFaceScanStatus("Mencari wajah...");
@@ -97,8 +108,14 @@ export default function SignInForm() {
           } catch (err) {
             console.error("Face scan error:", err);
           }
-        }, "image/jpeg", 0.9);
-      }, 1000);
+
+          if (faceStreamRef.current && !faceScanCooldownRef.current) {
+            faceIntervalRef.current = setTimeout(captureAndAnalyze, nextScanDelay);
+          }
+        }, "image/jpeg", 0.8);
+      };
+
+      captureAndAnalyze();
     } catch (err) {
       console.error(err);
       setFaceScanStatus("Gagal mengakses kamera.");
@@ -107,7 +124,7 @@ export default function SignInForm() {
 
   const stopFaceLogin = () => {
     if (faceIntervalRef.current) {
-      clearInterval(faceIntervalRef.current);
+      clearTimeout(faceIntervalRef.current);
       faceIntervalRef.current = null;
     }
     if (faceStreamRef.current) {
@@ -121,7 +138,7 @@ export default function SignInForm() {
 
   useEffect(() => {
     return () => {
-      if (faceIntervalRef.current) clearInterval(faceIntervalRef.current);
+      if (faceIntervalRef.current) clearTimeout(faceIntervalRef.current);
       if (faceStreamRef.current) faceStreamRef.current.getTracks().forEach(track => track.stop());
     };
   }, []);
