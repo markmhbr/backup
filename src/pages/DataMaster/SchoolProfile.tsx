@@ -303,7 +303,18 @@ export default function SchoolProfile() {
           },
         });
 
-        const result = await dapodikService.uploadLogo(file);
+        // Rename file to include datetime
+        const ext = file.name.substring(file.name.lastIndexOf('.'));
+        const now = new Date();
+        const timestamp = now.getFullYear().toString() +
+          String(now.getMonth() + 1).padStart(2, '0') +
+          String(now.getDate()).padStart(2, '0') + '_' +
+          String(now.getHours()).padStart(2, '0') +
+          String(now.getMinutes()).padStart(2, '0') +
+          String(now.getSeconds()).padStart(2, '0');
+        const renamedFile = new File([file], `logo_sekolah_${timestamp}${ext}`, { type: file.type });
+
+        const result = await dapodikService.uploadLogo(renamedFile);
 
         if (result.status === "success" && result.data?.logo) {
           // Gunakan URL absolut dari server dengan cache-buster agar realtime terupdate
