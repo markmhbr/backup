@@ -5,8 +5,12 @@ import api from '../../services/api';
 interface ProfileData {
   id: string;
   nama: string;
+  nisn?: string;
+  nuptk?: string;
+  jenis_kelamin?: string;
   tipe: 'siswa' | 'gtk';
-  rombel: string;
+  rombel?: string;
+  unit_kerja?: string;
   sekolah: string;
   hasFoto: boolean;
   alamat: string;
@@ -114,22 +118,57 @@ export default function PublicProfile() {
                 {profile.nama}
               </h1>
               <p className="text-gray-500 dark:text-gray-400 font-medium text-xs mt-1.5 uppercase tracking-widest">
-                {profile.tipe === 'siswa' ? 'Siswa / Peserta Didik' : 'GTK / Guru / Staf'}
+                {profile.tipe === 'siswa' ? 'Peserta Didik' : 'GTK'}
               </p>
             </div>
 
             {/* Detailed Data Fields */}
-            <div className="w-full space-y-4 pt-6 border-t border-gray-150 dark:border-gray-700">
+            <div className="w-full space-y-3 pt-6 border-t border-gray-150 dark:border-gray-700">
               
+              {/* NISN / NUPTK */}
               <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-800">
                 <span className="text-gray-500 dark:text-gray-400 text-xs font-semibold uppercase tracking-wider">
-                  {profile.tipe === 'siswa' ? 'Kelas / Rombel' : 'Jabatan / Tugas'}
+                  {profile.tipe === 'siswa' ? 'NISN' : 'NUPTK'}
                 </span>
                 <span className="text-gray-800 dark:text-gray-200 text-sm font-bold">
-                  {profile.rombel}
+                  {profile.tipe === 'siswa' ? (profile.nisn || '-') : (profile.nuptk || '-')}
                 </span>
               </div>
 
+              {/* Jenis Kelamin */}
+              <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-800">
+                <span className="text-gray-500 dark:text-gray-400 text-xs font-semibold uppercase tracking-wider">
+                  Jenis Kelamin
+                </span>
+                <span className="text-gray-800 dark:text-gray-200 text-sm font-bold">
+                  {profile.jenis_kelamin || '-'}
+                </span>
+              </div>
+
+              {/* Unit Kerja (GTK only) / Kelas Rombel (Optional) */}
+              {profile.tipe === 'gtk' && (
+                <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-800">
+                  <span className="text-gray-500 dark:text-gray-400 text-xs font-semibold uppercase tracking-wider">
+                    Unit Kerja
+                  </span>
+                  <span className="text-gray-800 dark:text-gray-200 text-sm font-bold">
+                    {profile.unit_kerja || profile.rombel || '-'}
+                  </span>
+                </div>
+              )}
+
+              {profile.tipe === 'siswa' && profile.rombel && profile.rombel !== '-' && (
+                <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-800">
+                  <span className="text-gray-500 dark:text-gray-400 text-xs font-semibold uppercase tracking-wider">
+                    Kelas / Rombel
+                  </span>
+                  <span className="text-gray-800 dark:text-gray-200 text-sm font-bold">
+                    {profile.rombel}
+                  </span>
+                </div>
+              )}
+
+              {/* Status Keaktifan */}
               <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-800">
                 <span className="text-gray-500 dark:text-gray-400 text-xs font-semibold uppercase tracking-wider">
                   Status Keaktifan
@@ -139,6 +178,7 @@ export default function PublicProfile() {
                 </span>
               </div>
 
+              {/* Alamat Lengkap */}
               <div className="flex items-start justify-between p-3 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-800">
                 <span className="text-gray-500 dark:text-gray-400 text-xs font-semibold uppercase tracking-wider mt-0.5 whitespace-nowrap">
                   Alamat Lengkap

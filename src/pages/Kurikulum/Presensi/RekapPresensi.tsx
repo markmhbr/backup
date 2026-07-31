@@ -932,23 +932,12 @@ const RekapPresensi: React.FC = () => {
         // Accumulate Pages
         pagesHtml += `
           <div id="page-container-${pageNum}" class="page-container">
-              ${isPeriodik ? `
-                <div class="landscape-rotated-wrapper">
-                  ${headerKopHtml}
-                  ${tableHtml}
-                  <div class="page-footer" style="position: absolute; bottom: 0.1cm; left: 0; right: 0; font-size: 8px; color: #888; display: flex; justify-content: space-between; border-top: 1px solid #eee; padding-top: 4px;">
-                      <span>Dicetak melalui Sistem Informasi Sekolah pada ${new Date().toLocaleDateString("id-ID")}</span>
-                      <span>Halaman ${pageNum} dari ${totalPagesPdf}</span>
-                  </div>
-                </div>
-              ` : `
-                ${headerKopHtml}
-                ${tableHtml}
-                <div class="page-footer" style="position: absolute; bottom: 0.4cm; left: 1.5cm; right: 1.5cm; font-size: 8px; color: #888; display: flex; justify-content: space-between; border-top: 1px solid #eee; padding-top: 4px;">
-                    <span>Dicetak melalui Sistem Informasi Sekolah pada ${new Date().toLocaleDateString("id-ID")}</span>
-                    <span>Halaman ${pageNum} dari ${totalPagesPdf}</span>
-                </div>
-              `}
+              ${headerKopHtml}
+              ${tableHtml}
+              <div class="page-footer" style="position: absolute; bottom: 0.4cm; left: 1cm; right: 1cm; font-size: 8px; color: #888; display: flex; justify-content: space-between; border-top: 1px solid #eee; padding-top: 4px;">
+                  <span>Dicetak melalui Sistem Informasi Sekolah pada ${new Date().toLocaleDateString("id-ID")}</span>
+                  <span>Halaman ${pageNum} dari ${totalPagesPdf}</span>
+              </div>
           </div>
         `;
 
@@ -958,15 +947,8 @@ const RekapPresensi: React.FC = () => {
               <div id="thumb-container-${pageNum}" class="thumbnail-container ${pageNum === 1 ? 'active' : ''}">
                   <div class="thumbnail-page">
                       <div class="page-container" style="padding: 1cm !important; box-shadow: none !important;">
-                          ${isPeriodik ? `
-                            <div class="landscape-rotated-wrapper">
-                              ${headerKopHtml}
-                              ${tableHtml}
-                            </div>
-                          ` : `
-                            ${headerKopHtml}
-                            ${tableHtml}
-                          `}
+                          ${headerKopHtml}
+                          ${tableHtml}
                       </div>
                   </div>
               </div>
@@ -985,7 +967,7 @@ const RekapPresensi: React.FC = () => {
     <title>${titleText}</title>
     <style>
         @page {
-            size: A4 portrait;
+            size: ${isPeriodik ? "A4 landscape" : "A4 portrait"};
             margin: 0;
         }
         body {
@@ -1135,8 +1117,8 @@ const RekapPresensi: React.FC = () => {
                 scroll-behavior: smooth;
             }
             .page-container {
-                width: 210mm;
-                height: 297mm;
+                width: ${isPeriodik ? "297mm" : "210mm"};
+                height: ${isPeriodik ? "210mm" : "297mm"};
                 margin-bottom: 24px;
                 background: white;
                 box-shadow: 0 4px 8px rgba(0,0,0,0.3), 0 12px 24px rgba(0,0,0,0.2);
@@ -1149,16 +1131,6 @@ const RekapPresensi: React.FC = () => {
                 zoom: var(--pdf-zoom, 1);
                 overflow: hidden;
             }
-            /* Landscape rotated wrapper for Periodik (Bulanan/Semesteran) inside Portrait Page */
-            .landscape-rotated-wrapper {
-                width: 277mm;
-                height: 190mm;
-                position: absolute;
-                top: 1cm;
-                left: 1cm;
-                transform: rotate(90deg) translate(0, -190mm);
-                transform-origin: top left;
-            }
             .thumbnail-wrapper {
                 display: flex;
                 flex-direction: column;
@@ -1168,8 +1140,8 @@ const RekapPresensi: React.FC = () => {
                 width: 100%;
             }
             .thumbnail-container {
-                width: 105px;
-                height: 148px;
+                width: ${isPeriodik ? "148px" : "105px"};
+                height: ${isPeriodik ? "105px" : "148px"};
                 border: 3px solid transparent;
                 border-radius: 4px;
                 background-color: #fff;
@@ -1181,9 +1153,9 @@ const RekapPresensi: React.FC = () => {
                 border-color: #8ab4f8;
             }
             .thumbnail-page {
-                width: 210mm;
-                height: 297mm;
-                transform: scale(0.125);
+                width: ${isPeriodik ? "297mm" : "210mm"};
+                height: ${isPeriodik ? "210mm" : "297mm"};
+                transform: scale(${isPeriodik ? "0.088" : "0.125"});
                 transform-origin: top left;
                 pointer-events: none;
                 position: absolute;
@@ -1218,8 +1190,8 @@ const RekapPresensi: React.FC = () => {
                 background-color: transparent !important;
             }
             .page-container {
-                width: 210mm !important;
-                height: 297mm !important;
+                width: ${isPeriodik ? "297mm" : "210mm"} !important;
+                height: ${isPeriodik ? "210mm" : "297mm"} !important;
                 padding: 1cm !important;
                 box-sizing: border-box !important;
                 position: relative !important;
@@ -1230,15 +1202,6 @@ const RekapPresensi: React.FC = () => {
                 transform: none !important;
                 zoom: 1 !important;
                 overflow: hidden !important;
-            }
-            .landscape-rotated-wrapper {
-                width: 277mm !important;
-                height: 190mm !important;
-                position: absolute !important;
-                top: 1cm !important;
-                left: 1cm !important;
-                transform: rotate(90deg) translate(0, -190mm) !important;
-                transform-origin: top left !important;
             }
         }
 

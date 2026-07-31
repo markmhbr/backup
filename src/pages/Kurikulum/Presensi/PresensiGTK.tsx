@@ -139,11 +139,10 @@ const PresensiGTK: React.FC = () => {
     fetchAttendance();
   }, [fetchAttendance]);
 
-  // Filtered list (Hadir / Terlambat / Izin / Sakit / Tidak ada jadwal)
+  // Filtered list untuk tab Daftar Kehadiran (Hanya yang sudah melakukan presensi atau izin)
   const filteredData = data.filter((item) => {
-    const hasStatus = item.presensi?.status_masuk;
-    const isPresent = hasStatus === 1 || hasStatus === 2 || hasStatus === 3 || hasStatus === 4 || item.hasJadwalToday === false;
-    if (!isPresent) return false;
+    const hasPresensiOrIzin = !!item.presensi || !!item.izin;
+    if (!hasPresensiOrIzin) return false;
 
     let matchGtkType = true;
     if (selectedGtkType) {
@@ -162,8 +161,10 @@ const PresensiGTK: React.FC = () => {
     );
   });
 
-  // Filtered list for Kelola tab (tampilkan semua GTK)
+  // Filtered list for Kelola tab (hanya GTK yang ada jadwal ngajar hari ini / tendik)
   const kelolaFilteredData = data.filter((item) => {
+    if (item.hasJadwalToday === false && !item.presensi && !item.izin) return false;
+
     let matchGtkType = true;
     if (selectedGtkType) {
       const isGuru = (item.jenis_ptk_id_str || "").toLowerCase().includes("guru");

@@ -62,9 +62,9 @@ const menuTree: MenuNode[] = [
         children: [
           { id: "rombel-reguler", name: "Reguler" },
           { id: "rombel-praktik", name: "Praktik" },
+          { id: "rombel-wali", name: "Wali" },
           { id: "rombel-ekskul", name: "Ekskul" },
           { id: "rombel-pilihan", name: "Matpel Pilihan" },
-          { id: "rombel-wali", name: "Wali" },
           { id: "rombel-rekap", name: "Rekap Rombel" },
         ],
       },

@@ -502,7 +502,7 @@ export default function SchoolProfile() {
             <td style="width: 15%; text-align: left;">
                 <img src="${logoUrl}" class="logo">
             </td>
-            <td class="kop-text" style="width: 70%;">
+            <td class="kop-text" style="width: 85%;">
                 <div class="kop-h1">${provText}</div>
                 <div class="kop-h1">DINAS PENDIDIKAN</div>
                 <div class="kop-h2">${profileData.namaSekolah.toUpperCase()}</div>
@@ -516,9 +516,6 @@ export default function SchoolProfile() {
                     ${kontakData.email ? ` | Email: ${kontakData.email}` : ''}
                     ${kontakData.website ? ` | Website: ${kontakData.website}` : ''}
                 </div>
-            </td>
-            <td style="width: 15%; text-align: right;">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/9/9c/Logo_Tut_Wuri_Handayani.png" class="logo">
             </td>
         </tr>
     </table>

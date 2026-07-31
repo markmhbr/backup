@@ -5,7 +5,7 @@ import PageMeta from "../../components/common/PageMeta";
 import Button from "../../components/ui/button/Button";
 import Input from "../../components/form/input/InputField";
 import Select from "../../components/form/Select";
-import { DownloadIcon, PrinterIcon, UserCircleIcon, CheckCircleIcon, SearchIcon, PencilIcon } from "../../icons";
+import { DownloadIcon, PrinterIcon, UserCircleIcon, SearchIcon, PencilIcon } from "../../icons";
 
 import Swal from "sweetalert2";
 import GuruTable from "../../components/gtk/GuruTable";
@@ -79,17 +79,6 @@ export default function GTKData() {
     if (selectedGTKIds.length === 1) {
       navigate(`/${role}/gtk-data/edit/${selectedGTKIds[0]}?tab=${activeTab}`);
     }
-  };
-
-  const handleRegister = () => {
-    Swal.fire({
-      title: "Registrasi GTK?",
-      text: `Anda akan meregistrasi ${selectedGTKIds.length} item yang dipilih.`,
-      icon: "info",
-      showCancelButton: true,
-      confirmButtonColor: "#465fff",
-      confirmButtonText: "Ya, Registrasi!",
-    });
   };
 
   const handleShowProfile = async () => {
@@ -2472,15 +2461,6 @@ export default function GTKData() {
           <div className="flex flex-wrap items-center gap-3">
             {selectedGTKIds.length > 0 && (
               <>
-                <Button
-                  variant="error-outline"
-                  size="sm"
-                  className="min-w-[110px]"
-                  startIcon={<CheckCircleIcon className="size-4" />}
-                  onClick={handleRegister}
-                >
-                  Register
-                </Button>
                 <Button
                   variant="primary-outline"
                   size="sm"

@@ -183,6 +183,12 @@ const navItems: NavItem[] = [
             id: "rombel-praktik",
           },
           {
+            name: "Wali",
+            path: "/class-data?tab=wali",
+            icon: <DotIcon />,
+            id: "rombel-wali",
+          },
+          {
             name: "Ekskul",
             path: "/class-data?tab=ekskul",
             icon: <DotIcon />,
@@ -193,12 +199,6 @@ const navItems: NavItem[] = [
             path: "/class-data?tab=pilihan",
             icon: <DotIcon />,
             id: "rombel-pilihan",
-          },
-          {
-            name: "Wali",
-            path: "/class-data?tab=wali",
-            icon: <DotIcon />,
-            id: "rombel-wali",
           },
           {
             name: "Rekap Rombel",
