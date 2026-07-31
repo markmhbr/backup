@@ -1207,20 +1207,9 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
         return;
       }
 
-      // Rename file to include datetime
-      const ext = file.name.substring(file.name.lastIndexOf('.'));
-      const now = new Date();
-      const timestamp = now.getFullYear().toString() +
-        String(now.getMonth() + 1).padStart(2, '0') +
-        String(now.getDate()).padStart(2, '0') + '_' +
-        String(now.getHours()).padStart(2, '0') +
-        String(now.getMinutes()).padStart(2, '0') +
-        String(now.getSeconds()).padStart(2, '0');
-      const renamedFile = new File([file], `gtk_${id}_${timestamp}${ext}`, { type: file.type });
-      
       setLoading(true);
       try {
-        const result = await dapodikService.uploadGtkFoto(id, renamedFile);
+        const result = await dapodikService.uploadGtkFoto(id, file);
         if (result.status === "success" && result.data) {
           const relativePath = result.data.filePath;
           const host = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace("/api", "") : (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
