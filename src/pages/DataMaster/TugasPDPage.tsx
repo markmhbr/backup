@@ -71,6 +71,7 @@ export default function TugasPDPage() {
 
   // Form Fields
   const [selectedPDId, setSelectedPDId] = useState("");
+  const [pdSearchText, setPdSearchText] = useState("");
   const [customJabatan, setCustomJabatan] = useState("");
   const [jumlahJam, setJumlahJam] = useState("");
   const [nomorSk, setNomorSk] = useState("");
@@ -129,6 +130,7 @@ export default function TugasPDPage() {
   const handleClassChange = async (className: string) => {
     setSelectedClass(className);
     setSelectedPDId("");
+    setPdSearchText("");
     if (!className) {
       setStudents([]);
       return;
@@ -226,6 +228,7 @@ export default function TugasPDPage() {
     setIsEditMode(false);
     setCurrentTaskId(null);
     setSelectedPDId("");
+    setPdSearchText("");
     setSelectedClass("");
     setStudents([]);
     setCustomJabatan("");
@@ -653,35 +656,75 @@ export default function TugasPDPage() {
 
               {/* Select Student */}
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">
-                  Pilih Peserta Didik
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-semibold text-gray-500">
+                    Pilih Peserta Didik
+                  </label>
+                  {!isEditMode && (
+                    <span className="text-xs text-gray-400 font-medium">
+                      {selectedPDId ? "1 Terpilih" : "Belum Dipilih"}
+                    </span>
+                  )}
+                </div>
                 {isEditMode ? (
                   <Input
                     type="text"
                     value={tasks.find(t => t.ptk_tugas_tambahan_id === currentTaskId)?.nama || ""}
                     disabled
                   />
+                ) : !selectedClass ? (
+                  <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 p-4 text-center text-xs text-gray-400">
+                    -- Pilih kelas terlebih dahulu --
+                  </div>
+                ) : loadingStudents ? (
+                  <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-4 text-center text-xs text-gray-500">
+                    Memuat data siswa...
+                  </div>
                 ) : (
-                  <Select
-                    options={[
-                      { 
-                        value: "", 
-                        label: loadingStudents 
-                          ? "Memuat data siswa..." 
-                          : !selectedClass
-                            ? "-- Pilih kelas terlebih dahulu --"
-                            : "-- Pilih Peserta Didik --" 
-                      }, 
-                      ...students.map((x: any) => ({
-                        value: x.peserta_didik_id,
-                        label: `${x.nama} (${x.nisn || "No NISN"})`,
-                      }))
-                    ]}
-                    defaultValue={selectedPDId}
-                    onChange={(val) => setSelectedPDId(val)}
-                    disabled={loadingStudents || !selectedClass}
-                  />
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Cari nama peserta didik..."
+                        value={pdSearchText}
+                        onChange={(e) => setPdSearchText(e.target.value)}
+                        className="w-full rounded-lg border border-gray-300 bg-transparent py-2 px-3 text-sm text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white/90"
+                      />
+                    </div>
+                    <div className="max-h-44 overflow-y-auto border border-gray-200 dark:border-gray-800 rounded-lg p-2 space-y-1 custom-scrollbar">
+                      {students.filter((s: any) => s.nama.toLowerCase().includes(pdSearchText.toLowerCase())).length === 0 ? (
+                        <p className="text-sm text-gray-400 text-center py-4">Peserta Didik tidak ditemukan</p>
+                      ) : (
+                        students
+                          .filter((s: any) => s.nama.toLowerCase().includes(pdSearchText.toLowerCase()))
+                          .map((s: any) => {
+                            const isSelected = selectedPDId === s.peserta_didik_id;
+                            return (
+                              <label
+                                key={s.peserta_didik_id}
+                                className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${
+                                  isSelected
+                                    ? "bg-brand-50 dark:bg-brand-900/20 border border-brand-200 dark:border-brand-800"
+                                    : "hover:bg-gray-50 dark:hover:bg-white/[0.02]"
+                                }`}
+                              >
+                                <input
+                                  type="radio"
+                                  name="selected_pd"
+                                  checked={isSelected}
+                                  onChange={() => setSelectedPDId(s.peserta_didik_id)}
+                                  className="h-4 w-4 text-brand-600 focus:ring-brand-500"
+                                />
+                                <div className="text-sm">
+                                  <p className="font-medium text-gray-800 dark:text-white/90">{s.nama}</p>
+                                  <p className="text-xs text-gray-500">{s.nisn || "-"}</p>
+                                </div>
+                              </label>
+                            );
+                          })
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
 

@@ -103,6 +103,7 @@ export default function TugasGTKPage() {
 
   // Form Fields
   const [selectedGTKId, setSelectedGTKId] = useState("");
+  const [gtkSearchText, setGtkSearchText] = useState("");
   const [customJabatan, setCustomJabatan] = useState("");
   const [jumlahJam, setJumlahJam] = useState("");
   const [nomorSk, setNomorSk] = useState("");
@@ -169,7 +170,7 @@ export default function TugasGTKPage() {
 
   const loadGTKs = async () => {
     try {
-      const res = await dapodikService.getGTK(300, "", 1, undefined, "aktif");
+      const res = await dapodikService.getGTK(300, "", 1, "guru", "aktif");
       if (res && res.status === "success") {
         setGtks(res.data || []);
       }
@@ -349,6 +350,7 @@ export default function TugasGTKPage() {
     setIsEditMode(false);
     setCurrentTaskId(null);
     setSelectedGTKId("");
+    setGtkSearchText("");
     setCustomJabatan("");
     setSelectedCustomJabatanSelect("");
     setJumlahJam("");
@@ -912,9 +914,16 @@ export default function TugasGTKPage() {
 
             <form onSubmit={handleSubmit} className="mt-4 space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">
-                  Pilih GTK
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-semibold text-gray-500">
+                    Pilih Guru
+                  </label>
+                  {!isEditMode && (
+                    <span className="text-xs text-gray-400 font-medium">
+                      {selectedGTKId ? "1 Terpilih" : "Belum Dipilih"}
+                    </span>
+                  )}
+                </div>
                 {isEditMode ? (
                   <Input
                     type="text"
@@ -922,17 +931,50 @@ export default function TugasGTKPage() {
                     disabled
                   />
                 ) : (
-                  <Select
-                    options={[
-                      { value: "", label: "-- Pilih GTK --" }, 
-                      ...gtks.map((x: any) => ({
-                        value: x.ptk_id,
-                        label: `${x.nama} (${x.nip || x.nuptk || "No NIP/NUPTK"})`,
-                      }))
-                    ]}
-                    defaultValue={selectedGTKId}
-                    onChange={(val) => setSelectedGTKId(val)}
-                  />
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Cari nama Guru..."
+                        value={gtkSearchText}
+                        onChange={(e) => setGtkSearchText(e.target.value)}
+                        className="w-full rounded-lg border border-gray-300 bg-transparent py-2 px-3 text-sm text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white/90"
+                      />
+                    </div>
+                    <div className="max-h-44 overflow-y-auto border border-gray-200 dark:border-gray-800 rounded-lg p-2 space-y-1 custom-scrollbar">
+                      {gtks.filter((g: any) => g.nama.toLowerCase().includes(gtkSearchText.toLowerCase())).length === 0 ? (
+                        <p className="text-sm text-gray-400 text-center py-4">Guru tidak ditemukan</p>
+                      ) : (
+                        gtks
+                          .filter((g: any) => g.nama.toLowerCase().includes(gtkSearchText.toLowerCase()))
+                          .map((g: any) => {
+                            const isSelected = selectedGTKId === g.ptk_id;
+                            return (
+                              <label
+                                key={g.ptk_id}
+                                className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${
+                                  isSelected
+                                    ? "bg-brand-50 dark:bg-brand-900/20 border border-brand-200 dark:border-brand-800"
+                                    : "hover:bg-gray-50 dark:hover:bg-white/[0.02]"
+                                }`}
+                              >
+                                <input
+                                  type="radio"
+                                  name="selected_gtk"
+                                  checked={isSelected}
+                                  onChange={() => setSelectedGTKId(g.ptk_id)}
+                                  className="h-4 w-4 text-brand-600 focus:ring-brand-500"
+                                />
+                                <div className="text-sm">
+                                  <p className="font-medium text-gray-800 dark:text-white/90">{g.nama}</p>
+                                  <p className="text-xs text-gray-500">{g.nip || g.nuptk || g.nik || "-"}</p>
+                                </div>
+                              </label>
+                            );
+                          })
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
 
