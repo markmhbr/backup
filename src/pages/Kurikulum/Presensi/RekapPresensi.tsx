@@ -451,7 +451,7 @@ const RekapPresensi: React.FC = () => {
           item.identitas,
           item.rombelOrJabatan,
           item.jamMasuk ? formatTime(item.jamMasuk) : "-",
-          item.jamPulang ? formatTime(item.jamPulang) : "Belum Pulang",
+          item.jamPulang ? formatTime(item.jamPulang) : (item.jamMasuk ? "Belum Pulang" : "-"),
           item.status || "Belum Presensi"
         ]);
         fileName = `Rekap_Harian_Siswa_${selectedClass || "Semua"}_${selectedDate}`;
@@ -463,7 +463,7 @@ const RekapPresensi: React.FC = () => {
           item.identitas,
           item.rombelOrJabatan,
           item.jamMasuk ? formatTime(item.jamMasuk) : "-",
-          item.jamPulang ? formatTime(item.jamPulang) : "Belum Pulang",
+          item.jamPulang ? formatTime(item.jamPulang) : (item.jamMasuk ? "Belum Pulang" : "-"),
           item.status || "Belum Presensi"
         ]);
         fileName = `Rekap_Harian_GTK_${selectedDate}`;
@@ -582,11 +582,12 @@ const RekapPresensi: React.FC = () => {
     const monthLabel = activeTab === "book-presensi"
       ? (rekapMode === "bulanan"
           ? monthOptions.find(o => o.value === selectedMonth)?.label || selectedMonth
-          : `Semester ${selectedSemester} Tahun ${selectedYear}`)
+          : (selectedSemester === "1" ? `Semester Ganjil (Juli - Desember) Th. ${selectedYear}` : `Semester Genap (Januari - Juni) Th. ${selectedYear}`))
       : new Date(selectedDate).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
 
     // Cek apakah cetak Harian Siswa per Kelas
     const isDailyPd = activeTab === "daily-pd" || (activeTab === "no-pulang" && rekapTarget === "pd");
+    const isGtkTarget = activeTab === "daily-gtk" || (rekapTarget !== "pd");
 
     let pagesHtml = "";
     let thumbnailsHtml = "";
@@ -679,6 +680,10 @@ const RekapPresensi: React.FC = () => {
             else if (item.status === 4) statusBadge = "Sakit";
             else if (item.status === 5) statusBadge = "Alpha";
 
+            const jamPulangCell = item.jamPulang 
+              ? formatTime(item.jamPulang) 
+              : (item.jamMasuk ? '<span style="color: #dc2626; font-weight: 600;">Belum Pulang</span>' : '-');
+
             return `
               <tr>
                 <td style="text-align: center;">${globalIdx + 1}</td>
@@ -686,7 +691,7 @@ const RekapPresensi: React.FC = () => {
                 <td>${item.identitas}</td>
                 <td>${item.rombelOrJabatan}</td>
                 <td style="text-align: center;">${formatTime(item.jamMasuk)}</td>
-                <td style="text-align: center;">${item.jamPulang ? formatTime(item.jamPulang) : '<span style="color: #dc2626; font-weight: 600;">Belum Pulang</span>'}</td>
+                <td style="text-align: center;">${jamPulangCell}</td>
                 <td style="text-align: center; font-weight: 600;">${statusBadge}</td>
               </tr>
             `;
@@ -740,25 +745,27 @@ const RekapPresensi: React.FC = () => {
         const startOffset = pageIdx * itemsPerPagePdf;
         const pageData = dataList.slice(startOffset, startOffset + itemsPerPagePdf);
 
-        // Render Header Halaman dengan info Kelas, Wali Kelas, dan Bulan (tanpa halaman di header)
+        // Render Header Halaman
         const headerKopHtml = `
           <div style="font-weight: bold; font-size: 11px; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: flex-end;">
             <div>
-               <div style="font-size: 13px; font-weight: bold; margin-bottom: 4px;">Laporan Rekapitulasi Presensi Kehadiran ${isPeriodik ? (rekapTarget === "pd" ? "Peserta Didik" : (rekapTarget === "guru" ? "Guru" : "Tendik")) : "Harian"}</div>
-               ${isPeriodik && rekapTarget === "pd" ? `
+               <div style="font-size: 13px; font-weight: bold; margin-bottom: 4px;">Laporan Rekapitulasi Presensi Kehadiran ${isPeriodik ? (rekapTarget === "pd" ? "Peserta Didik" : (rekapTarget === "guru" ? "Guru" : "Tendik")) : (isGtkTarget ? "GTK" : "Harian")}</div>
+               ${isGtkTarget ? `
+                 <div style="font-size: 9px; font-weight: normal; color: #444;">
+                   <span><strong>Periode:</strong> ${monthLabel}</span>
+                 </div>
+               ` : (isPeriodik ? `
                  <div style="font-size: 9px; font-weight: normal; color: #444; display: flex; gap: 15px;">
                    <span><strong>Kelas:</strong> ${selectedClass || "-"}</span>
                    <span><strong>Wali Kelas:</strong> ${waliKelasName}</span>
-                   <span><strong>Bulan/Periode:</strong> ${monthLabel}</span>
+                   <span><strong>Periode:</strong> ${monthLabel}</span>
                  </div>
-               ` : (activeTab !== "daily-gtk" ? `
+               ` : `
                  <div style="font-size: 9px; font-weight: normal; color: #444; display: flex; gap: 15px;">
                    <span><strong>Kelas:</strong> ${selectedClass || "-"}</span>
                    <span><strong>Wali Kelas:</strong> ${waliKelasName}</span>
                    <span><strong>Tanggal:</strong> ${monthLabel}</span>
                  </div>
-               ` : `
-                 <div style="font-size: 9px; font-weight: normal; color: #444;"><strong>Periode:</strong> ${monthLabel}</div>
                `)}
              </div>
            </div>
@@ -2030,7 +2037,7 @@ const RekapPresensi: React.FC = () => {
                           </TableCell>
                           <TableCell className="px-5 py-3.5 text-sm text-gray-500 dark:text-gray-400 font-medium">
                             {item.jamPulang ? formatTime(item.jamPulang) : (
-                              item.hasJadwalToday === false ? "-" : (
+                              !item.jamMasuk || item.hasJadwalToday === false ? "-" : (
                                 <span className="text-red-500 font-semibold bg-red-50 dark:bg-red-950/20 px-2 py-0.5 rounded text-xs">Belum Pulang</span>
                               )
                             )}

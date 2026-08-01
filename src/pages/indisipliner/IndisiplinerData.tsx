@@ -72,6 +72,7 @@ export default function IndisiplinerData() {
 
   // Data lists
   const [pelanggaranList, setPelanggaranList] = useState<any[]>([]);
+  const [kategoriPelanggaranList, setKategoriPelanggaranList] = useState<any[]>([]);
   const [jenisPelanggaranList, setJenisPelanggaranList] = useState<any[]>([]);
   const [jenisTindakLanjutList, setJenisTindakLanjutList] = useState<any[]>([]);
 
@@ -91,6 +92,7 @@ export default function IndisiplinerData() {
   ];
 
   // Modals visibility
+  const [isKatModalOpen, setIsKatModalOpen] = useState(false);
   const [isJpModalOpen, setIsJpModalOpen] = useState(false);
   const [isJtlModalOpen, setIsJtlModalOpen] = useState(false);
   const [isPelanggaranModalOpen, setIsPelanggaranModalOpen] = useState(false);
@@ -101,7 +103,8 @@ export default function IndisiplinerData() {
   const [selectedPelanggaran, setSelectedPelanggaran] = useState<any | null>(null);
 
   // Form states
-  const [jpForm, setJpForm] = useState({ nama: "", target: 1, poin: 10 });
+  const [katForm, setKatForm] = useState({ nama: "", target: 1, keterangan: "" });
+  const [jpForm, setJpForm] = useState({ nama: "", target: 1, poin: 10, kategori_pelanggaran_id: "" });
   const [jtlForm, setJtlForm] = useState({ nama: "", target: 1 });
   
   // Create infraction form states
@@ -268,8 +271,9 @@ export default function IndisiplinerData() {
     if (!sekolah?.sekolah_id) return;
     setLoading(true);
     try {
-      const [summaryRes, jpRes, jtlRes, pelanggaranRes, gtkRes] = await Promise.all([
+      const [summaryRes, katRes, jpRes, jtlRes, pelanggaranRes, gtkRes] = await Promise.all([
         indisiplinerService.getSchoolSummary(sekolah.sekolah_id),
+        indisiplinerService.getKategoriPelanggaran(sekolah.sekolah_id),
         indisiplinerService.getJenisPelanggaran(sekolah.sekolah_id),
         indisiplinerService.getJenisTindakLanjut(sekolah.sekolah_id),
         indisiplinerService.getPelanggaran(sekolah.sekolah_id),
@@ -277,6 +281,7 @@ export default function IndisiplinerData() {
       ]);
 
       setSummary(summaryRes.data);
+      if (katRes && katRes.data) setKategoriPelanggaranList(katRes.data);
       setJenisPelanggaranList(jpRes.data);
       setJenisTindakLanjutList(jtlRes.data);
       setPelanggaranList(pelanggaranRes.data);
@@ -382,6 +387,26 @@ export default function IndisiplinerData() {
     }
   };
 
+  const handleCreateKategori = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!sekolah?.sekolah_id || !katForm.nama.trim()) return;
+
+    try {
+      await indisiplinerService.createKategoriPelanggaran({
+        sekolah_id: sekolah.sekolah_id,
+        nama: katForm.nama,
+        target: katForm.target,
+        keterangan: katForm.keterangan,
+      });
+      Swal.fire("Berhasil", "Kategori pelanggaran berhasil ditambahkan.", "success");
+      setKatForm({ nama: "", target: 1, keterangan: "" });
+      setIsKatModalOpen(false);
+      fetchData();
+    } catch (error: any) {
+      Swal.fire("Gagal", error.response?.data?.message || "Terjadi kesalahan.", "error");
+    }
+  };
+
   const handleCreateJp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!sekolah?.sekolah_id || !jpForm.nama.trim()) return;
@@ -392,9 +417,10 @@ export default function IndisiplinerData() {
         nama: jpForm.nama,
         target: jpForm.target,
         poin: jpForm.poin,
+        kategori_pelanggaran_id: jpForm.kategori_pelanggaran_id || undefined,
       });
       Swal.fire("Berhasil", "Jenis pelanggaran berhasil ditambahkan.", "success");
-      setJpForm({ nama: "", target: 1, poin: 10 });
+      setJpForm({ nama: "", target: 1, poin: 10, kategori_pelanggaran_id: "" });
       setIsJpModalOpen(false);
       fetchData();
     } catch (error: any) {
@@ -878,96 +904,162 @@ export default function IndisiplinerData() {
 
       {/* Tab: Konfigurasi Master */}
       {activeTab === "konfigurasi" && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Master Pelanggaran */}
+        <div className="space-y-6">
+          {/* Master Kategori Pelanggaran */}
           <ComponentCard 
-            title="Daftar Master Jenis Pelanggaran"
+            title="Daftar Master Kategori Pelanggaran"
           >
             <div className="flex justify-between items-center mb-4">
-              <span className="text-xs text-gray-500 dark:text-gray-400">Master data jenis pelanggaran aktif</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">Kelompok kategori pelanggaran sekolah</span>
               <button 
                 type="button"
-                onClick={() => setIsJpModalOpen(true)}
+                onClick={() => setIsKatModalOpen(true)}
                 className="px-3 py-1.5 text-xs font-bold text-white bg-brand-500 hover:bg-brand-600 rounded-lg flex items-center gap-1 transition-all"
               >
-                + Tambah Jenis
+                + Tambah Kategori
               </button>
             </div>
             <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
               <Table className="w-full">
                 <TableHeader className="border-b border-gray-100 dark:border-white/[0.05] bg-gray-50/50 dark:bg-transparent">
                   <TableRow>
-                    <TableCell isHeader className="px-4 py-2 text-start font-semibold text-gray-500 text-xs dark:text-gray-400">Nama Pelanggaran</TableCell>
-                    <TableCell isHeader className="px-4 py-2 text-center font-semibold text-gray-500 text-xs dark:text-gray-400">Target</TableCell>
-                    <TableCell isHeader className="px-4 py-2 text-center font-semibold text-gray-500 text-xs dark:text-gray-400">Poin</TableCell>
+                    <TableCell isHeader className="px-4 py-2 text-start font-semibold text-gray-500 text-xs dark:text-gray-400">Nama Kategori</TableCell>
+                    <TableCell isHeader className="px-4 py-2 text-center font-semibold text-gray-500 text-xs dark:text-gray-400">Peran / Target</TableCell>
+                    <TableCell isHeader className="px-4 py-2 text-start font-semibold text-gray-500 text-xs dark:text-gray-400">Keterangan</TableCell>
                     <TableCell isHeader className="px-4 py-2 text-center font-semibold text-gray-500 text-xs dark:text-gray-400">Status</TableCell>
                   </TableRow>
                 </TableHeader>
                 <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-                  {jenisPelanggaranList
-                    .filter(jp => !defaultTarget || (defaultTarget === "pd" ? jp.target !== 0 : jp.target !== 1))
-                    .map((jp) => (
-                      <TableRow key={jp.jenis_pelanggaran_id} className="hover:bg-gray-50/50 dark:hover:bg-white/[0.01]">
-                        <TableCell className="px-4 py-3 font-medium text-gray-800 dark:text-white/90 text-sm">{jp.nama}</TableCell>
-                        <TableCell className="px-4 py-3 text-center">
-                          <Badge color={jp.target === 0 ? "warning" : jp.target === 1 ? "info" : "success"}>
-                            {jp.target === 0 ? "GTK" : jp.target === 1 ? "Peserta Didik" : "Keduanya"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="px-4 py-3 text-center text-red-500 font-bold text-sm">{jp.poin}</TableCell>
-                        <TableCell className="px-4 py-3 text-center text-sm">
-                          {jp.aktif ? <span className="text-green-500 font-bold">🟢 Aktif</span> : <span className="text-gray-400">🔴 Nonaktif</span>}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                  {kategoriPelanggaranList.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="px-4 py-6 text-center text-xs text-gray-400">
+                        Belum ada data Kategori Pelanggaran. Klik <strong>+ Tambah Kategori</strong> untuk membuat baru.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    kategoriPelanggaranList
+                      .filter(k => !defaultTarget || (defaultTarget === "pd" ? k.target !== 2 : k.target !== 1))
+                      .map((kat) => (
+                        <TableRow key={kat.kategori_pelanggaran_id} className="hover:bg-gray-50/50 dark:hover:bg-white/[0.01]">
+                          <TableCell className="px-4 py-3 font-medium text-gray-800 dark:text-white/90 text-sm">{kat.nama}</TableCell>
+                          <TableCell className="px-4 py-3 text-center">
+                            <Badge color={kat.target === 2 ? "warning" : kat.target === 1 ? "info" : "success"}>
+                              {kat.target === 1 ? "Peserta Didik" : kat.target === 2 ? "GTK" : "Semua / Umum"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs">{kat.keterangan || "-"}</TableCell>
+                          <TableCell className="px-4 py-3 text-center text-sm">
+                            {kat.aktif ? <span className="text-green-500 font-bold">🟢 Aktif</span> : <span className="text-gray-400">🔴 Nonaktif</span>}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                  )}
                 </TableBody>
               </Table>
             </div>
           </ComponentCard>
 
-          {/* Master Tindak Lanjut */}
-          <ComponentCard 
-            title="Daftar Master Jenis Tindak Lanjut"
-          >
-            <div className="flex justify-between items-center mb-4">
-              <span className="text-xs text-gray-500 dark:text-gray-400">Master data tindakan pembinaan aktif</span>
-              <button 
-                type="button"
-                onClick={() => setIsJtlModalOpen(true)}
-                className="px-3 py-1.5 text-xs font-bold text-white bg-brand-500 hover:bg-brand-600 rounded-lg flex items-center gap-1 transition-all"
-              >
-                + Tambah Tindakan
-              </button>
-            </div>
-            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
-              <Table className="w-full">
-                <TableHeader className="border-b border-gray-100 dark:border-white/[0.05] bg-gray-50/50 dark:bg-transparent">
-                  <TableRow>
-                    <TableCell isHeader className="px-4 py-2 text-start font-semibold text-gray-500 text-xs dark:text-gray-400">Tindakan Pembinaan</TableCell>
-                    <TableCell isHeader className="px-4 py-2 text-center font-semibold text-gray-500 text-xs dark:text-gray-400">Target</TableCell>
-                    <TableCell isHeader className="px-4 py-2 text-center font-semibold text-gray-500 text-xs dark:text-gray-400">Status</TableCell>
-                  </TableRow>
-                </TableHeader>
-                <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-                  {jenisTindakLanjutList
-                    .filter(jtl => !defaultTarget || (defaultTarget === "pd" ? jtl.target !== 0 : jtl.target !== 1))
-                    .map((jtl) => (
-                      <TableRow key={jtl.jenis_tindak_lanjut_id} className="hover:bg-gray-50/50 dark:hover:bg-white/[0.01]">
-                        <TableCell className="px-4 py-3 font-medium text-gray-800 dark:text-white/90 text-sm">{jtl.nama}</TableCell>
-                        <TableCell className="px-4 py-3 text-center">
-                          <Badge color={jtl.target === 0 ? "warning" : jtl.target === 1 ? "info" : "success"}>
-                            {jtl.target === 0 ? "GTK" : jtl.target === 1 ? "Peserta Didik" : "Keduanya"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="px-4 py-3 text-center text-sm">
-                          {jtl.aktif ? <span className="text-green-500 font-bold">🟢 Aktif</span> : <span className="text-gray-400">🔴 Nonaktif</span>}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                </TableBody>
-              </Table>
-            </div>
-          </ComponentCard>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Master Pelanggaran */}
+            <ComponentCard 
+              title="Daftar Master Jenis Pelanggaran"
+            >
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-xs text-gray-500 dark:text-gray-400">Detail jenis pelanggaran dan kaitannya ke kategori</span>
+                <button 
+                  type="button"
+                  onClick={() => setIsJpModalOpen(true)}
+                  className="px-3 py-1.5 text-xs font-bold text-white bg-brand-500 hover:bg-brand-600 rounded-lg flex items-center gap-1 transition-all"
+                >
+                  + Tambah Jenis
+                </button>
+              </div>
+              <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
+                <Table className="w-full">
+                  <TableHeader className="border-b border-gray-100 dark:border-white/[0.05] bg-gray-50/50 dark:bg-transparent">
+                    <TableRow>
+                      <TableCell isHeader className="px-4 py-2 text-start font-semibold text-gray-500 text-xs dark:text-gray-400">Nama Pelanggaran</TableCell>
+                      <TableCell isHeader className="px-4 py-2 text-start font-semibold text-gray-500 text-xs dark:text-gray-400">Kategori</TableCell>
+                      <TableCell isHeader className="px-4 py-2 text-center font-semibold text-gray-500 text-xs dark:text-gray-400">Target</TableCell>
+                      <TableCell isHeader className="px-4 py-2 text-center font-semibold text-gray-500 text-xs dark:text-gray-400">Poin</TableCell>
+                      <TableCell isHeader className="px-4 py-2 text-center font-semibold text-gray-500 text-xs dark:text-gray-400">Status</TableCell>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
+                    {jenisPelanggaranList
+                      .filter(jp => !defaultTarget || (defaultTarget === "pd" ? jp.target !== 0 : jp.target !== 1))
+                      .map((jp) => (
+                        <TableRow key={jp.jenis_pelanggaran_id} className="hover:bg-gray-50/50 dark:hover:bg-white/[0.01]">
+                          <TableCell className="px-4 py-3 font-medium text-gray-800 dark:text-white/90 text-sm">{jp.nama}</TableCell>
+                          <TableCell className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                            {jp.kategori_pelanggaran?.nama ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                                {jp.kategori_pelanggaran.nama}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400 text-xs italic">Tanpa Kategori</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="px-4 py-3 text-center">
+                            <Badge color={jp.target === 0 ? "warning" : jp.target === 1 ? "info" : "success"}>
+                              {jp.target === 0 ? "GTK" : jp.target === 1 ? "Peserta Didik" : "Keduanya"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="px-4 py-3 text-center text-red-500 font-bold text-sm">{jp.poin}</TableCell>
+                          <TableCell className="px-4 py-3 text-center text-sm">
+                            {jp.aktif ? <span className="text-green-500 font-bold">🟢 Aktif</span> : <span className="text-gray-400">🔴 Nonaktif</span>}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </ComponentCard>
+
+            {/* Master Tindak Lanjut */}
+            <ComponentCard 
+              title="Daftar Master Jenis Tindak Lanjut"
+            >
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-xs text-gray-500 dark:text-gray-400">Master data tindakan pembinaan aktif</span>
+                <button 
+                  type="button"
+                  onClick={() => setIsJtlModalOpen(true)}
+                  className="px-3 py-1.5 text-xs font-bold text-white bg-brand-500 hover:bg-brand-600 rounded-lg flex items-center gap-1 transition-all"
+                >
+                  + Tambah Tindakan
+                </button>
+              </div>
+              <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
+                <Table className="w-full">
+                  <TableHeader className="border-b border-gray-100 dark:border-white/[0.05] bg-gray-50/50 dark:bg-transparent">
+                    <TableRow>
+                      <TableCell isHeader className="px-4 py-2 text-start font-semibold text-gray-500 text-xs dark:text-gray-400">Tindakan Pembinaan</TableCell>
+                      <TableCell isHeader className="px-4 py-2 text-center font-semibold text-gray-500 text-xs dark:text-gray-400">Target</TableCell>
+                      <TableCell isHeader className="px-4 py-2 text-center font-semibold text-gray-500 text-xs dark:text-gray-400">Status</TableCell>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
+                    {jenisTindakLanjutList
+                      .filter(jtl => !defaultTarget || (defaultTarget === "pd" ? jtl.target !== 0 : jtl.target !== 1))
+                      .map((jtl) => (
+                        <TableRow key={jtl.jenis_tindak_lanjut_id} className="hover:bg-gray-50/50 dark:hover:bg-white/[0.01]">
+                          <TableCell className="px-4 py-3 font-medium text-gray-800 dark:text-white/90 text-sm">{jtl.nama}</TableCell>
+                          <TableCell className="px-4 py-3 text-center">
+                            <Badge color={jtl.target === 0 ? "warning" : jtl.target === 1 ? "info" : "success"}>
+                              {jtl.target === 0 ? "GTK" : jtl.target === 1 ? "Peserta Didik" : "Keduanya"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="px-4 py-3 text-center text-sm">
+                            {jtl.aktif ? <span className="text-green-500 font-bold">🟢 Aktif</span> : <span className="text-gray-400">🔴 Nonaktif</span>}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </ComponentCard>
+          </div>
         </div>
       )}
 
@@ -1083,11 +1175,72 @@ export default function IndisiplinerData() {
       </div>
 
       {/* ===================== */}
+      {/* MODAL: KATEGORI PELANGGARAN */}
+      {/* ===================== */}
+      <Modal isOpen={isKatModalOpen} onClose={() => setIsKatModalOpen(false)} className="max-w-[500px] p-6 bg-white dark:bg-gray-900 rounded-3xl">
+        <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-6">Tambah Master Kategori Pelanggaran</h3>
+        <form onSubmit={handleCreateKategori} className="space-y-4">
+          <div>
+            <label className="block text-sm font-semibold mb-2">Nama Kategori</label>
+            <Input 
+              type="text" 
+              placeholder="Contoh: Kedisiplinan, Kerapihan, Pelanggaran Berat"
+              value={katForm.nama} 
+              onChange={(e) => setKatForm({ ...katForm, nama: e.target.value })}
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold mb-2">Peran / Target Kategori</label>
+            <select 
+              value={katForm.target}
+              onChange={(e) => setKatForm({ ...katForm, target: Number(e.target.value) })}
+              className="w-full appearance-none rounded-lg border border-gray-300 bg-transparent py-3 px-4 text-sm text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white/90"
+            >
+              <option value={1}>Peserta Didik</option>
+              <option value={2}>GTK</option>
+              <option value={3}>Semua / Umum</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold mb-2">Keterangan (Opsional)</label>
+            <Input 
+              type="text" 
+              placeholder="Deskripsi singkat kategori..."
+              value={katForm.keterangan} 
+              onChange={(e) => setKatForm({ ...katForm, keterangan: e.target.value })}
+            />
+          </div>
+          <div className="flex justify-end gap-3 pt-4">
+            <Button variant="outline" size="sm" type="button" onClick={() => setIsKatModalOpen(false)}>Batal</Button>
+            <Button variant="primary" size="sm" type="submit">Simpan Kategori</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ===================== */}
       {/* MODAL: JENIS PELANGGARAN */}
       {/* ===================== */}
       <Modal isOpen={isJpModalOpen} onClose={() => setIsJpModalOpen(false)} className="max-w-[500px] p-6 bg-white dark:bg-gray-900 rounded-3xl">
         <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-6">Tambah Master Jenis Pelanggaran</h3>
         <form onSubmit={handleCreateJp} className="space-y-4">
+          <div>
+            <label className="block text-sm font-semibold mb-2">Kategori Pelanggaran (Wajib)</label>
+            <select 
+              value={jpForm.kategori_pelanggaran_id}
+              onChange={(e) => setJpForm({ ...jpForm, kategori_pelanggaran_id: e.target.value })}
+              className="w-full appearance-none rounded-lg border border-gray-300 bg-transparent py-3 px-4 text-sm text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white/90"
+            >
+              <option value="">-- Pilih Kategori Pelanggaran --</option>
+              {kategoriPelanggaranList
+                .filter(k => jpForm.target === 1 ? k.target === 1 || k.target === 3 : jpForm.target === 0 ? k.target === 2 || k.target === 3 : true)
+                .map((k) => (
+                  <option key={k.kategori_pelanggaran_id} value={k.kategori_pelanggaran_id}>
+                    {k.nama} ({k.target === 1 ? "PD" : k.target === 2 ? "GTK" : "Umum"})
+                  </option>
+                ))}
+            </select>
+          </div>
           <div>
             <label className="block text-sm font-semibold mb-2">Nama Pelanggaran</label>
             <Input 
@@ -1123,7 +1276,7 @@ export default function IndisiplinerData() {
           </div>
           <div className="flex justify-end gap-3 pt-4">
             <Button variant="outline" size="sm" type="button" onClick={() => setIsJpModalOpen(false)}>Batal</Button>
-            <Button variant="primary" size="sm" type="submit">Simpan</Button>
+            <Button variant="primary" size="sm" type="submit">Simpan Jenis</Button>
           </div>
         </form>
       </Modal>

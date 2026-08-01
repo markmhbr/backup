@@ -1,6 +1,19 @@
 import api from './api';
 
 export const indisiplinerService = {
+  // Master Kategori Pelanggaran
+  getKategoriPelanggaran: async (sekolahId: string, target?: number) => {
+    const response = await api.get('/indisipliner/kategori-pelanggaran', {
+      params: { sekolah_id: sekolahId, target },
+    });
+    return response.data;
+  },
+
+  createKategoriPelanggaran: async (data: { sekolah_id: string; nama: string; target?: number; keterangan?: string }) => {
+    const response = await api.post('/indisipliner/kategori-pelanggaran', data);
+    return response.data;
+  },
+
   // Master Jenis Pelanggaran
   getJenisPelanggaran: async (sekolahId: string) => {
     const response = await api.get('/indisipliner/jenis-pelanggaran', {
@@ -9,7 +22,7 @@ export const indisiplinerService = {
     return response.data;
   },
 
-  createJenisPelanggaran: async (data: { sekolah_id: string; nama: string; target: number; poin: number }) => {
+  createJenisPelanggaran: async (data: { sekolah_id: string; nama: string; target: number; poin: number; kategori_pelanggaran_id?: string }) => {
     const response = await api.post('/indisipliner/jenis-pelanggaran', data);
     return response.data;
   },
