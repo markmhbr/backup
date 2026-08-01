@@ -621,6 +621,7 @@ const EditGTKPage: React.FC<EditGTKPageProps> = ({ profileId }) => {
       ptk_id: id,
       nama: formData.nama,
       foto: formData.avatar,
+      nip: formData.nip,
       nuptk: formData.nuptk,
       nik: formData.nik,
       avatar: getFotoUrl(formData.avatar, ""),

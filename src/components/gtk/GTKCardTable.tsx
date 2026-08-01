@@ -20,6 +20,7 @@ interface GTKCard {
   ptk_id: string;
   nama: string;
   foto?: string;
+  nip?: string;
   nuptk: string;
   nik?: string;
   jabatan_ptk_id_str: string;
@@ -78,7 +79,7 @@ export default function GTKCardTable({ type, searchTerm }: GTKCardTableProps) {
             <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
               <TableRow>
                 <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">Nama</TableCell>
-                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">NUPTK</TableCell>
+                <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">NIP / NUPTK / NIK</TableCell>
                 <TableCell isHeader className="px-5 py-3 font-medium text-gray-500 text-center text-theme-xs dark:text-gray-400">Aksi</TableCell>
               </TableRow>
             </TableHeader>
@@ -97,7 +98,7 @@ export default function GTKCardTable({ type, searchTerm }: GTKCardTableProps) {
                           <span className="font-medium text-gray-800 dark:text-white/90">{item.nama}</span>
                       </div>
                   </TableCell>
-                  <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{item.nuptk || "-"}</TableCell>
+                  <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">{item.nip || item.nuptk || item.nik || "-"}</TableCell>
                   <TableCell className="px-5 py-4 text-center">
                     <div className="flex justify-center">
                         <Button 

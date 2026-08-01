@@ -7,6 +7,7 @@ interface GTKCardData {
   ptk_id: string;
   nama: string;
   avatar: string;
+  nip?: string;
   nuptk: string;
   nik?: string;
   jabatan: string;
@@ -222,7 +223,7 @@ const PrintGTKCardPreview: React.FC<PrintGTKCardPreviewProps> = ({ isOpen, onClo
                     {person.nama}
                   </p>
                   <p className="text-[14px] font-black text-gray-500 dark:text-gray-400 leading-none">
-                    {person.nuptk ? person.nuptk : (person.nik || "-")}
+                    {person.nip || person.nuptk || person.nik || "-"}
                   </p>
                 </div>
 
@@ -284,7 +285,7 @@ const PrintGTKCardPreview: React.FC<PrintGTKCardPreviewProps> = ({ isOpen, onClo
                 {person.nama}
               </p>
               <p className="text-[10px] font-black text-gray-500 leading-none">
-                {person.nuptk ? person.nuptk : (person.nik || "-")}
+                {person.nip || person.nuptk || person.nik || "-"}
               </p>
             </div>
 

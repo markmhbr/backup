@@ -8,6 +8,7 @@ interface GTKCardData {
   ptk_id: string;
   nama: string;
   foto?: string;
+  nip?: string;
   nuptk: string;
   nik?: string;
   jabatan_ptk_id_str?: string;
@@ -127,7 +128,7 @@ const PrintAllGTKCards: React.FC<PrintAllGTKCardsProps> = ({ isOpen, onClose, ty
                             {person.nama}
                           </p>
                           <p className="text-[10px] font-black text-gray-500 dark:text-gray-400 leading-none">
-                            {person.nuptk ? person.nuptk : (person.nik || "-")}
+                            {person.nip || person.nuptk || person.nik || "-"}
                           </p>
                         </div>
                         
