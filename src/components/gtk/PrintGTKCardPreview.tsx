@@ -200,7 +200,7 @@ const PrintGTKCardPreview: React.FC<PrintGTKCardPreviewProps> = ({ isOpen, onClo
                 className="relative bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-850 rounded-2xl overflow-hidden flex flex-col items-center justify-center p-6 gap-6"
                 style={{ 
                   width: '320px', 
-                  height: '490px',
+                  height: '512px',
                   backgroundImage: backgroundGtk ? `url(${backgroundGtk})` : 'none',
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',
@@ -262,7 +262,7 @@ const PrintGTKCardPreview: React.FC<PrintGTKCardPreviewProps> = ({ isOpen, onClo
             className="id-card-vertical relative bg-white border border-gray-400 rounded-xl overflow-hidden flex flex-col items-center justify-center p-3 gap-3"
             style={{ 
               width: '5.5cm', 
-              height: '8.5cm',
+              height: '8.8cm',
               backgroundImage: backgroundGtk ? `url(${backgroundGtk})` : 'none',
               backgroundSize: 'cover',
               backgroundPosition: 'center',

@@ -104,7 +104,7 @@ const PrintAllGTKCards: React.FC<PrintAllGTKCardsProps> = ({ isOpen, onClose, ty
                         className="id-card-vertical relative bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-800 rounded-xl overflow-hidden print:shadow-none print:border print:border-gray-400 flex flex-col items-center justify-center p-3 gap-3"
                         style={{ 
                           width: '5.5cm', 
-                          height: '8.5cm',
+                          height: '8.8cm',
                           pageBreakInside: 'avoid',
                           backgroundImage: backgroundGtk ? `url(${backgroundGtk})` : 'none',
                           backgroundSize: 'cover',

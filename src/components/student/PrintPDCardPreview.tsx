@@ -244,7 +244,7 @@ const PrintPDCardPreview: React.FC<PrintPDCardPreviewProps> = ({ isOpen, onClose
                   className="relative bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-800 rounded-2xl overflow-hidden flex flex-col items-center justify-center p-6 gap-6"
                   style={{ 
                     width: '320px', 
-                    height: '490px',
+                    height: '512px',
                     backgroundImage: backgroundPd ? `url(${backgroundPd})` : 'none',
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
@@ -305,7 +305,7 @@ const PrintPDCardPreview: React.FC<PrintPDCardPreviewProps> = ({ isOpen, onClose
               className="id-card-vertical relative bg-white border border-gray-400 rounded-xl overflow-hidden flex flex-col items-center justify-center p-3 gap-3"
               style={{ 
                 width: '5.5cm', 
-                height: '8.5cm',
+                height: '8.8cm',
                 backgroundImage: backgroundPd ? `url(${backgroundPd})` : 'none',
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
@@ -379,7 +379,7 @@ const PrintPDCardPreview: React.FC<PrintPDCardPreviewProps> = ({ isOpen, onClose
                       className="id-card-vertical relative bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-800 rounded-xl overflow-hidden print:shadow-none print:border print:border-gray-400 flex flex-col items-center justify-center p-3 gap-3"
                       style={{ 
                         width: '5.5cm', 
-                        height: '8.5cm',
+                        height: '8.8cm',
                         pageBreakInside: 'avoid',
                         backgroundImage: backgroundPd ? `url(${backgroundPd})` : 'none',
                         backgroundSize: 'cover',
