@@ -34,6 +34,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const IDLE_TIMEOUT_MS = 2 * 60 * 60 * 1000; // 2 Jam (120 Menit) inaktivitas
+
 const isTokenExpired = (token: string): boolean => {
   try {
     const payloadBase64 = token.split('.')[1];
@@ -54,7 +56,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const checkAuth = async () => {
       const savedUser = localStorage.getItem('user_data');
       const token = localStorage.getItem('auth_token');
+      const lastActivity = localStorage.getItem('last_activity');
       
+      // Jika waktu inaktif melebihi 2 jam, anggap sesi telah kadaluarsa
+      if (lastActivity && Date.now() - Number(lastActivity) >= IDLE_TIMEOUT_MS) {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('user_data');
+        localStorage.removeItem('last_activity');
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
       if (savedUser && token) {
         try {
           if (isTokenExpired(token)) {
@@ -76,6 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               // Refresh failed, clear session and log out
               localStorage.removeItem('auth_token');
               localStorage.removeItem('user_data');
+              localStorage.removeItem('last_activity');
               setUser(null);
             }
           } else {
@@ -86,6 +100,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } catch (err) {
           localStorage.removeItem('auth_token');
           localStorage.removeItem('user_data');
+          localStorage.removeItem('last_activity');
           setUser(null);
         }
       }
@@ -94,6 +109,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     checkAuth();
   }, []);
+
+  // Pemantau inaktivitas pengguna (Auto Logout setelah 2 jam tidak ada aktivitas)
+  useEffect(() => {
+    if (!user) return;
+
+    if (!localStorage.getItem('last_activity')) {
+      localStorage.setItem('last_activity', Date.now().toString());
+    }
+
+    let lastSaveTime = Date.now();
+
+    const resetInactivityTimer = () => {
+      const now = Date.now();
+      // Throttle simpan ke localStorage setiap 10 detik agar tidak memberatkan CPU/Browser
+      if (now - lastSaveTime > 10000) {
+        lastSaveTime = now;
+        localStorage.setItem('last_activity', now.toString());
+      }
+    };
+
+    // Event penanda interaksi/aktivitas user di device
+    const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
+    events.forEach(event => window.addEventListener(event, resetInactivityTimer));
+
+    // Pemeriksaan berkala tiap 30 detik
+    const checkInterval = setInterval(() => {
+      const lastActivity = Number(localStorage.getItem('last_activity') || Date.now());
+      if (Date.now() - lastActivity >= IDLE_TIMEOUT_MS) {
+        logout();
+      }
+    }, 30000);
+
+    return () => {
+      events.forEach(event => window.removeEventListener(event, resetInactivityTimer));
+      clearInterval(checkInterval);
+    };
+  }, [user]);
 
   const fetchMenusForUser = async (userData: User) => {
     const isOperator = userData.role.toLowerCase().includes("operator") || userData.role.toLowerCase().includes("admin");
@@ -113,6 +165,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const setAuthData = async (userData: User) => {
     setUser(userData);
+    localStorage.setItem('last_activity', Date.now().toString());
     await fetchMenusForUser(userData);
   };
 
@@ -127,6 +180,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     localStorage.setItem('auth_token', accessToken);
     localStorage.setItem('user_data', JSON.stringify(userData));
+    localStorage.setItem('last_activity', Date.now().toString());
     setUser(userData);
     await fetchMenusForUser(userData);
     return response.data;
@@ -138,6 +192,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     localStorage.setItem('auth_token', accessToken);
     localStorage.setItem('user_data', JSON.stringify(userData));
+    localStorage.setItem('last_activity', Date.now().toString());
     setUser(userData);
     await fetchMenusForUser(userData);
   };
@@ -148,6 +203,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       localStorage.removeItem('auth_token');
       localStorage.removeItem('user_data');
+      localStorage.removeItem('last_activity');
       setUser(null);
       setAllowedMenus([]);
       window.location.href = '/signin';
