@@ -104,6 +104,7 @@ const menuTree: MenuNode[] = [
           { id: "presensi-pd", name: "Presensi Peserta Didik" },
           { id: "presensi-gtk", name: "Presensi GTK" },
           { id: "presensi-mapel", name: "Presensi Mapel" },
+          { id: "presensi-rekap", name: "Rekap Presensi" },
           { id: "presensi-izin", name: "Izin" },
           { id: "presensi-hari-libur", name: "Hari Libur" },
         ],
@@ -154,6 +155,7 @@ const menuTree: MenuNode[] = [
       { id: "pengaturan-menu", name: "Menu" },
       { id: "pengaturan-backup", name: "Backup" },
       { id: "pengaturan-umum", name: "Umum" },
+      { id: "pengaturan-va", name: "Virtual Account" },
     ],
   },
 ];
@@ -245,7 +247,13 @@ export default function MenuSettings() {
   useEffect(() => {
     if (selectedRole) {
       const activeForRole = mappings
-        .filter((m) => m.peran_id === selectedRole.peran_id)
+        .filter(
+          (m) =>
+            m.peran_id === selectedRole.peran_id ||
+            (m.peran_nama &&
+              selectedRole.peran_nama &&
+              m.peran_nama.trim().toLowerCase() === selectedRole.peran_nama.trim().toLowerCase())
+        )
         .map((m) => m.menu_id);
       setCheckedMenus(activeForRole);
     }
