@@ -9,7 +9,7 @@ import { getFotoUrl } from "../../../utils/image";
 
 const Scanner: React.FC = () => {
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string, data?: any } | null>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error' | 'warning', text: string, data?: any } | null>(null);
   const [voiceEnabled, setVoiceEnabled] = useState(() => {
     const saved = localStorage.getItem("presensi_voice_enabled");
     return saved !== null ? saved === "true" : true;
@@ -249,37 +249,63 @@ const Scanner: React.FC = () => {
       
     } catch (error: any) {
       const errorMsg = error.response?.data?.message || "Gagal mencatat kehadiran. QR Token tidak dikenal atau sekolah sedang libur.";
+      const lowerMsg = errorMsg.toLowerCase();
       
-      // Speak error
+      const isWarning = 
+        lowerMsg.includes("belum saatnya presensi pulang") || 
+        lowerMsg.includes("belum selesai") || 
+        lowerMsg.includes("belum tiba") ||
+        lowerMsg.includes("sudah melakukan presensi") ||
+        lowerMsg.includes("sudah presensi") ||
+        (lowerMsg.includes("presensi pulang") && lowerMsg.includes("belum")) ||
+        (lowerMsg.includes("masuk") && lowerMsg.includes("sudah"));
+
+      // Speak feedback
       if (voiceEnabled) {
-        const lowerMsg = errorMsg.toLowerCase();
-        if (
-          lowerMsg.includes("belum saatnya presensi pulang") || 
-          lowerMsg.includes("belum selesai") || 
-          lowerMsg.includes("belum tiba") ||
-          lowerMsg.includes("sudah melakukan presensi")
-        ) {
-          speak("Anda sudah melakukan presensi masuk");
+        if (isWarning) {
+          if (lowerMsg.includes("masuk dan pulang")) {
+            speak("Anda sudah melakukan presensi masuk dan pulang hari ini");
+          } else {
+            speak("Anda sudah melakukan presensi masuk. Jam pulang belum selesai");
+          }
         } else {
           speak("Presensi gagal");
         }
       }
 
-      Swal.fire({
-        title: 'Presensi Gagal!',
-        text: errorMsg,
-        icon: 'error',
-        showConfirmButton: false,
-        timer: 3000,
-        timerProgressBar: true,
-        background: document.documentElement.classList.contains('dark') ? '#1e293b' : '#ffffff',
-        color: document.documentElement.classList.contains('dark') ? '#f1f5f9' : '#1e293b',
-      });
+      if (isWarning) {
+        Swal.fire({
+          title: 'Peringatan',
+          text: errorMsg,
+          icon: 'warning',
+          showConfirmButton: false,
+          timer: 3500,
+          timerProgressBar: true,
+          background: document.documentElement.classList.contains('dark') ? '#1e293b' : '#ffffff',
+          color: document.documentElement.classList.contains('dark') ? '#f1f5f9' : '#1e293b',
+        });
 
-      setMessage({ 
-        type: 'error', 
-        text: errorMsg 
-      });
+        setMessage({ 
+          type: 'warning', 
+          text: errorMsg 
+        });
+      } else {
+        Swal.fire({
+          title: 'Presensi Gagal!',
+          text: errorMsg,
+          icon: 'error',
+          showConfirmButton: false,
+          timer: 3000,
+          timerProgressBar: true,
+          background: document.documentElement.classList.contains('dark') ? '#1e293b' : '#ffffff',
+          color: document.documentElement.classList.contains('dark') ? '#f1f5f9' : '#1e293b',
+        });
+
+        setMessage({ 
+          type: 'error', 
+          text: errorMsg 
+        });
+      }
       setLoading(false);
     }
   };
@@ -417,17 +443,25 @@ const Scanner: React.FC = () => {
             <div className="min-h-[120px] flex flex-col justify-center">
               {message ? (
                 <div className={`rounded-xl p-5 flex items-start gap-4 animate-fade-in ${
-                  message.type === 'success' ? 'bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400 border border-green-100 dark:border-green-500/20' : 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400 border border-red-100 dark:border-red-500/20'
+                  message.type === 'success' 
+                    ? 'bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400 border border-green-100 dark:border-green-500/20' 
+                    : message.type === 'warning'
+                    ? 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-100 dark:border-amber-500/20'
+                    : 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400 border border-red-100 dark:border-red-500/20'
                 }`}>
                   <div className="mt-0.5">
                     {message.type === 'success' ? (
                       <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                    ) : message.type === 'warning' ? (
+                      <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
                     ) : (
                       <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" /></svg>
                     )}
                   </div>
                   <div className="flex-1">
-                    <p className="text-base font-bold">{message.type === 'success' ? 'Berhasil' : 'Gagal'}</p>
+                    <p className="text-base font-bold">
+                      {message.type === 'success' ? 'Berhasil' : message.type === 'warning' ? 'Peringatan' : 'Gagal'}
+                    </p>
                     <p className="text-sm mt-1 leading-relaxed">{message.text}</p>
                     {message.data && (
                       <div className="mt-3 flex items-center gap-2 text-xs font-medium opacity-70">
