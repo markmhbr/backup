@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import PageMeta from "../../components/common/PageMeta";
 import api from "../../services/api";
+import { dapodikService } from "../../services/dapodikService";
 import Swal from "sweetalert2";
 
 interface Role {
@@ -209,18 +210,37 @@ export default function MenuSettings() {
   const [mappings, setMappings] = useState<MenuRoleMapping[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+  const [sekolah, setSekolah] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchSekolah = async () => {
+      try {
+        const res = await dapodikService.getSekolah();
+        if (res?.status === "success" && res.data) {
+          setSekolah(res.data);
+        }
+      } catch (err) {
+        console.error("Gagal memuat data sekolah:", err);
+      }
+    };
+    fetchSekolah();
+  }, []);
 
   useEffect(() => {
     const fetchRoles = async () => {
       try {
-        const res = await api.get("/dapodik/roles");
+        const params: any = {};
+        if (sekolah?.sekolah_id) {
+          params.sekolah_id = sekolah.sekolah_id;
+        }
+        const res = await api.get("/dapodik/roles", { params });
         if (res.data && res.data.data) {
           const list = (res.data.data as Role[]).filter(
             (r) => r.peran_nama !== "Operator Sekolah" && r.peran_id !== 10
           );
           setRoles(list);
           if (list.length > 0) {
-            setSelectedRole(list[0]);
+            setSelectedRole((prev) => (prev && list.some(r => r.peran_id === prev.peran_id) ? prev : list[0]));
           }
         }
       } catch (err) {
@@ -228,12 +248,16 @@ export default function MenuSettings() {
       }
     };
     fetchRoles();
-  }, []);
+  }, [sekolah?.sekolah_id]);
 
   useEffect(() => {
     const fetchMappings = async () => {
       try {
-        const res = await api.get("/dapodik/menu-roles");
+        const params: any = {};
+        if (sekolah?.sekolah_id) {
+          params.sekolah_id = sekolah.sekolah_id;
+        }
+        const res = await api.get("/dapodik/menu-roles", { params });
         if (res.data && res.data.data) {
           setMappings(res.data.data);
         }
@@ -242,7 +266,7 @@ export default function MenuSettings() {
       }
     };
     fetchMappings();
-  }, []);
+  }, [sekolah?.sekolah_id]);
 
   useEffect(() => {
     if (selectedRole) {
@@ -324,16 +348,21 @@ export default function MenuSettings() {
         peranId: selectedRole.peran_id,
         peranNama: selectedRole.peran_nama,
         menuIds: checkedMenus,
+        sekolahId: sekolah?.sekolah_id || undefined,
       });
 
-      const res = await api.get("/dapodik/menu-roles");
+      const params: any = {};
+      if (sekolah?.sekolah_id) {
+        params.sekolah_id = sekolah.sekolah_id;
+      }
+      const res = await api.get("/dapodik/menu-roles", { params });
       if (res.data && res.data.data) {
         setMappings(res.data.data);
       }
 
       Swal.fire({
         title: "Berhasil!",
-        text: `Hak akses menu untuk peran ${selectedRole.peran_nama} berhasil diperbarui.`,
+        text: `Hak akses menu untuk peran ${selectedRole.peran_nama} ${sekolah?.nama ? `di ${sekolah.nama}` : ''} berhasil diperbarui.`,
         icon: "success",
         timer: 2000,
         showConfirmButton: false,
@@ -445,13 +474,21 @@ export default function MenuSettings() {
         description="Configure menu access visibility per user roles"
       />
       <div className="space-y-6">
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-2">
-            Pengaturan Hak Akses Menu
-          </h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Tentukan menu dan submenu yang dapat diakses oleh masing-masing peran pengguna sekolah. Peran <strong>Operator Sekolah</strong> memiliki bypass penuh untuk semua menu.
-          </p>
+        <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-1">
+              Pengaturan Hak Akses Menu
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Tentukan menu dan submenu yang dapat diakses oleh masing-masing peran pengguna sekolah. Peran <strong>Operator Sekolah</strong> memiliki bypass penuh untuk semua menu.
+            </p>
+          </div>
+          {sekolah && (
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400 border border-brand-100 dark:border-brand-500/20 shrink-0 self-start sm:self-auto">
+              <span className="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></span>
+              {sekolah.nama}
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

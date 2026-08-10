@@ -236,7 +236,7 @@ const Scanner: React.FC = () => {
       
       // Speak success
       if (voiceEnabled) {
-        speak(`${profile.nama} sudah melakukan presensi ${statusText.toLowerCase()}`);
+        speak(`${profile.nama}, berhasil presensi ${statusText.toLowerCase()}`);
       }
 
       // Show beautiful SweetAlert2 modal
