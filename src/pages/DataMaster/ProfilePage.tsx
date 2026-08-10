@@ -4,6 +4,8 @@ import api from "../../services/api";
 import EditGTKPage from "./EditGTKPage";
 import EditStudentPage from "./EditStudentPage";
 import PageMeta from "../../components/common/PageMeta";
+import { dapodikService } from "../../services/dapodikService";
+import Swal from "sweetalert2";
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -37,12 +39,56 @@ export default function ProfilePage() {
     return cacheKeyType ? !sessionStorage.getItem(cacheKeyType) : true;
   });
 
+  const [gtkList, setGtkList] = useState<any[]>([]);
+  const [selectedPtkId, setSelectedPtkId] = useState<string>("");
+  const [linking, setLinking] = useState(false);
+
   useEffect(() => {
-    // If already cached in sessionStorage, do not fetch again
-    if (cacheKeyType && sessionStorage.getItem(cacheKeyType)) {
+    if (profileType === "admin" || !targetId) {
+      const fetchGtkList = async () => {
+        try {
+          const res = await dapodikService.getGTK(300, "", 1);
+          if (res?.status === "success" && Array.isArray(res.data)) {
+            setGtkList(res.data);
+          }
+        } catch (err) {
+          console.error("Gagal memuat list GTK:", err);
+        }
+      };
+      fetchGtkList();
+    }
+  }, [profileType, targetId]);
+
+  const handleLinkGtk = async () => {
+    if (!selectedPtkId) {
+      Swal.fire("Peringatan", "Pilih nama Anda dari daftar Guru/Tendik terlebih dahulu", "warning");
       return;
     }
+    try {
+      setLinking(true);
+      await api.post("/auth/link-gtk", { ptk_id: selectedPtkId });
+      
+      if (cacheKeyType) sessionStorage.setItem(cacheKeyType, "gtk");
+      if (cacheKeyTarget) sessionStorage.setItem(cacheKeyTarget, selectedPtkId);
+      setProfileType("gtk");
+      setTargetId(selectedPtkId);
 
+      Swal.fire({
+        title: "Berhasil!",
+        text: "Profil akun berhasil dihubungkan ke data GTK. Memuat tampilan profil...",
+        icon: "success",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+    } catch (err: any) {
+      console.error(err);
+      Swal.fire("Error", err.response?.data?.message || "Gagal menghubungkan profil GTK", "error");
+    } finally {
+      setLinking(false);
+    }
+  };
+
+  useEffect(() => {
     const fetchMe = async () => {
       try {
         setLoading(true);
@@ -180,6 +226,42 @@ export default function ProfilePage() {
               <span className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">Alamat Lengkap</span>
               <p className="text-base font-semibold text-gray-800 dark:text-white/90">{adminData?.alamat || "-"}</p>
             </div>
+          </div>
+        </div>
+
+        {/* Card Penautan Profil GTK */}
+        <div className="rounded-3xl border border-brand-200 bg-brand-50/50 p-6 dark:border-brand-900/30 dark:bg-brand-950/10 md:p-8">
+          <h3 className="mb-2 text-lg font-bold text-gray-800 dark:text-white/90 flex items-center gap-2">
+            <svg className="w-5 h-5 text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+            </svg>
+            Hubungkan Akun ke Profil GTK (Guru / Tendik)
+          </h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            Jika akun Operator Anda juga berstatus sebagai Guru/Tendik, pilih nama Anda pada daftar di bawah ini untuk menampilkan halaman profil GTK lengkap (Foto, Biodata, Alamat, Kepegawaian, Tugas & Pembelajaran, dll).
+          </p>
+
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+            <select
+              value={selectedPtkId}
+              onChange={(e) => setSelectedPtkId(e.target.value)}
+              className="w-full flex-1 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white cursor-pointer"
+            >
+              <option value="">-- Pilih Nama Anda dari Daftar Guru/Tendik --</option>
+              {gtkList.map((g) => (
+                <option key={g.ptk_id} value={g.ptk_id}>
+                  {g.nama} {g.nuptk || g.nip ? `(${g.nuptk || g.nip})` : ""}
+                </option>
+              ))}
+            </select>
+
+            <button
+              onClick={handleLinkGtk}
+              disabled={linking || !selectedPtkId}
+              className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-brand-500 text-white font-semibold hover:bg-brand-600 transition-colors shadow-md disabled:opacity-50 shrink-0 cursor-pointer"
+            >
+              {linking ? "Menghubungkan..." : "Hubungkan Profil GTK"}
+            </button>
           </div>
         </div>
       </div>
