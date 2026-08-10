@@ -183,9 +183,36 @@ const Scanner: React.FC = () => {
     localStorage.setItem("presensi_voice_enabled", String(checked));
   };
 
+  const isProcessingRef = useRef(false);
+  const lastScanRef = useRef<{ token: string; time: number } | null>(null);
+
   const handleScan = async (scannedToken: string) => {
-    if (!scannedToken || loading) return;
-    
+    if (!scannedToken) return;
+
+    const now = Date.now();
+
+    // 1. Cegah pemrosesan scan ganda secara bersamaan
+    if (isProcessingRef.current) return;
+
+    // 2. Cegah re-scan token/kartu yang sama dalam rentang 5 detik
+    if (
+      lastScanRef.current &&
+      lastScanRef.current.token === scannedToken &&
+      now - lastScanRef.current.time < 5000
+    ) {
+      return;
+    }
+
+    // 3. Jeda/cooldown minimal 2.5 detik untuk scan kartu apapun setelah scan terakhir
+    if (
+      lastScanRef.current &&
+      now - lastScanRef.current.time < 2500
+    ) {
+      return;
+    }
+
+    isProcessingRef.current = true;
+    lastScanRef.current = { token: scannedToken, time: now };
     setLoading(true);
     setMessage(null);
 
@@ -242,10 +269,6 @@ const Scanner: React.FC = () => {
         text: `Berhasil mencatat kehadiran: ${profile.nama} (${statusText})`,
         data: response
       });
-      
-      setTimeout(() => {
-        setLoading(false);
-      }, 2000);
       
     } catch (error: any) {
       const errorMsg = error.response?.data?.message || "Gagal mencatat kehadiran. QR Token tidak dikenal atau sekolah sedang libur.";
@@ -306,7 +329,12 @@ const Scanner: React.FC = () => {
           text: errorMsg 
         });
       }
-      setLoading(false);
+    } finally {
+      // Tahan status loading & cooldown selama 2.5 detik sebelum siap menerima scan berikutnya
+      setTimeout(() => {
+        setLoading(false);
+        isProcessingRef.current = false;
+      }, 2500);
     }
   };
 

@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { Html5QrcodeScanner, Html5QrcodeScanType } from "html5-qrcode";
 
 interface QrScannerProps {
@@ -19,6 +19,13 @@ const QrScanner: React.FC<QrScannerProps> = ({
   disableFlip = false,
 }) => {
   const containerId = "qr-reader";
+  const onScanSuccessRef = useRef(onScanSuccess);
+  const onScanErrorRef = useRef(onScanError);
+
+  useEffect(() => {
+    onScanSuccessRef.current = onScanSuccess;
+    onScanErrorRef.current = onScanError;
+  }, [onScanSuccess, onScanError]);
 
   useEffect(() => {
     let isMounted = true;
@@ -49,10 +56,14 @@ const QrScanner: React.FC<QrScannerProps> = ({
 
       scanner.render(
         (decodedText) => {
-          onScanSuccess(decodedText);
+          if (onScanSuccessRef.current) {
+            onScanSuccessRef.current(decodedText);
+          }
         },
         (errorMessage) => {
-          if (onScanError) onScanError(errorMessage);
+          if (onScanErrorRef.current) {
+            onScanErrorRef.current(errorMessage);
+          }
         }
       );
     }, 100);
