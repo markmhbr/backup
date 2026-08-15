@@ -503,18 +503,21 @@ const AppSidebar: React.FC = () => {
     return `${rolePrefix}${path}`;
   };
 
+  const isSuperAdmin = user?.role === "Super Admin" || user?.role === "superadmin";
   const isOperator = user?.role.toLowerCase().includes("operator") || user?.role.toLowerCase().includes("admin");
 
+  const isCardMenu = (id?: string) => {
+    return id === "gtk-kartu" || id === "gtk-card" || id === "pd-kartu" || id === "student-card";
+  };
+
   const filterNavItems = (items: NavItem[]): NavItem[] => {
-    if (isOperator) return items;
     return items
       .map((item) => {
-        if (item.id === "wali-kelas" && isWaliKelas) {
-          return item;
+        // HANYA Super Admin yang dapat melihat menu Kartu ID GTK dan Kartu ID PD
+        if (isCardMenu(item.id) && !isSuperAdmin) {
+          return null;
         }
-        if (item.id && (item.id === "wali-kelas-data" || item.id === "wali-kelas-rapor") && isWaliKelas) {
-          return item;
-        }
+
         if (item.subItems) {
           const filteredSubs = filterNavItems(item.subItems);
           if (filteredSubs.length > 0) {
@@ -524,6 +527,15 @@ const AppSidebar: React.FC = () => {
             return { ...item, subItems: [] };
           }
           return null;
+        }
+
+        if (isOperator) return item;
+
+        if (item.id === "wali-kelas" && isWaliKelas) {
+          return item;
+        }
+        if (item.id && (item.id === "wali-kelas-data" || item.id === "wali-kelas-rapor") && isWaliKelas) {
+          return item;
         }
         if (!item.id || item.id === "profile" || item.id === "dashboard" || allowedMenus.includes(item.id)) {
           return item;

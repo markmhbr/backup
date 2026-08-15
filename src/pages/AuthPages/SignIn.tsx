@@ -17,7 +17,10 @@ export default function SignIn() {
   }
 
   if (isAuthenticated && user) {
-    return <Navigate to={`/${getRoleSlug(user.role)}`} replace />;
+    const isSuperAdmin = user.role === 'Super Admin' || user.role === 'superadmin';
+    if (!isSuperAdmin) {
+      return <Navigate to={`/${getRoleSlug(user.role)}`} replace />;
+    }
   }
 
   return (

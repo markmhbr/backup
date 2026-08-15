@@ -10,6 +10,7 @@ import { Modal } from "../ui/modal";
 import { getRoleSlug } from "../../services/roleUtils";
 import axios from "axios";
 import api from "../../services/api";
+import { SchoolSelectModal } from "./SchoolSelectModal";
 
 export default function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
@@ -34,7 +35,16 @@ export default function SignInForm() {
   const faceStreamRef = useRef<MediaStream | null>(null);
   const faceIntervalRef = useRef<any>(null);
   const faceScanCooldownRef = useRef(false);
-  const { login, verify2FA, setAuthData, loginWithFaceId } = useAuth();
+  const { user, isAuthenticated, login, verify2FA, setAuthData, loginWithFaceId } = useAuth();
+
+  // Super Admin School Switcher Modal State
+  const [isSchoolSelectModalOpen, setIsSchoolSelectModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (isAuthenticated && user && (user.role === 'Super Admin' || user.role === 'superadmin')) {
+      setIsSchoolSelectModalOpen(true);
+    }
+  }, [isAuthenticated, user]);
   const startFaceLogin = async () => {
     try {
       setFaceScanStatus("Mengaktifkan kamera...");
@@ -321,6 +331,10 @@ export default function SignInForm() {
       const savedUser = localStorage.getItem('user_data');
       if (savedUser) {
         const user = JSON.parse(savedUser);
+        if (user.role === 'Super Admin') {
+          setIsSchoolSelectModalOpen(true);
+          return;
+        }
         navigate(`/${getRoleSlug(user.role)}`);
       } else {
         navigate("/");
@@ -700,6 +714,21 @@ export default function SignInForm() {
           )}
         </div>
       </Modal>
+
+      {/* School Switcher Modal untuk Super Admin */}
+      <SchoolSelectModal
+        isOpen={isSchoolSelectModalOpen}
+        onClose={() => setIsSchoolSelectModalOpen(false)}
+        onSuccess={() => {
+          const savedUser = localStorage.getItem('user_data');
+          if (savedUser) {
+            const user = JSON.parse(savedUser);
+            navigate(`/${getRoleSlug(user.role)}`);
+          } else {
+            navigate('/super-admin');
+          }
+        }}
+      />
     </div>
   );
 }

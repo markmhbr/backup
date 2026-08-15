@@ -105,13 +105,24 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
     }
   }, [isOpen]);
 
+  const isSuperAdmin = user?.role === "Super Admin" || user?.role === "superadmin";
+
   // Filter Local Menus based on Role / allowedMenus
   const getAllowedMenus = (): SearchableMenu[] => {
-    if (isOperator) return LOCAL_MENUS;
-    return LOCAL_MENUS.filter(menu => {
-      if (menu.id === "profile" || menu.id === "dashboard") return true;
-      return allowedMenus.includes(menu.id);
-    });
+    const list = isOperator
+      ? LOCAL_MENUS
+      : LOCAL_MENUS.filter((menu) => {
+          if (menu.id === "profile" || menu.id === "dashboard") return true;
+          return allowedMenus.includes(menu.id);
+        });
+
+    if (!isSuperAdmin) {
+      return list.filter(
+        (m) => m.id !== "gtk-kartu" && m.id !== "student-card" && m.id !== "gtk-card" && m.id !== "pd-kartu"
+      );
+    }
+
+    return list;
   };
 
   // Keyboard navigation & handling

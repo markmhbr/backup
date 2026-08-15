@@ -7,10 +7,12 @@ import NotificationDropdown from "../components/header/NotificationDropdown";
 import UserDropdown from "../components/header/UserDropdown";
 import { useAuth } from "../context/AuthContext";
 import { CommandPalette } from "../components/common/CommandPalette";
+import { SchoolSelectModal } from "../components/auth/SchoolSelectModal";
 
 const AppHeader: React.FC = () => {
   const [isApplicationMenuOpen, setApplicationMenuOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isSchoolSelectModalOpen, setIsSchoolSelectModalOpen] = useState(false);
   const { user } = useAuth();
   const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
 
@@ -171,6 +173,16 @@ const AppHeader: React.FC = () => {
           } items-center justify-between w-full gap-4 px-5 py-4 lg:flex shadow-theme-md lg:justify-end lg:px-0 lg:shadow-none`}
         >
           <div className="flex items-center gap-2 2xsm:gap-3">
+            {user?.role === 'Super Admin' && (
+              <button
+                type="button"
+                onClick={() => setIsSchoolSelectModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400 text-xs font-semibold hover:bg-brand-100 dark:hover:bg-brand-500/20 transition-all border border-brand-200 dark:border-brand-800 cursor-pointer"
+              >
+                <span>🏫</span>
+                <span>Ganti Sekolah</span>
+              </button>
+            )}
             {/* <!-- Dark Mode Toggler --> */}
             <ThemeToggleButton />
             {/* <!-- Dark Mode Toggler --> */}
@@ -185,6 +197,11 @@ const AppHeader: React.FC = () => {
       <CommandPalette 
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
+      />
+
+      <SchoolSelectModal
+        isOpen={isSchoolSelectModalOpen}
+        onClose={() => setIsSchoolSelectModalOpen(false)}
       />
     </header>
   );

@@ -38,7 +38,6 @@ const menuTree: MenuNode[] = [
           { id: "gtk-tugas", name: "Tugas GTK" },
           { id: "gtk-buku-induk", name: "Buku Induk" },
           { id: "gtk-rekap", name: "Rekap GTK" },
-          { id: "gtk-kartu", name: "Kartu ID" },
           { id: "gtk-perbaikan", name: "Pengajuan Perbaikan" },
           { id: "gtk-nonaktif", name: "GTK Non Aktif" },
         ],
@@ -51,7 +50,6 @@ const menuTree: MenuNode[] = [
           { id: "pd-tugas", name: "Tugas PD" },
           { id: "pd-buku-induk", name: "Buku Induk" },
           { id: "pd-rekap", name: "Rekap PD" },
-          { id: "pd-kartu", name: "Kartu ID PD" },
           { id: "pd-perbaikan", name: "Pengajuan Perbaikan" },
           { id: "pd-mutasi", name: "Pengajuan Mutasi" },
           { id: "pd-keluar", name: "PD Keluar" },
@@ -87,8 +85,6 @@ const menuTree: MenuNode[] = [
     children: [
       { id: "akademik-tahun-pelajaran", name: "Tahun Pelajaran" },
       { id: "akademik-kompetensi", name: "Kompetensi Keahlian" },
-      { id: "gtk-card", name: "Kartu ID GTK" },
-      { id: "student-card", name: "Kartu ID PD" },
     ],
   },
   {

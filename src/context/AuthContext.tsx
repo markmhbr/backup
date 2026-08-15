@@ -26,6 +26,9 @@ interface AuthContextType {
   login: (username: string, pass: string) => Promise<LoginResult>;
   loginWithFaceId: (embedding: number[]) => Promise<any>;
   verify2FA: (tempToken: string, code: string, secret?: string) => Promise<void>;
+  switchSekolah: (sekolahId: string) => Promise<any>;
+  getJenjangList: () => Promise<any[]>;
+  getSekolahByJenjang: (bentukPendidikanId?: number) => Promise<any[]>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
   setAuthData: (user: User) => void;
@@ -210,6 +213,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const getJenjangList = async (): Promise<any[]> => {
+    const response = await api.get('/auth/superadmin/jenjang');
+    return response.data;
+  };
+
+  const getSekolahByJenjang = async (bentukPendidikanId?: number): Promise<any[]> => {
+    const response = await api.get('/auth/superadmin/sekolah', {
+      params: { bentuk_pendidikan_id: bentukPendidikanId }
+    });
+    return response.data;
+  };
+
+  const switchSekolah = async (sekolahId: string): Promise<any> => {
+    const response = await api.post('/auth/switch-sekolah', { sekolah_id: sekolahId });
+    const { accessToken, user: userData } = response.data;
+    
+    if (accessToken) {
+      localStorage.setItem('auth_token', accessToken);
+    }
+    if (userData) {
+      localStorage.setItem('user_data', JSON.stringify(userData));
+      setUser(userData);
+      await fetchMenusForUser(userData);
+    }
+    localStorage.setItem('last_activity', Date.now().toString());
+    return response.data;
+  };
+
   return (
     <AuthContext.Provider value={{ 
       user, 
@@ -217,6 +248,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       login, 
       loginWithFaceId,
       verify2FA, 
+      switchSekolah,
+      getJenjangList,
+      getSekolahByJenjang,
       logout, 
       isAuthenticated: !!user,
       setAuthData,
