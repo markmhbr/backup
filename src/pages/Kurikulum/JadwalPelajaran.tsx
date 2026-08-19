@@ -9,7 +9,7 @@ import { SearchIcon, TrashBinIcon, PlusIcon, InfoIcon, PrinterIcon, DownloadIcon
 import Input from "../../components/form/input/InputField";
 import Button from "../../components/ui/button/Button";
 import { Modal } from "../../components/ui/modal";
-import { printJadwal, exportJadwalToCSV } from "../../utils/printJadwal";
+import { printJadwal, exportJadwalToExcel } from "../../utils/printJadwal";
 
 interface RombelOption {
   value: string;
@@ -42,7 +42,7 @@ export default function JadwalPelajaran() {
   const [exportType, setExportType] = useState<"kelas" | "angkatan" | "semua">("kelas");
   const [selectedExportRombel, setSelectedExportRombel] = useState("");
   const [selectedExportTingkat, setSelectedExportTingkat] = useState("");
-  const [exportFormat, setExportFormat] = useState<"pdf" | "csv">("pdf");
+  const [exportFormat, setExportFormat] = useState<"pdf" | "excel">("pdf");
   const [isExporting, setIsExporting] = useState(false);
 
   const selectedJenisData = jenisJadwalList.find(j => j.jenis_jadwal_id === selectedJenis);
@@ -273,7 +273,7 @@ export default function JadwalPelajaran() {
           rombels: targetRombels,
         });
       } else {
-        exportJadwalToCSV({
+        exportJadwalToExcel({
           jenisJadwalNama: templateName,
           activeDays: days,
           slots,
@@ -381,9 +381,8 @@ export default function JadwalPelajaran() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-32">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-500 border-t-transparent"></div>
-        <span className="ml-3 text-sm text-gray-500">Memuat data awal...</span>
+      <div className="flex h-80 items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-brand-500 border-t-transparent"></div>
       </div>
     );
   }
@@ -757,7 +756,7 @@ export default function JadwalPelajaran() {
               <div className="grid grid-cols-2 gap-2">
                 {[
                   { value: "pdf", label: "PDF / Cetak", icon: PrinterIcon },
-                  { value: "csv", label: "Excel / CSV", icon: DownloadIcon }
+                  { value: "excel", label: "Excel (.xlsx)", icon: DownloadIcon }
                 ].map((format) => {
                   const Icon = format.icon;
                   return (

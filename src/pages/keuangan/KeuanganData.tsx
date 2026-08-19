@@ -19,8 +19,9 @@ import Select from "../../components/form/Select";
 import Button from "../../components/ui/button/Button";
 import Input from "../../components/form/input/InputField";
 import Badge from "../../components/ui/badge/Badge";
-import { SearchIcon, PlusIcon, TableIcon, BoxIcon, DownloadIcon, TrashBinIcon, PencilIcon } from "../../icons";
+import { SearchIcon, PlusIcon, TableIcon, BoxIcon, DownloadIcon, PrinterIcon, TrashBinIcon, PencilIcon } from "../../icons";
 import Swal from "sweetalert2";
+import * as XLSX from "xlsx";
 
 export default function KeuanganData() {
   const { sekolah } = useSekolah();
@@ -43,9 +44,30 @@ export default function KeuanganData() {
   const [rekapBulanan, setRekapBulanan] = useState<any[]>([]);
   const [rekapTahunPelajaran, setRekapTahunPelajaran] = useState<any[]>([]);
 
+  // Laporan sub-tabs & filter states
+  const [rekapSubTab, setRekapSubTab] = useState<"tahun-ajaran" | "tunggakan-siswa" | "tunggakan-kelas" | "bulanan">("tahun-ajaran");
+  const [selectedSemesterId, setSelectedSemesterId] = useState<string>("all");
+  const [searchTunggakanSiswa, setSearchTunggakanSiswa] = useState("");
+  const [filterTunggakanKelas, setFilterTunggakanKelas] = useState("");
+  const [filterTunggakanSiswaSemester, setFilterTunggakanSiswaSemester] = useState<string>("all");
+  const [tunggakanSiswaPage, setTunggakanSiswaPage] = useState(1);
+  const [tunggakanSiswaPerPage, setTunggakanSiswaPerPage] = useState(10);
+
+  const [searchTunggakanKelas, setSearchTunggakanKelas] = useState("");
+  const [filterTunggakanKelasSemester, setFilterTunggakanKelasSemester] = useState<string>("all");
+
+  // Export states
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [exportBerdasarkan, setExportBerdasarkan] = useState<"tahun-ajaran" | "kelas" | "semua">("tahun-ajaran");
+  const [exportTahunAjaran, setExportTahunAjaran] = useState<string>("all");
+  const [exportSelectedRombel, setExportSelectedRombel] = useState<string>("");
+  const [exportFormat, setExportFormat] = useState<"pdf" | "excel">("excel");
+  const [isExporting, setIsExporting] = useState(false);
+
   // Filters & Search
   const [searchTagihan, setSearchTagihan] = useState("");
   const [filterStatusTagihan, setFilterStatusTagihan] = useState("");
+  const [filterTahunAjaranTagihan, setFilterTahunAjaranTagihan] = useState("all");
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -89,6 +111,7 @@ export default function KeuanganData() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [rombelNotif, setRombelNotif] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
+  const [editingTxId, setEditingTxId] = useState<string | null>(null);
   const [transaksiForm, setTransaksiForm] = useState({
     jenis_transaksi: 1, // 1 = Pembayaran, 2 = Beasiswa, 3 = Denda, 4 = Pengurangan, 5 = Pengembalian Dana
     nominal: "",
@@ -267,11 +290,44 @@ export default function KeuanganData() {
       await sppService.deletePengaturanTagihanRombel(id);
       await refreshSelectedConfig();
       setConfirmDeleteId(null);
-      showRombelNotif("success", "Hubungan kelas berhasil dihapus.");
+      showRombelNotif("success", "Hubungan kelas berhasil dihapus & tagihan yang belum dibayar otomatis dibersihkan.");
+      fetchData();
     } catch (err: any) {
       showRombelNotif("error", err.response?.data?.message || "Gagal menghapus relasi.");
     } finally {
       setLoadingRombel(false);
+    }
+  };
+
+  const handleDeleteStudentTagihan = async (item: any) => {
+    if (BigInt(item.nominal_terbayar) > BigInt(0)) {
+      Swal.fire("Peringatan", "Tagihan yang sudah memiliki riwayat pembayaran tidak dapat dihapus.", "warning");
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: "Hapus Tagihan Siswa?",
+      text: `Hapus tagihan SPP untuk ${item.peserta_didik?.nama || "siswa ini"}? Tagihan yang belum terbayar akan dihapus permanen.`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      confirmButtonText: "Ya, Hapus!",
+      cancelButtonText: "Batal",
+    });
+
+    if (result.isConfirmed) {
+      try {
+        Swal.showLoading();
+        for (const spp of item.spps) {
+          if (BigInt(spp.nominal_terbayar) === BigInt(0)) {
+            await sppService.deleteSppTagihan(spp.spp_id);
+          }
+        }
+        Swal.fire("Berhasil", "Tagihan SPP siswa berhasil dihapus.", "success");
+        fetchData();
+      } catch (err: any) {
+        Swal.fire("Gagal", err.response?.data?.message || "Gagal menghapus tagihan.", "error");
+      }
     }
   };
 
@@ -305,25 +361,59 @@ export default function KeuanganData() {
     }
   };
 
-  const handleCreateTransaksi = async (e: React.FormEvent) => {
+  const refreshActiveTagihanModal = async (sppIdToSelect?: string) => {
+    if (!sekolah?.sekolah_id || !selectedTagihan) return;
+    const tagihanRes = await sppService.getTagihanSpp(sekolah.sekolah_id);
+    const updatedList = tagihanRes.data || [];
+    setTagihanList(updatedList);
+
+    const grouped = getGroupedTagihan(updatedList);
+    const updatedStudent = grouped.find((s: any) => s.peserta_didik_id === selectedTagihan.peserta_didik_id);
+    if (updatedStudent) {
+      setSelectedTagihan(updatedStudent);
+      const targetSppId = sppIdToSelect || selectedSubSpp?.spp_id;
+      const foundSub = updatedStudent.spps.find((s: any) => s.spp_id === targetSppId) || updatedStudent.spps[0];
+      setSelectedSubSpp(foundSub || null);
+    }
+  };
+
+  const handleSaveTransaksi = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedSubSpp || !transaksiForm.nominal) return;
 
     try {
-      await sppService.createTransaksiSpp({
-        spp_id: selectedSubSpp.spp_id,
-        sekolah_id: sekolah!.sekolah_id,
-        peserta_didik_id: selectedTagihan.peserta_didik_id,
-        jenis_transaksi: Number(transaksiForm.jenis_transaksi),
-        nominal: Number(transaksiForm.nominal),
-        tanggal_transaksi: new Date(transaksiForm.tanggal_transaksi).toISOString(),
-        metode_pembayaran: [1, 3].includes(Number(transaksiForm.jenis_transaksi)) 
-          ? Number(transaksiForm.metode_pembayaran) 
-          : undefined,
-        keterangan: transaksiForm.keterangan,
-      });
+      if (editingTxId) {
+        // Edit mode
+        await sppService.updateTransaksiSpp(editingTxId, {
+          jenis_transaksi: Number(transaksiForm.jenis_transaksi),
+          nominal: Number(transaksiForm.nominal),
+          tanggal_transaksi: new Date(transaksiForm.tanggal_transaksi).toISOString(),
+          metode_pembayaran: [1, 3].includes(Number(transaksiForm.jenis_transaksi))
+            ? Number(transaksiForm.metode_pembayaran)
+            : undefined,
+          keterangan: transaksiForm.keterangan,
+        });
 
-      Swal.fire("Berhasil", "Transaksi baru berhasil dicatat.", "success");
+        Swal.fire("Berhasil", "Data transaksi SPP berhasil diperbarui.", "success");
+        setEditingTxId(null);
+      } else {
+        // Create mode
+        await sppService.createTransaksiSpp({
+          spp_id: selectedSubSpp.spp_id,
+          sekolah_id: sekolah!.sekolah_id,
+          peserta_didik_id: selectedTagihan.peserta_didik_id,
+          jenis_transaksi: Number(transaksiForm.jenis_transaksi),
+          nominal: Number(transaksiForm.nominal),
+          tanggal_transaksi: new Date(transaksiForm.tanggal_transaksi).toISOString(),
+          metode_pembayaran: [1, 3].includes(Number(transaksiForm.jenis_transaksi))
+            ? Number(transaksiForm.metode_pembayaran)
+            : undefined,
+          keterangan: transaksiForm.keterangan,
+        });
+
+        Swal.fire("Berhasil", "Transaksi baru berhasil dicatat.", "success");
+      }
+
       setTransaksiForm({
         jenis_transaksi: 1,
         nominal: "",
@@ -331,10 +421,393 @@ export default function KeuanganData() {
         metode_pembayaran: 1,
         keterangan: "",
       });
-      setIsTransaksiModalOpen(false);
+
+      await refreshActiveTagihanModal();
       fetchData();
     } catch (err: any) {
       Swal.fire("Gagal", err.response?.data?.message || "Terjadi kesalahan.", "error");
+    }
+  };
+
+  const handleStartEditTransaksi = (t: any) => {
+    setEditingTxId(t.riwayat_transaksi_spp_id);
+    setTransaksiForm({
+      jenis_transaksi: t.jenis_transaksi,
+      nominal: t.nominal ? t.nominal.toString() : "",
+      tanggal_transaksi: t.tanggal_transaksi ? new Date(t.tanggal_transaksi).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+      metode_pembayaran: t.metode_pembayaran || 1,
+      keterangan: t.keterangan || "",
+    });
+  };
+
+  const handleCancelEditTransaksi = () => {
+    setEditingTxId(null);
+    setTransaksiForm({
+      jenis_transaksi: 1,
+      nominal: "",
+      tanggal_transaksi: new Date().toISOString().split("T")[0],
+      metode_pembayaran: 1,
+      keterangan: "",
+    });
+  };
+
+  const handleDeleteTransaksi = async (txId: string, nominal: string | number) => {
+    const result = await Swal.fire({
+      title: "Hapus Transaksi?",
+      text: `Hapus riwayat transaksi sebesar ${formatCurrency(nominal.toString())}? Saldo tagihan akan dihitung ulang secara otomatis.`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      confirmButtonText: "Ya, Hapus!",
+      cancelButtonText: "Batal",
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await sppService.deleteTransaksiSpp(txId);
+        Swal.fire("Berhasil", "Transaksi SPP berhasil dihapus.", "success");
+        if (editingTxId === txId) {
+          handleCancelEditTransaksi();
+        }
+        await refreshActiveTagihanModal();
+        fetchData();
+      } catch (err: any) {
+        Swal.fire("Gagal", err.response?.data?.message || "Gagal menghapus transaksi.", "error");
+      }
+    }
+  };
+
+  // Export Excel Function with Year & Class selection
+  const handlePerformExport = (customTa?: string, _customReportType?: string, customRombel?: string) => {
+    try {
+      setIsExporting(true);
+      const selectedTa = customTa !== undefined ? customTa : exportTahunAjaran;
+      const targetRombel = customRombel !== undefined ? customRombel : (exportBerdasarkan === "kelas" ? exportSelectedRombel : "");
+
+      const wb = XLSX.utils.book_new();
+      const schoolName = (sekolah as any)?.nama || (sekolah as any)?.nama_sekolah || "Sekolah";
+      const exportDate = new Date().toISOString().split("T")[0];
+      const selectedSemesterObj = rekapTahunPelajaran.find((r) => r.semester_id === selectedTa);
+      const taLabel = selectedTa === "all" ? "Semua_Tahun_Ajaran" : (selectedSemesterObj?.label || selectedTa);
+
+      let sheetCount = 0;
+
+      // 1. Sheet Rekap Per Tahun Ajaran
+      const rowsRekap: any[] = [];
+      const targetRekap =
+        selectedTa === "all"
+          ? rekapTahunPelajaran
+          : rekapTahunPelajaran.filter((r) => r.semester_id === selectedTa);
+
+      targetRekap.forEach((r, idx) => {
+        const rombelItems = targetRombel
+          ? (r.rombel_breakdown || []).filter((rb: any) => rb.rombel_nama === targetRombel)
+          : (r.rombel_breakdown || []);
+
+        if (!targetRombel || rombelItems.length > 0) {
+          rowsRekap.push({
+            "No": idx + 1,
+            "Tahun Ajaran / Semester": r.label,
+            "Jumlah Siswa": r.jumlah_siswa,
+            "Target Tagihan (Rp)": Number(r.total_target),
+            "Total Terbayar (Rp)": Number(r.total_pembayaran),
+            "Sisa Tunggakan (Rp)": Number(r.total_tunggakan),
+            "Ketercapaian (%)": `${r.persentase}%`,
+          });
+
+          rombelItems.forEach((rb: any) => {
+            rowsRekap.push({
+              "No": "",
+              "Tahun Ajaran / Semester": `  └─ ${rb.rombel_nama}`,
+              "Jumlah Siswa": rb.jumlah_siswa,
+              "Target Tagihan (Rp)": Number(rb.target_tagihan),
+              "Total Terbayar (Rp)": Number(rb.total_terbayar),
+              "Sisa Tunggakan (Rp)": Number(rb.sisa_tunggakan),
+              "Ketercapaian (%)": `${rb.persentase}%`,
+            });
+          });
+        }
+      });
+
+      const wsRekap = XLSX.utils.json_to_sheet(rowsRekap.length > 0 ? rowsRekap : [{ Info: "Tidak ada data rekap" }]);
+      XLSX.utils.book_append_sheet(wb, wsRekap, "Rekap Tahun Ajaran");
+      sheetCount++;
+
+      // 2. Sheet Tunggakan Siswa
+      const targetSiswa = tunggakanSiswa.filter((s) => {
+        const matchTa = selectedTa === "all" || s.tahun_ajaran_id === selectedTa || s.semester_id === selectedTa;
+        const matchRombel = !targetRombel || s.kelas === targetRombel;
+        return matchTa && matchRombel;
+      });
+
+      const rowsSiswa = targetSiswa.map((s, idx) => ({
+        "No": idx + 1,
+        "NISN": s.nisn || "-",
+        "Nama Peserta Didik": s.nama,
+        "Kelas": s.kelas || "-",
+        "Tahun Ajaran": s.tahun_ajaran || "-",
+        "Nama Tagihan": s.nama_tagihan || "-",
+        "Nominal Tagihan (Rp)": Number(s.nominal_tagihan),
+        "Nominal Terbayar (Rp)": Number(s.nominal_terbayar),
+        "Sisa Tunggakan (Rp)": Number(s.sisa_tunggakan),
+      }));
+
+      const wsSiswa = XLSX.utils.json_to_sheet(rowsSiswa.length > 0 ? rowsSiswa : [{ Info: "Tidak ada data tunggakan siswa" }]);
+      XLSX.utils.book_append_sheet(wb, wsSiswa, "Tunggakan Siswa");
+      sheetCount++;
+
+      // 3. Sheet Tunggakan Per Kelas
+      const targetKelas = tunggakanKelas.filter((k) => {
+        const matchTa = selectedTa === "all" || k.tahun_ajaran_id === selectedTa || k.semester_id === selectedTa;
+        const matchRombel = !targetRombel || k.kelas === targetRombel;
+        return matchTa && matchRombel;
+      });
+
+      const rowsKelas = targetKelas.map((k, idx) => ({
+        "No": idx + 1,
+        "Nama Kelas": k.kelas,
+        "Tahun Ajaran": k.tahun_ajaran || "-",
+        "Jumlah Siswa Menunggak": k.jumlah_siswa,
+        "Total Tunggakan (Rp)": Number(k.total_tunggakan),
+      }));
+
+      const wsKelas = XLSX.utils.json_to_sheet(rowsKelas.length > 0 ? rowsKelas : [{ Info: "Tidak ada data tunggakan kelas" }]);
+      XLSX.utils.book_append_sheet(wb, wsKelas, "Tunggakan Per Kelas");
+      sheetCount++;
+
+      // 4. Sheet Rekap Bulanan
+      const rowsBulanan = rekapBulanan.map((b, idx) => ({
+        "No": idx + 1,
+        "Bulan & Tahun": b.bulan_tahun,
+        "Total Penerimaan Kas (Rp)": Number(b.nominal),
+      }));
+
+      const wsBulanan = XLSX.utils.json_to_sheet(rowsBulanan.length > 0 ? rowsBulanan : [{ Info: "Tidak ada data penerimaan bulanan" }]);
+      XLSX.utils.book_append_sheet(wb, wsBulanan, "Rekap Kas Bulanan");
+      sheetCount++;
+
+      const safeSchool = schoolName.replace(/[^a-zA-Z0-9]/g, "_");
+      const safeTa = taLabel.replace(/[^a-zA-Z0-9]/g, "_");
+      const safeFilter = targetRombel ? `_Kelas_${targetRombel.replace(/[^a-zA-Z0-9]/g, "_")}` : `_${safeTa}`;
+      const fileName = `Laporan_Keuangan_SPP_${safeSchool}${safeFilter}_${exportDate}.xlsx`;
+
+      XLSX.writeFile(wb, fileName);
+      setIsExportModalOpen(false);
+      setIsExporting(false);
+      Swal.fire("Berhasil", `Laporan Excel ${fileName} berhasil diexport.`, "success");
+    } catch (err: any) {
+      setIsExporting(false);
+      Swal.fire("Gagal", "Terjadi kesalahan saat mengekspor data ke Excel.", "error");
+    }
+  };
+
+  // Print Report Function
+  const handlePrintReport = (targetTa?: string, targetRombel?: string) => {
+    const selectedTa = targetTa || (exportBerdasarkan === "tahun-ajaran" ? exportTahunAjaran : "all");
+    const filterRombel = targetRombel !== undefined ? targetRombel : (exportBerdasarkan === "kelas" ? exportSelectedRombel : "");
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      Swal.fire("Gagal", "Popup blocker aktif. Mohon izinkan popup untuk mencetak.", "error");
+      return;
+    }
+
+    const schoolName = (sekolah as any)?.nama || (sekolah as any)?.nama_sekolah || "SMK SIMAK";
+    const npsn = (sekolah as any)?.npsn || "-";
+    const alamat = (sekolah as any)?.alamat_jalan || (sekolah as any)?.alamat || "";
+    const todayFormatted = new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+    const selectedSemesterObj = rekapTahunPelajaran.find((r) => r.semester_id === selectedTa);
+    const taLabel = selectedTa === "all" ? "Semua Periode / Tahun Ajaran" : (selectedSemesterObj?.label || selectedTa);
+    const subtitleFilter = filterRombel ? `Kelas: ${filterRombel}` : `Periode: ${taLabel}`;
+
+    const targetRekap = selectedTa === "all" ? rekapTahunPelajaran : rekapTahunPelajaran.filter((r) => r.semester_id === selectedTa);
+    const targetSiswa = tunggakanSiswa.filter((s) => {
+      const matchTa = selectedTa === "all" || s.tahun_ajaran_id === selectedTa || s.semester_id === selectedTa;
+      const matchRombel = !filterRombel || s.kelas === filterRombel;
+      return matchTa && matchRombel;
+    });
+    const targetKelas = tunggakanKelas.filter((k) => {
+      const matchTa = selectedTa === "all" || k.tahun_ajaran_id === selectedTa || k.semester_id === selectedTa;
+      const matchRombel = !filterRombel || k.kelas === filterRombel;
+      return matchTa && matchRombel;
+    });
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Laporan Keuangan & SPP - ${schoolName}</title>
+        <style>
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 11px; margin: 20px; color: #1e293b; }
+          .kop { text-align: center; border-bottom: 3px double #000; padding-bottom: 10px; margin-bottom: 20px; }
+          .kop h2 { margin: 0; font-size: 16px; text-transform: uppercase; }
+          .kop h3 { margin: 2px 0; font-size: 14px; font-weight: normal; }
+          .kop p { margin: 2px 0; font-size: 10px; color: #64748b; }
+          .title { text-align: center; margin-bottom: 20px; }
+          .title h3 { margin: 0; font-size: 14px; text-transform: uppercase; font-weight: bold; }
+          .title p { margin: 3px 0 0 0; font-size: 11px; color: #475569; }
+          .section-title { font-size: 12px; font-weight: bold; background-color: #f1f5f9; padding: 6px 10px; margin: 20px 0 8px 0; border-left: 4px solid #3b82f6; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 10px; }
+          th, td { border: 1px solid #cbd5e1; padding: 5px 8px; }
+          th { background-color: #f8fafc; font-weight: bold; text-align: left; }
+          .text-center { text-align: center; }
+          .text-end { text-align: right; }
+          .text-red { color: #dc2626; font-weight: bold; }
+          .text-green { color: #16a34a; font-weight: bold; }
+          .footer { margin-top: 30px; display: flex; justify-content: space-between; }
+          .ttd { text-align: center; width: 200px; }
+          @media print {
+            body { margin: 0; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="kop">
+          <h2>${schoolName}</h2>
+          <h3>NPSN: ${npsn}</h3>
+          <p>${alamat}</p>
+        </div>
+
+        <div class="title">
+          <h3>LAPORAN KEUANGAN & REKAPITULASI SPP</h3>
+          <p>${subtitleFilter} | Dicetak pada: ${todayFormatted}</p>
+        </div>
+
+        <div class="section-title">I. REKAPITULASI PEMBAYARAN PER TAHUN AJARAN & KELAS</div>
+        <table>
+          <thead>
+            <tr>
+              <th class="text-center" style="width: 30px;">No</th>
+              <th>Tahun Ajaran / Rombel</th>
+              <th class="text-center">Jumlah Siswa</th>
+              <th class="text-end">Target Tagihan</th>
+              <th class="text-end">Total Terbayar</th>
+              <th class="text-end">Sisa Tunggakan</th>
+              <th class="text-center">Ketercapaian</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${targetRekap.length === 0 ? '<tr><td colspan="7" class="text-center">Tidak ada data</td></tr>' : targetRekap.map((r, idx) => `
+              <tr style="background-color: #f8fafc; font-weight: bold;">
+                <td class="text-center">${idx + 1}</td>
+                <td>${r.label}</td>
+                <td class="text-center">${r.jumlah_siswa} Siswa</td>
+                <td class="text-end">${formatCurrency(r.total_target)}</td>
+                <td class="text-end text-green">${formatCurrency(r.total_pembayaran)}</td>
+                <td class="text-end text-red">${formatCurrency(r.total_tunggakan)}</td>
+                <td class="text-center">${r.persentase}%</td>
+              </tr>
+              ${(r.rombel_breakdown || []).filter((rb: any) => !filterRombel || rb.rombel_nama === filterRombel).map((rb: any) => `
+                <tr>
+                  <td></td>
+                  <td style="padding-left: 20px;">└─ ${rb.rombel_nama}</td>
+                  <td class="text-center">${rb.jumlah_siswa} Siswa</td>
+                  <td class="text-end">${formatCurrency(rb.target_tagihan)}</td>
+                  <td class="text-end">${formatCurrency(rb.total_terbayar)}</td>
+                  <td class="text-end text-red">${formatCurrency(rb.sisa_tunggakan)}</td>
+                  <td class="text-center">${rb.persentase}%</td>
+                </tr>
+              `).join('')}
+            `).join('')}
+          </tbody>
+        </table>
+
+        <div class="section-title">II. REKAPITULASI TUNGGAKAN PER KELAS</div>
+        <table>
+          <thead>
+            <tr>
+              <th class="text-center" style="width: 30px;">No</th>
+              <th>Nama Kelas</th>
+              <th>Tahun Ajaran</th>
+              <th class="text-center">Jumlah Siswa Menunggak</th>
+              <th class="text-end">Total Tunggakan</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${targetKelas.length === 0 ? '<tr><td colspan="5" class="text-center">Tidak ada tunggakan kelas</td></tr>' : targetKelas.map((k, idx) => `
+              <tr>
+                <td class="text-center">${idx + 1}</td>
+                <td>${k.kelas}</td>
+                <td>${k.tahun_ajaran || '-'}</td>
+                <td class="text-center">${k.jumlah_siswa} Siswa</td>
+                <td class="text-end text-red">${formatCurrency(k.total_tunggakan)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+
+        ${targetSiswa.length > 0 ? `
+        <div class="section-title">III. DAFTAR TUNGGAKAN SISWA</div>
+        <table>
+          <thead>
+            <tr>
+              <th class="text-center" style="width: 30px;">No</th>
+              <th>NISN</th>
+              <th>Nama Peserta Didik</th>
+              <th>Kelas</th>
+              <th>Tagihan</th>
+              <th class="text-end">Total Tagihan</th>
+              <th class="text-end">Terbayar</th>
+              <th class="text-end">Sisa Tunggakan</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${targetSiswa.slice(0, 100).map((s, idx) => `
+              <tr>
+                <td class="text-center">${idx + 1}</td>
+                <td>${s.nisn || '-'}</td>
+                <td>${s.nama}</td>
+                <td>${s.kelas || '-'}</td>
+                <td>${s.nama_tagihan || '-'}</td>
+                <td class="text-end">${formatCurrency(s.nominal_tagihan)}</td>
+                <td class="text-end text-green">${formatCurrency(s.nominal_terbayar)}</td>
+                <td class="text-end text-red">${formatCurrency(s.sisa_tunggakan)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        ` : ''}
+
+        <div class="footer">
+          <div class="ttd">
+            <p>Mengetahui,<br>Kepala Sekolah</p>
+            <br><br><br>
+            <p><strong>( ..................................... )</strong></p>
+          </div>
+          <div class="ttd">
+            <p>Bendahara Sekolah / Petugas</p>
+            <br><br><br>
+            <p><strong>( ..................................... )</strong></p>
+          </div>
+        </div>
+
+        <script>
+          window.onload = function() {
+            window.print();
+          }
+        </script>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+    setIsExportModalOpen(false);
+  };
+
+  const handleExecuteExport = () => {
+    if (exportFormat === "pdf") {
+      handlePrintReport(
+        exportBerdasarkan === "tahun-ajaran" ? exportTahunAjaran : undefined,
+        exportBerdasarkan === "kelas" ? exportSelectedRombel : undefined
+      );
+    } else {
+      handlePerformExport(
+        exportBerdasarkan === "tahun-ajaran" ? exportTahunAjaran : undefined,
+        "all",
+        exportBerdasarkan === "kelas" ? exportSelectedRombel : undefined
+      );
     }
   };
 
@@ -392,6 +865,8 @@ export default function KeuanganData() {
         groupedMap[studentId] = {
           peserta_didik_id: studentId,
           peserta_didik: item.peserta_didik,
+          tahun_ajaran: item.tahun_ajaran,
+          tahun_ajaran_id: item.tahun_ajaran_id,
           nominal_tagihan: BigInt(0),
           nominal_terbayar: BigInt(0),
           spps: [],
@@ -444,7 +919,13 @@ export default function KeuanganData() {
 
     const matchStatus = filterStatusTagihan === "" || item.status === Number(filterStatusTagihan);
 
-    return matchSearch && matchStatus;
+    const matchTahunAjaran =
+      filterTahunAjaranTagihan === "all" ||
+      !filterTahunAjaranTagihan ||
+      item.tahun_ajaran_id === filterTahunAjaranTagihan ||
+      item.semester_id === filterTahunAjaranTagihan;
+
+    return matchSearch && matchStatus && matchTahunAjaran;
   });
 
   const groupedTagihan = getGroupedTagihan(filteredTagihan);
@@ -457,7 +938,63 @@ export default function KeuanganData() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTagihan, filterStatusTagihan, itemsPerPage]);
+  }, [searchTagihan, filterStatusTagihan, filterTahunAjaranTagihan, itemsPerPage]);
+
+  // Laporan filtered data & computations
+  const filteredTunggakanSiswa = tunggakanSiswa.filter((s) => {
+    const matchSearch =
+      s.nama?.toLowerCase().includes(searchTunggakanSiswa.toLowerCase()) ||
+      s.nisn?.toLowerCase().includes(searchTunggakanSiswa.toLowerCase()) ||
+      s.nama_tagihan?.toLowerCase().includes(searchTunggakanSiswa.toLowerCase());
+    const matchKelas = !filterTunggakanKelas || s.kelas === filterTunggakanKelas;
+    const matchSemester =
+      filterTunggakanSiswaSemester === "all" ||
+      !filterTunggakanSiswaSemester ||
+      s.semester_id === filterTunggakanSiswaSemester;
+    return matchSearch && matchKelas && matchSemester;
+  });
+
+  const totalTunggakanSiswaPages = Math.ceil(filteredTunggakanSiswa.length / tunggakanSiswaPerPage) || 1;
+  const paginatedTunggakanSiswa = filteredTunggakanSiswa.slice(
+    (tunggakanSiswaPage - 1) * tunggakanSiswaPerPage,
+    tunggakanSiswaPage * tunggakanSiswaPerPage
+  );
+
+  const uniqueTunggakanKelas = Array.from(new Set(tunggakanSiswa.map((t) => t.kelas).filter(Boolean)));
+  const allAvailableKelas = Array.from(
+    new Set([
+      ...rombelList.map((r: any) => r.nama),
+      ...tunggakanKelas.map((k: any) => k.kelas),
+      ...tunggakanSiswa.map((s: any) => s.kelas),
+    ].filter(Boolean))
+  );
+
+  const filteredTunggakanKelas = tunggakanKelas.filter((k) => {
+    const matchSemester =
+      filterTunggakanKelasSemester === "all" ||
+      !filterTunggakanKelasSemester ||
+      k.semester_id === filterTunggakanKelasSemester;
+    const matchSearch =
+      !searchTunggakanKelas ||
+      k.kelas?.toLowerCase().includes(searchTunggakanKelas.toLowerCase()) ||
+      k.tahun_ajaran?.toLowerCase().includes(searchTunggakanKelas.toLowerCase());
+    return matchSemester && matchSearch;
+  });
+
+  const totalTargetSekolah = rekapTahunPelajaran.reduce(
+    (acc, r) => acc + BigInt(r.total_target || "0"),
+    BigInt(0)
+  ).toString();
+
+  const totalTunggakanSekolah = rekapTahunPelajaran.reduce(
+    (acc, r) => acc + BigInt(r.total_tunggakan || "0"),
+    BigInt(0)
+  ).toString();
+
+  const activeSemesterRekap =
+    selectedSemesterId === "all"
+      ? null
+      : rekapTahunPelajaran.find((r) => r.semester_id === selectedSemesterId);
 
   const handleOpenRombelModal = (config: any) => {
     setSelectedConfig(config);
@@ -491,7 +1028,7 @@ export default function KeuanganData() {
               Sekolah: <span className="font-semibold text-gray-700 dark:text-gray-200">{sekolah?.nama || "SIMAK"}</span>
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-3">
             {activeTab === "pengaturan" && (
               <Button
                 variant="outline"
@@ -502,17 +1039,34 @@ export default function KeuanganData() {
                 Tambah Pengaturan
               </Button>
             )}
-            {activeTab === "tagihan" && (
-               <Button
-                  variant="success-outline"
-                  size="sm"
-                  className="min-w-[110px]"
-                  startIcon={<DownloadIcon className="size-4" />}
-                  onClick={() => {}}
-                >
-                  Export
-                </Button>
-            )}
+            <Button
+              variant="success-outline"
+              size="sm"
+              className="min-w-[110px]"
+              startIcon={<DownloadIcon className="size-4" />}
+              onClick={() => {
+                if (activeTab === "laporan") {
+                  if (rekapSubTab === "tahun-ajaran" && selectedSemesterId !== "all") {
+                    setExportTahunAjaran(selectedSemesterId);
+                  } else if (rekapSubTab === "tunggakan-siswa" && filterTunggakanSiswaSemester !== "all") {
+                    setExportTahunAjaran(filterTunggakanSiswaSemester);
+                  } else if (rekapSubTab === "tunggakan-kelas" && filterTunggakanKelasSemester !== "all") {
+                    setExportTahunAjaran(filterTunggakanKelasSemester);
+                  } else {
+                    setExportTahunAjaran("all");
+                  }
+                } else if (activeTab === "tagihan") {
+                  if (filterTahunAjaranTagihan !== "all") {
+                    setExportTahunAjaran(filterTahunAjaranTagihan);
+                  } else {
+                    setExportTahunAjaran("all");
+                  }
+                }
+                setIsExportModalOpen(true);
+              }}
+            >
+              Export
+            </Button>
           </div>
         </div>
 
@@ -642,7 +1196,7 @@ export default function KeuanganData() {
                         className="pl-10"
                       />
                     </div>
-                    <div className="w-full sm:w-56">
+                    <div className="w-full sm:w-44">
                       <select
                         className="w-full rounded-lg border border-gray-300 bg-transparent py-2.5 px-3 text-sm text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white/90"
                         value={filterStatusTagihan}
@@ -652,6 +1206,20 @@ export default function KeuanganData() {
                         <option value="1">Belum Bayar</option>
                         <option value="2">Sebagian</option>
                         <option value="3">Lunas</option>
+                      </select>
+                    </div>
+                    <div className="w-full sm:w-52">
+                      <select
+                        className="w-full rounded-lg border border-gray-300 bg-transparent py-2.5 px-3 text-sm text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white/90"
+                        value={filterTahunAjaranTagihan}
+                        onChange={(e) => setFilterTahunAjaranTagihan(e.target.value)}
+                      >
+                        <option value="all">Semua Tahun Ajaran</option>
+                        {rekapTahunPelajaran.map((r) => (
+                          <option key={r.semester_id} value={r.semester_id}>
+                            {r.label}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   </div>
@@ -669,12 +1237,13 @@ export default function KeuanganData() {
                               <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Nama Peserta Didik</TableCell>
                               <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">NISN</TableCell>
                               <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Kelas</TableCell>
+                              <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Tahun Ajaran</TableCell>
                               <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Nama Tagihan</TableCell>
                               <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Total Tagihan</TableCell>
                               <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Terbayar</TableCell>
                               <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Sisa</TableCell>
                               <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-center text-xs dark:text-gray-400 whitespace-nowrap">Status</TableCell>
-                              <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-right text-xs dark:text-gray-400 whitespace-nowrap">Aksi</TableCell>
+                              <TableCell isHeader className="px-5 py-3 font-semibold text-right text-xs dark:text-gray-400 whitespace-nowrap">Aksi</TableCell>
                             </TableRow>
                           </TableHeader>
                           <TableBody className="divide-y divide-gray-200 dark:divide-gray-800">
@@ -687,6 +1256,11 @@ export default function KeuanganData() {
                                   </TableCell>
                                   <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/80">{item.peserta_didik?.nisn || "-"}</TableCell>
                                   <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/80">{item.peserta_didik?.rombongan_belajar?.nama || "-"}</TableCell>
+                                  <TableCell className="px-5 py-3.5 text-xs text-gray-600 dark:text-gray-400">
+                                    <span className="inline-block px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-medium">
+                                      {item.tahun_ajaran || "-"}
+                                    </span>
+                                  </TableCell>
                                   <TableCell className="px-5 py-3.5 text-sm text-gray-850 dark:text-white/80">{item.nama_tagihan}</TableCell>
                                   <TableCell className="px-5 py-3.5 font-medium text-gray-800 dark:text-white/80 text-sm">
                                     {formatCurrency(item.nominal_tagihan)}
@@ -699,13 +1273,24 @@ export default function KeuanganData() {
                                   </TableCell>
                                   <TableCell className="px-5 py-3.5 text-center">{getStatusBadge(item.status)}</TableCell>
                                   <TableCell className="px-5 py-3.5 text-right">
-                                    <Button
-                                      variant="primary"
-                                      size="sm"
-                                      onClick={() => handleOpenTransaksiModal(item)}
-                                    >
-                                      Kelola Transaksi
-                                    </Button>
+                                    <div className="flex items-center justify-end gap-2">
+                                      <Button
+                                        variant="primary"
+                                        size="sm"
+                                        onClick={() => handleOpenTransaksiModal(item)}
+                                      >
+                                        Kelola Transaksi
+                                      </Button>
+                                      {BigInt(item.nominal_terbayar) === BigInt(0) && (
+                                        <button
+                                          onClick={() => handleDeleteStudentTagihan(item)}
+                                          className="text-gray-400 hover:text-red-500 dark:hover:text-red-400 p-2 inline-flex items-center justify-center rounded-lg transition-colors border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-950/30"
+                                          title="Hapus Tagihan (Belum Bayar)"
+                                        >
+                                          <TrashBinIcon className="w-4 h-4" />
+                                        </button>
+                                      )}
+                                    </div>
                                   </TableCell>
                                 </TableRow>
                               );
@@ -728,115 +1313,499 @@ export default function KeuanganData() {
             {/* TAB 3: LAPORAN & REKAPITULASI */}
             {/* =================================== */}
             {activeTab === "laporan" && (
-              <div className="space-y-8">
+              <div className="space-y-6">
                 {/* Metric Summary Cards */}
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                  <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 flex items-center gap-4">
-                    <div className="p-4 rounded-2xl bg-green-50 dark:bg-green-950/20 text-green-500">
-                      <BoxIcon className="w-8 h-8" />
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="bg-white dark:bg-gray-900 p-5 rounded-2xl border border-gray-100 dark:border-gray-800 flex items-center gap-3.5 shadow-sm">
+                    <div className="p-3 rounded-xl bg-green-50 dark:bg-green-950/20 text-green-500">
+                      <BoxIcon className="w-6 h-6" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">Total Pembayaran Terkumpul</p>
-                      <h4 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Total Pembayaran Terkumpul</p>
+                      <h4 className="text-lg font-bold text-gray-900 dark:text-white mt-0.5">
                         {formatCurrency(totalPembayaran)}
                       </h4>
                     </div>
                   </div>
 
-                  <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 flex items-center gap-4">
-                    <div className="p-4 rounded-2xl bg-blue-50 dark:bg-blue-950/20 text-blue-500">
-                      <TableIcon className="w-8 h-8" />
+                  <div className="bg-white dark:bg-gray-900 p-5 rounded-2xl border border-gray-100 dark:border-gray-800 flex items-center gap-3.5 shadow-sm">
+                    <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/20 text-blue-500">
+                      <TableIcon className="w-6 h-6" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">Total Beasiswa Disalurkan</p>
-                      <h4 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Total Target Tagihan</p>
+                      <h4 className="text-lg font-bold text-gray-900 dark:text-white mt-0.5">
+                        {formatCurrency(totalTargetSekolah)}
+                      </h4>
+                    </div>
+                  </div>
+
+                  <div className="bg-white dark:bg-gray-900 p-5 rounded-2xl border border-gray-100 dark:border-gray-800 flex items-center gap-3.5 shadow-sm">
+                    <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/20 text-red-500">
+                      <BoxIcon className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Total Sisa Tunggakan</p>
+                      <h4 className="text-lg font-bold text-red-600 dark:text-red-400 mt-0.5">
+                        {formatCurrency(totalTunggakanSekolah)}
+                      </h4>
+                    </div>
+                  </div>
+
+                  <div className="bg-white dark:bg-gray-900 p-5 rounded-2xl border border-gray-100 dark:border-gray-800 flex items-center gap-3.5 shadow-sm">
+                    <div className="p-3 rounded-xl bg-purple-50 dark:bg-purple-950/20 text-purple-500">
+                      <TableIcon className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Total Beasiswa Disalurkan</p>
+                      <h4 className="text-2xl font-bold text-gray-900 dark:text-white mt-0.5">
                         {formatCurrency(totalBeasiswa)}
                       </h4>
                     </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Tunggakan Per Siswa */}
-                  <ComponentCard title="Daftar Peserta Didik Menunggak (Tunggakan)">
-                    {tunggakanSiswa.length === 0 ? (
-                      <p className="text-center py-6 text-gray-500">Tidak ada tunggakan peserta didik.</p>
-                    ) : (
-                      <div className="overflow-y-auto max-h-[350px]">
-                        <Table className="w-full">
-                          <TableHeader className="border-b border-gray-100 dark:border-white/[0.05] bg-gray-50/50 dark:bg-transparent">
-                            <TableRow>
-                              <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Nama</TableCell>
-                              <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Kelas</TableCell>
-                              <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Tagihan</TableCell>
-                              <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-right text-xs dark:text-gray-400 whitespace-nowrap">Tunggakan</TableCell>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
-                            {tunggakanSiswa.slice(0, 100).map((t, idx) => (
-                              <TableRow key={idx} className="hover:bg-gray-50/50">
-                                <TableCell className="px-5 py-2.5 font-medium text-gray-800 dark:text-white/80 text-xs">{t.nama}</TableCell>
-                                <TableCell className="px-5 py-2.5 text-xs text-gray-800 dark:text-white/80">{t.kelas}</TableCell>
-                                <TableCell className="px-5 py-2.5 text-xs text-gray-800 dark:text-white/80">{t.nama_tagihan}</TableCell>
-                                <TableCell className="px-5 py-2.5 text-right text-red-500 dark:text-red-400 font-semibold text-xs">
-                                  {formatCurrency(t.sisa_tunggakan)}
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    )}
-                  </ComponentCard>
+                {/* Sub-tab Navigation Pill */}
+                <div className="flex flex-wrap items-center gap-2 border-b border-gray-200 dark:border-gray-800 pb-3 no-print">
+                  <button
+                    type="button"
+                    onClick={() => setRekapSubTab("tahun-ajaran")}
+                    className={`px-4 py-2 text-sm font-semibold rounded-xl transition-all duration-150 ${
+                      rekapSubTab === "tahun-ajaran"
+                        ? "bg-brand-500 text-white shadow-sm shadow-brand-500/20"
+                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/[0.05]"
+                    }`}
+                  >
+                    🎓 Per Tahun Ajaran
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRekapSubTab("tunggakan-siswa")}
+                    className={`px-4 py-2 text-sm font-semibold rounded-xl transition-all duration-150 ${
+                      rekapSubTab === "tunggakan-siswa"
+                        ? "bg-brand-500 text-white shadow-sm shadow-brand-500/20"
+                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/[0.05]"
+                    }`}
+                  >
+                    👤 Tunggakan Siswa ({tunggakanSiswa.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRekapSubTab("tunggakan-kelas")}
+                    className={`px-4 py-2 text-sm font-semibold rounded-xl transition-all duration-150 ${
+                      rekapSubTab === "tunggakan-kelas"
+                        ? "bg-brand-500 text-white shadow-sm shadow-brand-500/20"
+                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/[0.05]"
+                    }`}
+                  >
+                    🏫 Tunggakan Per Kelas ({tunggakanKelas.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRekapSubTab("bulanan")}
+                    className={`px-4 py-2 text-sm font-semibold rounded-xl transition-all duration-150 ${
+                      rekapSubTab === "bulanan"
+                        ? "bg-brand-500 text-white shadow-sm shadow-brand-500/20"
+                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/[0.05]"
+                    }`}
+                  >
+                    📅 Rekap Bulanan ({rekapBulanan.length})
+                  </button>
+                </div>
 
-                  {/* Tunggakan Per Kelas */}
-                  <ComponentCard title="Total Tunggakan Per Kelas">
-                    {tunggakanKelas.length === 0 ? (
-                      <p className="text-center py-6 text-gray-500">Tidak ada tunggakan per kelas.</p>
-                    ) : (
-                      <div className="overflow-y-auto max-h-[350px]">
-                        <Table className="w-full">
-                          <TableHeader className="border-b border-gray-100 dark:border-white/[0.05] bg-gray-50/50 dark:bg-transparent">
-                            <TableRow>
-                              <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Nama Kelas</TableCell>
-                              <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-right text-xs dark:text-gray-400 whitespace-nowrap">Total Tunggakan</TableCell>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
-                            {tunggakanKelas.map((t, idx) => (
-                              <TableRow key={idx} className="hover:bg-gray-50/50">
-                                <TableCell className="px-5 py-2.5 font-semibold text-gray-800 dark:text-white text-xs">{t.kelas}</TableCell>
-                                <TableCell className="px-5 py-2.5 text-right text-red-500 dark:text-red-400 font-bold text-xs">
-                                  {formatCurrency(t.total_tunggakan)}
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
+                {/* SUB-TAB 1: PER TAHUN AJARAN */}
+                {rekapSubTab === "tahun-ajaran" && (
+                  <div className="space-y-6">
+                    {/* Filter Bar Per Tahun Ajaran */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-gray-50 dark:bg-white/[0.02] border border-gray-100 dark:border-gray-800">
+                      <div>
+                        <h4 className="text-sm font-bold text-gray-800 dark:text-white">Pilih Periode Tahun Pelajaran</h4>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Pilih semester / tahun ajaran untuk melihat rincian keuangan dan ketercapaian per rombel.</p>
                       </div>
-                    )}
-                  </ComponentCard>
+                      <div className="w-full sm:w-80">
+                        <select
+                          value={selectedSemesterId}
+                          onChange={(e) => setSelectedSemesterId(e.target.value)}
+                          className="w-full px-3.5 py-2.5 border border-gray-300 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 text-gray-800 dark:text-white text-sm font-medium focus:outline-none focus:ring-1 focus:ring-brand-500"
+                        >
+                          <option value="all">Semua Tahun Pelajaran</option>
+                          {rekapTahunPelajaran.map((r) => (
+                            <option key={r.semester_id} value={r.semester_id}>
+                              {r.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
 
-                  {/* Rekap Bulanan */}
+                    {/* Jika melihat Semua Tahun Ajaran */}
+                    {selectedSemesterId === "all" ? (
+                      <ComponentCard title="Rekapitulasi Keuangan Per Tahun Pelajaran">
+                        {rekapTahunPelajaran.length === 0 ? (
+                          <p className="text-center py-6 text-gray-500">Belum ada riwayat per tahun pelajaran.</p>
+                        ) : (
+                          <div className="overflow-x-auto">
+                            <Table className="w-full">
+                              <TableHeader className="border-b border-gray-100 dark:border-white/[0.05] bg-gray-50/50 dark:bg-transparent">
+                                <TableRow>
+                                  <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Tahun Pelajaran / Semester</TableCell>
+                                  <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-center text-xs dark:text-gray-400 whitespace-nowrap">Jumlah Siswa</TableCell>
+                                  <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-end text-xs dark:text-gray-400 whitespace-nowrap">Target Tagihan</TableCell>
+                                  <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-end text-xs dark:text-gray-400 whitespace-nowrap">Total Terbayar</TableCell>
+                                  <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-end text-xs dark:text-gray-400 whitespace-nowrap">Sisa Tunggakan</TableCell>
+                                  <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-center text-xs dark:text-gray-400 whitespace-nowrap">Ketercapaian</TableCell>
+                                  <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-center text-xs dark:text-gray-400 whitespace-nowrap">Aksi</TableCell>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
+                                {rekapTahunPelajaran.map((r) => (
+                                  <TableRow key={r.semester_id} className="hover:bg-gray-50 dark:hover:bg-gray-850">
+                                    <TableCell className="px-5 py-3.5 font-semibold text-gray-800 dark:text-white text-sm">
+                                      {r.label}
+                                    </TableCell>
+                                    <TableCell className="px-5 py-3.5 text-center text-sm text-gray-600 dark:text-gray-300">
+                                      {r.jumlah_siswa || 0} Siswa
+                                    </TableCell>
+                                    <TableCell className="px-5 py-3.5 text-end text-sm font-medium text-gray-800 dark:text-white">
+                                      {formatCurrency(r.total_target || "0")}
+                                    </TableCell>
+                                    <TableCell className="px-5 py-3.5 text-end text-sm font-semibold text-green-600 dark:text-green-400">
+                                      {formatCurrency(r.total_pembayaran || "0")}
+                                    </TableCell>
+                                    <TableCell className="px-5 py-3.5 text-end text-sm font-semibold text-red-500 dark:text-red-400">
+                                      {formatCurrency(r.total_tunggakan || "0")}
+                                    </TableCell>
+                                    <TableCell className="px-5 py-3.5 text-center">
+                                      <div className="flex items-center justify-center gap-2">
+                                        <div className="w-20 bg-gray-200 dark:bg-gray-700 h-2 rounded-full overflow-hidden">
+                                          <div
+                                            className="bg-brand-500 h-full rounded-full transition-all"
+                                            style={{ width: `${Math.min(r.persentase || 0, 100)}%` }}
+                                          />
+                                        </div>
+                                        <span className="text-xs font-bold text-gray-700 dark:text-gray-300">{r.persentase || 0}%</span>
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="px-5 py-3.5 text-center">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setSelectedSemesterId(r.semester_id)}
+                                      >
+                                        Lihat Rincian Rombel
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        )}
+                      </ComponentCard>
+                    ) : (
+                      /* Rincian Rombel untuk Semester Terpilih */
+                      activeSemesterRekap && (
+                        <div className="space-y-6">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div>
+                              <h3 className="text-lg font-bold text-gray-800 dark:text-white">
+                                Rincian Keuangan: {activeSemesterRekap.label}
+                              </h3>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                Ketercapaian pelunasan dan tunggakan tagihan per rombongan belajar pada semester ini.
+                              </p>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSelectedSemesterId("all")}
+                            >
+                              ← Semua Tahun Pelajaran
+                            </Button>
+                          </div>
+
+                          <ComponentCard title={`Breakdown Kelas (${activeSemesterRekap.rombel_breakdown?.length || 0} Kelas)`}>
+                            {(!activeSemesterRekap.rombel_breakdown || activeSemesterRekap.rombel_breakdown.length === 0) ? (
+                              <p className="text-center py-6 text-gray-500">Tidak ada rincian kelas untuk tahun pelajaran ini.</p>
+                            ) : (
+                              <div className="overflow-x-auto">
+                                <Table className="w-full">
+                                  <TableHeader className="border-b border-gray-100 dark:border-white/[0.05] bg-gray-50/50 dark:bg-transparent">
+                                    <TableRow>
+                                      <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Nama Kelas</TableCell>
+                                      <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-center text-xs dark:text-gray-400 whitespace-nowrap">Jumlah Siswa</TableCell>
+                                      <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-end text-xs dark:text-gray-400 whitespace-nowrap">Target Tagihan</TableCell>
+                                      <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-end text-xs dark:text-gray-400 whitespace-nowrap">Total Terbayar</TableCell>
+                                      <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-end text-xs dark:text-gray-400 whitespace-nowrap">Sisa Tunggakan</TableCell>
+                                      <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-center text-xs dark:text-gray-400 whitespace-nowrap">Persentase Lunas</TableCell>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
+                                    {activeSemesterRekap.rombel_breakdown.map((rb: any) => (
+                                      <TableRow key={rb.rombel_id} className="hover:bg-gray-50 dark:hover:bg-gray-850">
+                                        <TableCell className="px-5 py-3.5 font-semibold text-gray-800 dark:text-white text-sm">
+                                          {rb.rombel_nama}
+                                        </TableCell>
+                                        <TableCell className="px-5 py-3.5 text-center text-sm text-gray-600 dark:text-gray-300">
+                                          {rb.jumlah_siswa} Siswa
+                                        </TableCell>
+                                        <TableCell className="px-5 py-3.5 text-end text-sm font-medium text-gray-800 dark:text-white">
+                                          {formatCurrency(rb.target_tagihan)}
+                                        </TableCell>
+                                        <TableCell className="px-5 py-3.5 text-end text-sm font-semibold text-green-600 dark:text-green-400">
+                                          {formatCurrency(rb.total_terbayar)}
+                                        </TableCell>
+                                        <TableCell className="px-5 py-3.5 text-end text-sm font-semibold text-red-500 dark:text-red-400">
+                                          {formatCurrency(rb.sisa_tunggakan)}
+                                        </TableCell>
+                                        <TableCell className="px-5 py-3.5 text-center">
+                                          <div className="flex items-center justify-center gap-2">
+                                            <div className="w-20 bg-gray-200 dark:bg-gray-700 h-2 rounded-full overflow-hidden">
+                                              <div
+                                                className="bg-brand-500 h-full rounded-full transition-all"
+                                                style={{ width: `${Math.min(rb.persentase || 0, 100)}%` }}
+                                              />
+                                            </div>
+                                            <span className="text-xs font-bold text-gray-700 dark:text-gray-300">{rb.persentase || 0}%</span>
+                                          </div>
+                                        </TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            )}
+                          </ComponentCard>
+                        </div>
+                      )
+                    )}
+                  </div>
+                )}
+
+                {/* SUB-TAB 2: TUNGGAKAN SISWA */}
+                {rekapSubTab === "tunggakan-siswa" && (
+                  <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 no-print">
+                      <div className="w-20">
+                        <Select
+                          options={rowsPerPageOptions}
+                          defaultValue={tunggakanSiswaPerPage.toString()}
+                          onChange={(value) => setTunggakanSiswaPerPage(parseInt(value))}
+                        />
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-3 max-w-2xl w-full sm:justify-end">
+                        <div className="relative max-w-xs w-full">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                            <SearchIcon className="size-4" />
+                          </span>
+                          <Input
+                            type="text"
+                            placeholder="Cari siswa / NISN..."
+                            value={searchTunggakanSiswa}
+                            onChange={(e) => {
+                              setSearchTunggakanSiswa(e.target.value);
+                              setTunggakanSiswaPage(1);
+                            }}
+                            className="pl-9"
+                          />
+                        </div>
+                        <div className="w-full sm:w-48">
+                          <select
+                            value={filterTunggakanKelas}
+                            onChange={(e) => {
+                              setFilterTunggakanKelas(e.target.value);
+                              setTunggakanSiswaPage(1);
+                            }}
+                            className="w-full rounded-lg border border-gray-300 bg-transparent py-2.5 px-3 text-sm text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white/90"
+                          >
+                            <option value="">Semua Kelas</option>
+                            {uniqueTunggakanKelas.map((cls) => (
+                              <option key={cls} value={cls}>
+                                {cls}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="w-full sm:w-56">
+                          <select
+                            value={filterTunggakanSiswaSemester}
+                            onChange={(e) => {
+                              setFilterTunggakanSiswaSemester(e.target.value);
+                              setTunggakanSiswaPage(1);
+                            }}
+                            className="w-full rounded-lg border border-gray-300 bg-transparent py-2.5 px-3 text-sm text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white/90"
+                          >
+                            <option value="all">Semua Tahun Pelajaran</option>
+                            {rekapTahunPelajaran.map((r) => (
+                              <option key={r.semester_id} value={r.semester_id}>
+                                {r.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    <ComponentCard title={`Daftar Peserta Didik Menunggak (${filteredTunggakanSiswa.length} Siswa)`}>
+                      {filteredTunggakanSiswa.length === 0 ? (
+                        <p className="text-center py-6 text-gray-500">Tidak ada tunggakan peserta didik yang sesuai filter.</p>
+                      ) : (
+                        <div className="space-y-4">
+                          <div className="overflow-x-auto">
+                            <Table className="w-full">
+                              <TableHeader className="border-b border-gray-100 dark:border-white/[0.05] bg-gray-50/50 dark:bg-transparent">
+                                <TableRow>
+                                  <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Nama Siswa</TableCell>
+                                  <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">NISN</TableCell>
+                                  <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Kelas</TableCell>
+                                  <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Tahun Pelajaran</TableCell>
+                                  <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Nama Tagihan</TableCell>
+                                  <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-end text-xs dark:text-gray-400 whitespace-nowrap">Tagihan</TableCell>
+                                  <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-end text-xs dark:text-gray-400 whitespace-nowrap">Terbayar</TableCell>
+                                  <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-end text-xs dark:text-gray-400 whitespace-nowrap">Sisa Tunggakan</TableCell>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
+                                {paginatedTunggakanSiswa.map((t, idx) => (
+                                  <TableRow key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-850">
+                                    <TableCell className="px-5 py-3.5 font-medium text-gray-800 dark:text-white/85 text-sm">{t.nama}</TableCell>
+                                    <TableCell className="px-5 py-3.5 text-sm text-gray-600 dark:text-gray-400">{t.nisn || "-"}</TableCell>
+                                    <TableCell className="px-5 py-3.5 text-sm text-gray-700 dark:text-gray-300 font-semibold">{t.kelas || "-"}</TableCell>
+                                    <TableCell className="px-5 py-3.5 text-xs text-gray-600 dark:text-gray-400">
+                                      <span className="inline-block px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                                        {t.tahun_ajaran || "-"}
+                                      </span>
+                                    </TableCell>
+                                    <TableCell className="px-5 py-3.5 text-sm text-gray-800 dark:text-white/80">{t.nama_tagihan}</TableCell>
+                                    <TableCell className="px-5 py-3.5 text-end text-sm text-gray-800 dark:text-white/80">{formatCurrency(t.nominal_tagihan)}</TableCell>
+                                    <TableCell className="px-5 py-3.5 text-end text-sm font-semibold text-green-600 dark:text-green-400">{formatCurrency(t.nominal_terbayar)}</TableCell>
+                                    <TableCell className="px-5 py-3.5 text-end text-sm font-bold text-red-500 dark:text-red-400">{formatCurrency(t.sisa_tunggakan)}</TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                          <Pagination
+                            currentPage={tunggakanSiswaPage}
+                            totalPages={totalTunggakanSiswaPages}
+                            onPageChange={(p) => setTunggakanSiswaPage(p)}
+                          />
+                        </div>
+                      )}
+                    </ComponentCard>
+                  </div>
+                )}
+
+                {/* SUB-TAB 3: TUNGGAKAN KELAS */}
+                {rekapSubTab === "tunggakan-kelas" && (
+                  <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 no-print">
+                      <div className="relative max-w-xs w-full">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                          <SearchIcon className="size-4" />
+                        </span>
+                        <Input
+                          type="text"
+                          placeholder="Cari nama kelas..."
+                          value={searchTunggakanKelas}
+                          onChange={(e) => setSearchTunggakanKelas(e.target.value)}
+                          className="pl-9"
+                        />
+                      </div>
+                      <div className="w-full sm:w-80">
+                        <select
+                          value={filterTunggakanKelasSemester}
+                          onChange={(e) => setFilterTunggakanKelasSemester(e.target.value)}
+                          className="w-full rounded-lg border border-gray-300 bg-transparent py-2.5 px-3 text-sm text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white/90"
+                        >
+                          <option value="all">Semua Tahun Pelajaran</option>
+                          {rekapTahunPelajaran.map((r) => (
+                            <option key={r.semester_id} value={r.semester_id}>
+                              {r.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <ComponentCard title={`Total Tunggakan Per Kelas (${filteredTunggakanKelas.length} Kelas)`}>
+                      {filteredTunggakanKelas.length === 0 ? (
+                        <p className="text-center py-6 text-gray-500">Tidak ada data tunggakan per kelas yang sesuai filter.</p>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <Table className="w-full">
+                            <TableHeader className="border-b border-gray-100 dark:border-white/[0.05] bg-gray-50/50 dark:bg-transparent">
+                              <TableRow>
+                                <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Nama Kelas</TableCell>
+                                <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Tahun Pelajaran / Semester</TableCell>
+                                <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-center text-xs dark:text-gray-400 whitespace-nowrap">Jumlah Siswa Menunggak</TableCell>
+                                <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-end text-xs dark:text-gray-400 whitespace-nowrap">Total Tunggakan</TableCell>
+                                <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-center text-xs dark:text-gray-400 whitespace-nowrap">Aksi</TableCell>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
+                              {filteredTunggakanKelas.map((t, idx) => (
+                                <TableRow key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-850">
+                                  <TableCell className="px-5 py-3.5 font-bold text-gray-800 dark:text-white text-sm">{t.kelas}</TableCell>
+                                  <TableCell className="px-5 py-3.5 text-sm text-gray-600 dark:text-gray-300 font-medium">
+                                    <span className="inline-block px-2.5 py-1 text-xs rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                                      {t.tahun_ajaran || "Tanpa Semester"}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell className="px-5 py-3.5 text-center text-sm font-semibold text-gray-700 dark:text-gray-300">
+                                    {t.jumlah_siswa || 0} Siswa
+                                  </TableCell>
+                                  <TableCell className="px-5 py-3.5 text-end text-red-500 dark:text-red-400 font-bold text-sm">
+                                    {formatCurrency(t.total_tunggakan)}
+                                  </TableCell>
+                                  <TableCell className="px-5 py-3.5 text-center">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        setFilterTunggakanKelas(t.kelas);
+                                        if (t.semester_id && t.semester_id !== "unassigned") {
+                                          setFilterTunggakanSiswaSemester(t.semester_id);
+                                        } else {
+                                          setFilterTunggakanSiswaSemester("all");
+                                        }
+                                        setRekapSubTab("tunggakan-siswa");
+                                      }}
+                                    >
+                                      Lihat Siswa
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
+                    </ComponentCard>
+                  </div>
+                )}
+
+                {/* SUB-TAB 4: BULANAN */}
+                {rekapSubTab === "bulanan" && (
                   <ComponentCard title="Rekapitulasi Pembayaran Per Bulan">
                     {rekapBulanan.length === 0 ? (
                       <p className="text-center py-6 text-gray-500">Belum ada riwayat transaksi bulanan.</p>
                     ) : (
-                      <div className="overflow-y-auto max-h-[350px]">
+                      <div className="overflow-x-auto">
                         <Table className="w-full">
                           <TableHeader className="border-b border-gray-100 dark:border-white/[0.05] bg-gray-50/50 dark:bg-transparent">
                             <TableRow>
                               <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Bulan & Tahun</TableCell>
-                              <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-right text-xs dark:text-gray-400 whitespace-nowrap">Total Penerimaan</TableCell>
+                              <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-end text-xs dark:text-gray-400 whitespace-nowrap">Total Penerimaan</TableCell>
                             </TableRow>
                           </TableHeader>
                           <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
                             {rekapBulanan.map((r, idx) => (
-                              <TableRow key={idx} className="hover:bg-gray-50/50">
-                                <TableCell className="px-5 py-2.5 font-medium text-gray-800 dark:text-white text-xs">
+                              <TableRow key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-850">
+                                <TableCell className="px-5 py-3.5 font-semibold text-gray-800 dark:text-white text-sm">
                                   {r.bulan_tahun}
                                 </TableCell>
-                                <TableCell className="px-5 py-2.5 text-right text-green-600 dark:text-green-400 font-bold text-xs">
+                                <TableCell className="px-5 py-3.5 text-end text-green-600 dark:text-green-400 font-bold text-sm">
                                   {formatCurrency(r.nominal)}
                                 </TableCell>
                               </TableRow>
@@ -846,37 +1815,7 @@ export default function KeuanganData() {
                       </div>
                     )}
                   </ComponentCard>
-
-                  {/* Rekap Tahun Pelajaran */}
-                  <ComponentCard title="Rekapitulasi Pembayaran Per Tahun Pelajaran">
-                    {rekapTahunPelajaran.length === 0 ? (
-                      <p className="text-center py-6 text-gray-500">Belum ada riwayat per tahun pelajaran.</p>
-                    ) : (
-                      <div className="overflow-y-auto max-h-[350px]">
-                        <Table className="w-full">
-                          <TableHeader className="border-b border-gray-100 dark:border-white/[0.05] bg-gray-50/50 dark:bg-transparent">
-                            <TableRow>
-                              <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-start text-xs dark:text-gray-400 whitespace-nowrap">Tahun Pelajaran / Semester</TableCell>
-                              <TableCell isHeader className="px-5 py-3 font-semibold text-gray-500 text-right text-xs dark:text-gray-400 whitespace-nowrap">Total Penerimaan</TableCell>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
-                            {rekapTahunPelajaran.map((r, idx) => (
-                              <TableRow key={idx} className="hover:bg-gray-50/50">
-                                <TableCell className="px-5 py-2.5 font-medium text-gray-800 dark:text-white text-xs">
-                                  {r.label}
-                                </TableCell>
-                                <TableCell className="px-5 py-2.5 text-right text-green-600 dark:text-green-400 font-bold text-xs">
-                                  {formatCurrency(r.total_pembayaran)}
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    )}
-                  </ComponentCard>
-                </div>
+                )}
               </div>
             )}
           </>
@@ -1157,7 +2096,7 @@ export default function KeuanganData() {
       {/* =================================== */}
       {/* MODAL 3: KELOLA TRANSAKSI SPP */}
       {/* =================================== */}
-      <Modal isOpen={isTransaksiModalOpen} onClose={() => setIsTransaksiModalOpen(false)} className="max-w-[700px] p-6 bg-white dark:bg-gray-900 rounded-3xl max-h-[90vh] overflow-y-auto">
+      <Modal isOpen={isTransaksiModalOpen} onClose={() => { setIsTransaksiModalOpen(false); handleCancelEditTransaksi(); }} className="max-w-[700px] p-6 bg-white dark:bg-gray-900 rounded-3xl max-h-[90vh] overflow-y-auto">
         <h3 className="text-lg font-bold text-gray-850 dark:text-white mb-2">Riwayat & Pembayaran SPP</h3>
         <div className="text-xs text-gray-500 dark:text-gray-400 mb-6 pb-4 border-b border-gray-100 dark:border-gray-800 grid grid-cols-2 gap-2">
           <div>
@@ -1181,6 +2120,7 @@ export default function KeuanganData() {
                   const sppId = e.target.value;
                   const found = selectedTagihan.spps.find((s: any) => s.spp_id === sppId);
                   setSelectedSubSpp(found || null);
+                  handleCancelEditTransaksi();
                 }}
                 className="w-full rounded-lg border border-gray-300 bg-transparent py-2 px-3 text-xs text-gray-850 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white/90"
               >
@@ -1218,10 +2158,31 @@ export default function KeuanganData() {
 
         {/* Left-Right split: Form and History */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Form catat transaksi baru */}
+          {/* Form catat/edit transaksi */}
           <div>
-            <h4 className="text-sm font-bold text-gray-800 dark:text-white mb-4">Catat Transaksi Baru</h4>
-            <form onSubmit={handleCreateTransaksi} className="space-y-3">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-sm font-bold text-gray-800 dark:text-white">
+                {editingTxId ? "Edit Transaksi SPP" : "Catat Transaksi Baru"}
+              </h4>
+              {editingTxId && (
+                <button
+                  type="button"
+                  onClick={handleCancelEditTransaksi}
+                  className="text-xs text-brand-600 dark:text-brand-400 font-semibold hover:underline"
+                >
+                  + Catat Baru
+                </button>
+              )}
+            </div>
+
+            {editingTxId && (
+              <div className="mb-3 px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-[11px] text-amber-800 dark:text-amber-300 flex items-center justify-between">
+                <span>Sedang mengubah nominal / data transaksi</span>
+                <button type="button" onClick={handleCancelEditTransaksi} className="font-bold hover:underline">Batal</button>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveTransaksi} className="space-y-3">
               <div>
                 <label className="block text-xs font-semibold mb-1">Jenis Transaksi</label>
                 <select
@@ -1231,6 +2192,8 @@ export default function KeuanganData() {
                 >
                   <option value={1}>Pembayaran (Uang SPP)</option>
                   <option value={2}>Beasiswa</option>
+                  <option value={4}>Pengurangan</option>
+                  <option value={5}>Pengembalian Dana</option>
                 </select>
               </div>
 
@@ -1284,9 +2247,14 @@ export default function KeuanganData() {
                 />
               </div>
 
-              <div className="pt-2">
-                <Button variant="primary" size="sm" type="submit" className="w-full">
-                  Simpan Transaksi
+              <div className="pt-2 flex gap-2">
+                {editingTxId && (
+                  <Button variant="outline" size="sm" type="button" onClick={handleCancelEditTransaksi} className="flex-1">
+                    Batal
+                  </Button>
+                )}
+                <Button variant="primary" size="sm" type="submit" className={editingTxId ? "flex-1" : "w-full"}>
+                  {editingTxId ? "Simpan Perubahan" : "Simpan Transaksi"}
                 </Button>
               </div>
             </form>
@@ -1298,18 +2266,43 @@ export default function KeuanganData() {
             {selectedSubSpp?.riwayat_transaksi?.length === 0 ? (
               <p className="text-xs italic text-gray-400 py-6 text-center">Belum ada riwayat transaksi SPP.</p>
             ) : (
-              <div className="max-h-[300px] overflow-y-auto space-y-3 pr-1">
+              <div className="max-h-[320px] overflow-y-auto space-y-3 pr-1">
                 {selectedSubSpp?.riwayat_transaksi?.map((t: any) => (
-                  <div key={t.riwayat_transaksi_spp_id} className="p-3 border border-gray-100 dark:border-gray-800 rounded-xl text-xs relative">
+                  <div
+                    key={t.riwayat_transaksi_spp_id}
+                    className={`p-3 border rounded-xl text-xs relative transition-all ${
+                      editingTxId === t.riwayat_transaksi_spp_id
+                        ? "border-brand-500 bg-brand-50/20 dark:bg-brand-950/20 dark:border-brand-500 ring-1 ring-brand-500"
+                        : "border-gray-100 dark:border-gray-800 bg-transparent hover:bg-gray-50/50 dark:hover:bg-gray-800/40"
+                    }`}
+                  >
                     <div className="flex justify-between items-center mb-1">
                       <span className="font-semibold text-gray-700 dark:text-gray-300">
                         {formatDate(t.tanggal_transaksi)}
                       </span>
-                      <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-50 text-gray-600 dark:bg-gray-900 border`}>
-                        {getJenisTxLabel(t.jenis_transaksi)}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-50 text-gray-600 dark:bg-gray-900 border`}>
+                          {getJenisTxLabel(t.jenis_transaksi)}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleStartEditTransaksi(t)}
+                          className="text-gray-400 hover:text-brand-500 p-1 transition-colors rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+                          title="Edit Transaksi"
+                        >
+                          <PencilIcon className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteTransaksi(t.riwayat_transaksi_spp_id, t.nominal)}
+                          className="text-gray-400 hover:text-red-500 p-1 transition-colors rounded hover:bg-red-50 dark:hover:bg-red-950/30"
+                          title="Hapus Transaksi"
+                        >
+                          <TrashBinIcon className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
-                    <p className="font-bold text-gray-950 dark:text-white mt-1.5">
+                    <p className="font-bold text-gray-950 dark:text-white mt-1.5 text-sm">
                       {formatCurrency(t.nominal)}
                     </p>
                     {t.metode_pembayaran && (
@@ -1326,9 +2319,143 @@ export default function KeuanganData() {
         </div>
 
         <div className="flex justify-end pt-4 mt-6 border-t border-gray-100 dark:border-gray-800">
-          <Button variant="outline" size="sm" onClick={() => setIsTransaksiModalOpen(false)}>
+          <Button variant="outline" size="sm" onClick={() => { setIsTransaksiModalOpen(false); handleCancelEditTransaksi(); }}>
             Tutup
           </Button>
+        </div>
+      </Modal>
+
+      {/* =================================== */}
+      {/* MODAL 4: EXPORT LAPORAN KEUANGAN */}
+      {/* =================================== */}
+      <Modal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        className="max-w-md p-6 bg-white dark:bg-gray-900 rounded-3xl"
+      >
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+              Export Laporan Keuangan
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Pilih kriteria export laporan keuangan di bawah ini.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">BERDASARKAN</label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { value: "kelas", label: "Kelas" },
+                  { value: "tahun-ajaran", label: "Tahun Ajaran" },
+                  { value: "semua", label: "Semua" }
+                ].map((type) => (
+                  <button
+                    key={type.value}
+                    type="button"
+                    onClick={() => setExportBerdasarkan(type.value as any)}
+                    className={`py-2 px-3 text-xs font-bold rounded-xl border transition-all ${
+                      exportBerdasarkan === type.value
+                        ? "bg-brand-500 text-white border-brand-600 shadow-sm"
+                        : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-700"
+                    }`}
+                  >
+                    {type.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {exportBerdasarkan === "kelas" && (
+              <div className="space-y-1.5 animate-fadeIn">
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-400">PILIH KELAS</label>
+                <select
+                  value={exportSelectedRombel}
+                  onChange={(e) => setExportSelectedRombel(e.target.value)}
+                  className="w-full rounded-xl border border-gray-300 bg-white py-2.5 px-3 text-xs text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                >
+                  <option value="">Semua Kelas...</option>
+                  {allAvailableKelas.map((k) => (
+                    <option key={k} value={k}>
+                      {k}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {exportBerdasarkan === "tahun-ajaran" && (
+              <div className="space-y-1.5 animate-fadeIn">
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-400">PILIH TAHUN AJARAN</label>
+                <select
+                  value={exportTahunAjaran}
+                  onChange={(e) => setExportTahunAjaran(e.target.value)}
+                  className="w-full rounded-xl border border-gray-300 bg-white py-2.5 px-3 text-xs text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                >
+                  <option value="all">Semua Tahun Ajaran</option>
+                  {rekapTahunPelajaran.map((r) => (
+                    <option key={r.semester_id} value={r.semester_id}>
+                      {r.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">FORMAT OUTPUT</label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: "pdf", label: "PDF / Cetak", icon: PrinterIcon },
+                  { value: "excel", label: "Excel (.xlsx)", icon: DownloadIcon }
+                ].map((format) => {
+                  const Icon = format.icon;
+                  return (
+                    <button
+                      key={format.value}
+                      type="button"
+                      onClick={() => setExportFormat(format.value as any)}
+                      className={`py-2.5 px-3 text-xs font-bold rounded-xl border flex items-center justify-center gap-2 transition-all ${
+                        exportFormat === format.value
+                          ? "bg-brand-500 text-white border-brand-600 shadow-sm"
+                          : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-700"
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      {format.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-3 justify-end pt-4 border-t border-gray-100 dark:border-gray-800">
+            <button
+              type="button"
+              onClick={() => setIsExportModalOpen(false)}
+              className="px-4 py-2 text-sm font-semibold text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 rounded-lg transition-colors"
+            >
+              Batal
+            </button>
+            <Button
+              variant="primary"
+              onClick={handleExecuteExport}
+              disabled={isExporting}
+              className="flex items-center gap-2 min-w-[100px] justify-center animate-none"
+            >
+              {isExporting ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                  <span>Memproses...</span>
+                </>
+              ) : (
+                <span>Export</span>
+              )}
+            </Button>
+          </div>
         </div>
       </Modal>
     </>

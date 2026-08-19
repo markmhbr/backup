@@ -115,8 +115,10 @@ export default function PelaporanSekolahPage() {
                 <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="px-5 py-10 text-center text-gray-500">
-                        Memuat data...
+                      <TableCell colSpan={5} className="px-5 py-10 text-center">
+                        <div className="flex justify-center items-center">
+                          <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-500 border-t-transparent"></div>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ) : filteredData.length > 0 ? (

@@ -117,8 +117,8 @@ export default function VaSettings() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <p className="text-gray-500 font-medium">Memuat data pengaturan VA...</p>
+      <div className="flex h-80 items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-brand-500 border-t-transparent"></div>
       </div>
     );
   }

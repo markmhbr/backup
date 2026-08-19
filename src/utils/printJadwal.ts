@@ -1,4 +1,5 @@
 import { getFotoUrl } from "./image";
+import * as XLSX from "xlsx";
 
 export interface PrintJadwalParams {
   sekolah: any;
@@ -815,20 +816,18 @@ export const printJadwal = (params: PrintJadwalParams) => {
   printWindow.document.close();
 };
 
-export interface ExportCSVParams {
+export interface ExportExcelParams {
   jenisJadwalNama: string;
   activeDays: { id: number; name: string }[];
   slots: any[];
   schedules: any[];
-  rombels: { value: string; label: string }[];
+  rombels: { value: string; label: string; tingkat_pendidikan_id?: number | null }[];
 }
 
-export const exportJadwalToCSV = (params: ExportCSVParams) => {
+export const exportJadwalToExcel = (params: ExportExcelParams) => {
   const { jenisJadwalNama, activeDays, slots, schedules, rombels } = params;
 
-  // Header column setup
-  const headers = ["Rombel/Kelas", "Hari", "Jam Ke", "Waktu", "Tipe", "Mata Pelajaran", "Guru"];
-  const rows = [headers];
+  const workbook = XLSX.utils.book_new();
 
   const formatTime = (timeStr: any) => {
     if (!timeStr) return "";
@@ -857,12 +856,185 @@ export const exportJadwalToCSV = (params: ExportCSVParams) => {
     }
   };
 
-  rombels.forEach((rombel) => {
+  const getTimeRange = (dayId: number, urutan: number) => {
+    const daySlots = slots.filter(s => s.hari === dayId);
+    const sortedDaySlots = [...daySlots].sort((a, b) => a.urutan - b.urutan);
+    const targetIndex = sortedDaySlots.findIndex(s => s.urutan === urutan);
+    if (targetIndex === -1) return "";
+
+    const activeJamMasuk = "07:00";
+    const jamMasukStr = formatTime(activeJamMasuk);
+    if (!jamMasukStr) return "";
+    const [h, m] = jamMasukStr.split(':').map(Number);
+    let totalMinutes = h * 60 + m;
+
+    for (let i = 0; i < targetIndex; i++) {
+      totalMinutes += sortedDaySlots[i]?.durasi_menit || 0;
+    }
+
+    const startH = Math.floor(totalMinutes / 60).toString().padStart(2, '0');
+    const startM = (totalMinutes % 60).toString().padStart(2, '0');
+    const endMinutes = totalMinutes + (sortedDaySlots[targetIndex]?.durasi_menit || 0);
+    const endH = Math.floor(endMinutes / 60).toString().padStart(2, '0');
+    const endM = (endMinutes % 60).toString().padStart(2, '0');
+
+    return `${startH}:${startM} - ${endH}:${endM}`;
+  };
+
+  // 1. Matriks Grid Sheet (Jadwal per Kelas / Matriks)
+  const maxUrutan = slots.length > 0 ? Math.max(...slots.map(s => s.urutan)) : 0;
+  const uniqueSlots = Array.from({ length: maxUrutan }, (_, i) => i + 1);
+
+  if (rombels.length === 1) {
+    const rombel = rombels[0];
     const rombelSchedules = schedules.filter(s => s.rombongan_belajar_id === rombel.value);
 
-    // Calculate slots max urutan for this template
-    const maxUrutan = slots.length > 0 ? Math.max(...slots.map(s => s.urutan)) : 0;
-    const uniqueSlots = Array.from({ length: maxUrutan }, (_, i) => i + 1);
+    const matrixRows: any[][] = [];
+    matrixRows.push([`JADWAL PELAJARAN - ${jenisJadwalNama}`]);
+    matrixRows.push([`Kelas / Rombel: ${rombel.label}`]);
+    matrixRows.push([]);
+    matrixRows.push(["Jam Ke", "Waktu", ...activeDays.map(d => d.name)]);
+
+    uniqueSlots.forEach((urutan) => {
+      const firstActiveDay = activeDays[0]?.id || 1;
+      const timeRange = getTimeRange(firstActiveDay, urutan);
+      const row: any[] = [`Ke-${urutan}`, timeRange];
+
+      activeDays.forEach((day) => {
+        const daySlots = slots.filter(s => s.hari === day.id);
+        const slotConfig = daySlots.find(s => s.urutan === urutan);
+        const subjectInfo = rombelSchedules.find(s => s.hari === day.id && s.urutan === urutan);
+
+        if (!slotConfig) {
+          row.push("-");
+          return;
+        }
+
+        if (slotConfig.tipe === 1) {
+          if (subjectInfo) {
+            const mapel = subjectInfo.pembelajaran?.nama_mata_pelajaran || "Mata Pelajaran";
+            const guru = subjectInfo.pembelajaran?.gtk?.nama || subjectInfo.pembelajaran?.ptk_id_str || "";
+            row.push(guru ? `${mapel} (${guru})` : mapel);
+          } else {
+            row.push("Belum Diisi");
+          }
+        } else {
+          row.push(getTipeLabel(slotConfig.tipe));
+        }
+      });
+
+      matrixRows.push(row);
+    });
+
+    const matrixSheet = XLSX.utils.aoa_to_sheet(matrixRows);
+    const cols = [{ wch: 10 }, { wch: 16 }, ...activeDays.map(() => ({ wch: 28 }))];
+    matrixSheet['!cols'] = cols;
+    XLSX.utils.book_append_sheet(workbook, matrixSheet, "Jadwal Kelas");
+  } else {
+    if (rombels.length <= 15) {
+      rombels.forEach((rombel) => {
+        const rombelSchedules = schedules.filter(s => s.rombongan_belajar_id === rombel.value);
+        const matrixRows: any[][] = [];
+        matrixRows.push([`JADWAL PELAJARAN - ${jenisJadwalNama}`]);
+        matrixRows.push([`Kelas / Rombel: ${rombel.label}`]);
+        matrixRows.push([]);
+        matrixRows.push(["Jam Ke", "Waktu", ...activeDays.map(d => d.name)]);
+
+        uniqueSlots.forEach((urutan) => {
+          const firstActiveDay = activeDays[0]?.id || 1;
+          const timeRange = getTimeRange(firstActiveDay, urutan);
+          const row: any[] = [`Ke-${urutan}`, timeRange];
+
+          activeDays.forEach((day) => {
+            const daySlots = slots.filter(s => s.hari === day.id);
+            const slotConfig = daySlots.find(s => s.urutan === urutan);
+            const subjectInfo = rombelSchedules.find(s => s.hari === day.id && s.urutan === urutan);
+
+            if (!slotConfig) {
+              row.push("-");
+              return;
+            }
+
+            if (slotConfig.tipe === 1) {
+              if (subjectInfo) {
+                const mapel = subjectInfo.pembelajaran?.nama_mata_pelajaran || "Mata Pelajaran";
+                const guru = subjectInfo.pembelajaran?.gtk?.nama || subjectInfo.pembelajaran?.ptk_id_str || "";
+                row.push(guru ? `${mapel} (${guru})` : mapel);
+              } else {
+                row.push("Belum Diisi");
+              }
+            } else {
+              row.push(getTipeLabel(slotConfig.tipe));
+            }
+          });
+
+          matrixRows.push(row);
+        });
+
+        const matrixSheet = XLSX.utils.aoa_to_sheet(matrixRows);
+        const cols = [{ wch: 10 }, { wch: 16 }, ...activeDays.map(() => ({ wch: 28 }))];
+        matrixSheet['!cols'] = cols;
+
+        const cleanSheetName = rombel.label.replace(/[:\\/?*[\]]/g, '').substring(0, 31);
+        XLSX.utils.book_append_sheet(workbook, matrixSheet, cleanSheetName || `Kelas ${rombel.value.substring(0, 4)}`);
+      });
+    } else {
+      const allRows: any[][] = [];
+      allRows.push([`JADWAL PELAJARAN SEMUA KELAS - ${jenisJadwalNama}`]);
+      allRows.push([]);
+
+      rombels.forEach((rombel) => {
+        const rombelSchedules = schedules.filter(s => s.rombongan_belajar_id === rombel.value);
+        allRows.push([`KELAS: ${rombel.label}`]);
+        allRows.push(["Jam Ke", "Waktu", ...activeDays.map(d => d.name)]);
+
+        uniqueSlots.forEach((urutan) => {
+          const firstActiveDay = activeDays[0]?.id || 1;
+          const timeRange = getTimeRange(firstActiveDay, urutan);
+          const row: any[] = [`Ke-${urutan}`, timeRange];
+
+          activeDays.forEach((day) => {
+            const daySlots = slots.filter(s => s.hari === day.id);
+            const slotConfig = daySlots.find(s => s.urutan === urutan);
+            const subjectInfo = rombelSchedules.find(s => s.hari === day.id && s.urutan === urutan);
+
+            if (!slotConfig) {
+              row.push("-");
+              return;
+            }
+
+            if (slotConfig.tipe === 1) {
+              if (subjectInfo) {
+                const mapel = subjectInfo.pembelajaran?.nama_mata_pelajaran || "Mata Pelajaran";
+                const guru = subjectInfo.pembelajaran?.gtk?.nama || subjectInfo.pembelajaran?.ptk_id_str || "";
+                row.push(guru ? `${mapel} (${guru})` : mapel);
+              } else {
+                row.push("Belum Diisi");
+              }
+            } else {
+              row.push(getTipeLabel(slotConfig.tipe));
+            }
+          });
+
+          allRows.push(row);
+        });
+
+        allRows.push([]);
+      });
+
+      const allSheet = XLSX.utils.aoa_to_sheet(allRows);
+      allSheet['!cols'] = [{ wch: 10 }, { wch: 16 }, ...activeDays.map(() => ({ wch: 28 }))];
+      XLSX.utils.book_append_sheet(workbook, allSheet, "Jadwal Semua Kelas");
+    }
+  }
+
+  // 2. Tabular Detail Sheet (Daftar Jadwal Lengkap)
+  const detailHeaders = ["No", "Rombel / Kelas", "Hari", "Jam Ke", "Waktu", "Tipe", "Mata Pelajaran", "Guru / Pengajar"];
+  const detailRows: any[][] = [detailHeaders];
+  let no = 1;
+
+  rombels.forEach((rombel) => {
+    const rombelSchedules = schedules.filter(s => s.rombongan_belajar_id === rombel.value);
 
     uniqueSlots.forEach((urutan) => {
       activeDays.forEach((day) => {
@@ -873,31 +1045,7 @@ export const exportJadwalToCSV = (params: ExportCSVParams) => {
         if (!slotConfig) return;
 
         const isPembelajaran = slotConfig.tipe === 1;
-        
-        // Find default or custom day settings to compute time range
-        const activeJamMasuk = "07:00"; // default fallback
-        
-        // We will compute time range using simple helper
-        const jamMasukStr = formatTime(activeJamMasuk);
-        let timeRange = "";
-        if (jamMasukStr) {
-          const [h, m] = jamMasukStr.split(':').map(Number);
-          let totalMinutes = h * 60 + m;
-          const sortedDaySlots = [...daySlots].sort((a, b) => a.urutan - b.urutan);
-          const targetIndex = sortedDaySlots.findIndex(s => s.urutan === urutan);
-          if (targetIndex !== -1) {
-            for (let i = 0; i < targetIndex; i++) {
-              totalMinutes += sortedDaySlots[i]?.durasi_menit || 0;
-            }
-            const startH = Math.floor(totalMinutes / 60).toString().padStart(2, '0');
-            const startM = (totalMinutes % 60).toString().padStart(2, '0');
-            const endMinutes = totalMinutes + (sortedDaySlots[targetIndex]?.durasi_menit || 0);
-            const endH = Math.floor(endMinutes / 60).toString().padStart(2, '0');
-            const endM = (endMinutes % 60).toString().padStart(2, '0');
-            timeRange = `${startH}:${startM} - ${endH}:${endM}`;
-          }
-        }
-
+        const timeRange = getTimeRange(day.id, urutan);
         const tipeStr = getTipeLabel(slotConfig.tipe);
         let subjectName = "-";
         let teacherName = "-";
@@ -913,7 +1061,8 @@ export const exportJadwalToCSV = (params: ExportCSVParams) => {
           subjectName = tipeStr;
         }
 
-        rows.push([
+        detailRows.push([
+          no++,
           rombel.label,
           day.name,
           `Ke-${urutan}`,
@@ -926,23 +1075,26 @@ export const exportJadwalToCSV = (params: ExportCSVParams) => {
     });
   });
 
-  // Generate CSV Content
-  const csvContent = rows
-    .map((row) => row.map((val) => `"${val.replace(/"/g, '""')}"`).join(","))
-    .join("\n");
+  const detailSheet = XLSX.utils.aoa_to_sheet(detailRows);
+  detailSheet['!cols'] = [
+    { wch: 6 },
+    { wch: 20 },
+    { wch: 12 },
+    { wch: 10 },
+    { wch: 16 },
+    { wch: 16 },
+    { wch: 30 },
+    { wch: 30 }
+  ];
+  XLSX.utils.book_append_sheet(workbook, detailSheet, "Data Detail");
 
-  const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
-  
-  const link = document.createElement("a");
-  if (link.download !== undefined) {
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    
-    const sanitizedTemplateName = jenisJadwalNama.replace(/\s+/g, '_');
-    link.setAttribute("download", `Jadwal_Pelajaran_${sanitizedTemplateName}_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  }
+  // Save workbook as .xlsx
+  const sanitizedTemplateName = jenisJadwalNama.replace(/\s+/g, '_');
+  const filename = `Jadwal_Pelajaran_${sanitizedTemplateName}_${new Date().toISOString().split('T')[0]}.xlsx`;
+  XLSX.writeFile(workbook, filename);
 };
+
+// Export CSV Params & function kept for backwards compatibility
+export interface ExportCSVParams extends ExportExcelParams {}
+export const exportJadwalToCSV = exportJadwalToExcel;
+

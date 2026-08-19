@@ -96,7 +96,13 @@ export default function DetailPelaporanSekolahPage() {
     }
   };
 
-  if (loading) return <div className="p-10 text-center">Memuat detail...</div>;
+  if (loading) {
+    return (
+      <div className="flex h-80 items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-brand-500 border-t-transparent"></div>
+      </div>
+    );
+  }
   if (!detail) return <div className="p-10 text-center text-error-500">Data tidak ditemukan.</div>;
 
   return (

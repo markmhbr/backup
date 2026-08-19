@@ -161,10 +161,8 @@ const PresensiGTK: React.FC = () => {
     );
   });
 
-  // Filtered list for Kelola tab (hanya GTK yang ada jadwal ngajar hari ini / tendik)
+  // Filtered list for Kelola tab (menampilkan semua GTK, hanya yang ada jadwal yang dapat diedit)
   const kelolaFilteredData = data.filter((item) => {
-    if (item.hasJadwalToday === false && !item.presensi && !item.izin) return false;
-
     let matchGtkType = true;
     if (selectedGtkType) {
       const isGuru = (item.jenis_ptk_id_str || "").toLowerCase().includes("guru");
@@ -353,7 +351,7 @@ const PresensiGTK: React.FC = () => {
                         let statusBadge = <Badge color="light">Belum Presensi</Badge>;
 
                         if (item.hasJadwalToday === false) {
-                          statusBadge = <Badge color="light">Tidak ada jadwal ngajar</Badge>;
+                          statusBadge = <Badge color="light">Tidak ada jadwal</Badge>;
                         } else if (statusMasuk === 3) {
                           statusBadge = <Badge color="info">Izin</Badge>;
                         } else if (statusMasuk === 4) {
@@ -510,7 +508,7 @@ const PresensiGTK: React.FC = () => {
 
                         let statusBadge = <Badge color="light">Belum Presensi</Badge>;
                         if (item.hasJadwalToday === false) {
-                          statusBadge = <Badge color="light">Tidak ada jadwal ngajar</Badge>;
+                          statusBadge = <Badge color="light">Tidak ada jadwal</Badge>;
                         } else if (statusMasuk === 1) {
                           statusBadge = <Badge color="success">Hadir</Badge>;
                         } else if (statusMasuk === 2) {
@@ -554,7 +552,7 @@ const PresensiGTK: React.FC = () => {
                             </TableCell>
                             <TableCell className="px-5 py-3.5">
                               {item.hasJadwalToday === false ? (
-                                <span className="text-gray-400 text-xs italic">Tidak ada jadwal ngajar</span>
+                                <span className="text-gray-400 text-xs italic">Tidak ada jadwal</span>
                               ) : (
                                 <div className="flex items-center gap-1.5 flex-wrap">
                                   <button

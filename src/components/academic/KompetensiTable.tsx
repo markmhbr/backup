@@ -30,9 +30,28 @@ export default function KompetensiTable({ searchTerm, itemsPerPage }: Kompetensi
       setIsLoading(true);
       try {
         const response = await dapodikService.getJurusan();
-        // The API returns all data without pagination, so we handle it locally
         if (response && response.data) {
-          setKompetensiData(response.data);
+          const cleanMap = new Map<string, string>();
+          (response.data as Kompetensi[]).forEach((item) => {
+            if (!item.nama_jurusan) return;
+            let kode = (item.kode || "").trim();
+            kode = kode.replace(/^(X|XI|XII|10|11|12)[\s\-_]+/i, "");
+            kode = kode.replace(/[\s\-_]+[0-9]+$/i, "");
+            kode = kode.replace(/[\s\-_]+[A-Z]$/i, "");
+            if (!kode) kode = item.kode || "-";
+
+            const uppercaseKode = kode.toUpperCase();
+            if (!cleanMap.has(uppercaseKode)) {
+              cleanMap.set(uppercaseKode, item.nama_jurusan);
+            }
+          });
+
+          const formattedData = Array.from(cleanMap.entries()).map(([kode, nama_jurusan]) => ({
+            kode,
+            nama_jurusan,
+          }));
+
+          setKompetensiData(formattedData);
         }
       } catch (error) {
         console.error("Failed to fetch kompetensi/jurusan", error);
@@ -40,7 +59,7 @@ export default function KompetensiTable({ searchTerm, itemsPerPage }: Kompetensi
         setIsLoading(false);
       }
     };
-    
+
     fetchJurusan();
   }, []);
 

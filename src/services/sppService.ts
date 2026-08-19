@@ -62,6 +62,11 @@ export const sppService = {
     return response.data;
   },
 
+  deleteSppTagihan: async (id: string) => {
+    const response = await api.delete(`/spp/tagihan/${id}`);
+    return response.data;
+  },
+
   // Transaksi SPP
   createTransaksiSpp: async (data: {
     spp_id: string;
@@ -74,6 +79,22 @@ export const sppService = {
     keterangan?: string;
   }) => {
     const response = await api.post('/spp/transaksi', data);
+    return response.data;
+  },
+
+  updateTransaksiSpp: async (id: string, data: {
+    jenis_transaksi?: number;
+    nominal?: number;
+    tanggal_transaksi?: string;
+    metode_pembayaran?: number;
+    keterangan?: string;
+  }) => {
+    const response = await api.patch(`/spp/transaksi/${id}`, data);
+    return response.data;
+  },
+
+  deleteTransaksiSpp: async (id: string) => {
+    const response = await api.delete(`/spp/transaksi/${id}`);
     return response.data;
   },
 

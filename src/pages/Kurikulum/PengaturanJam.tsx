@@ -457,9 +457,8 @@ export default function PengaturanJam() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-32">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-500 border-t-transparent"></div>
-        <span className="ml-3 text-sm text-gray-500">Memuat data...</span>
+      <div className="flex h-80 items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-brand-500 border-t-transparent"></div>
       </div>
     );
   }

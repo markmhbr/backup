@@ -31,8 +31,6 @@ export default function Umum() {
   const [loadingMembers, setLoadingMembers] = useState(false);
 
   // GTK Presence Mode States
-  const [gtks, setGtks] = useState<any[]>([]);
-  const [loadingGtks, setLoadingGtks] = useState(false);
   const [guruMode, setGuruMode] = useState(0);
 
   // Load Classes for PD Category
@@ -152,16 +150,8 @@ export default function Umum() {
               waktu_mulai_pengajuan: cfg.waktu_mulai_pengajuan || "",
               waktu_sampai_pengajuan: cfg.waktu_sampai_pengajuan || "",
             });
-          }
-
-          // Fetch GTKs for settings
-          setLoadingGtks(true);
-          const res = await dapodikService.getGTK(999, "", 1);
-          if (res?.status === "success" && res.data) {
-            setGtks(res.data);
-            const firstGuru = res.data.find((g: any) => g.jenis_ptk_id_str === "Guru");
-            if (firstGuru) {
-              setGuruMode(firstGuru.mode_presensi || 0);
+            if (cfg.mode_presensi_guru !== undefined && cfg.mode_presensi_guru !== null) {
+              setGuruMode(cfg.mode_presensi_guru);
             }
           }
         }
@@ -169,13 +159,10 @@ export default function Umum() {
         console.error("Gagal mengambil data pengaturan:", error);
       } finally {
         setLoading(false);
-        setLoadingGtks(false);
       }
     };
     fetchSettings();
   }, []);
-
-
 
   const handleBackgroundChange = (type: "gtk" | "pd") => async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -213,31 +200,14 @@ export default function Umum() {
         background_pd: pengaturanData.background_pd || null,
         waktu_mulai_pengajuan: pengaturanData.waktu_mulai_pengajuan || null,
         waktu_sampai_pengajuan: pengaturanData.waktu_sampai_pengajuan || null,
+        mode_presensi_guru: guruMode,
       });
-
-      // Update GTK Modes in database
-      const updatePromises = gtks.map((gtk) => {
-        const isTendik = gtk.jenis_ptk_id_str === "Tenaga Kependidikan";
-        const targetMode = isTendik ? 0 : guruMode;
-        if (gtk.mode_presensi !== targetMode) {
-          return dapodikService.updateGtkMode(sekolahId, gtk.ptk_id, targetMode);
-        }
-        return Promise.resolve();
-      });
-      await Promise.all(updatePromises);
-
-      // Reload GTKs to sync local state
-      const res = await dapodikService.getGTK(999, "", 1);
-      if (res?.status === "success" && res.data) {
-        setGtks(res.data);
-      }
 
       Swal.fire({
         title: "Berhasil!",
         text: "Pengaturan umum berhasil disimpan.",
         icon: "success",
         timer: 1500,
-        showConfirmButton: false,
         toast: true,
         position: "top-end",
       });
@@ -256,8 +226,8 @@ export default function Umum() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <p className="text-gray-500 font-medium">Memuat data pengaturan...</p>
+      <div className="flex h-80 items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-brand-500 border-t-transparent"></div>
       </div>
     );
   }
@@ -334,9 +304,6 @@ export default function Umum() {
               </p>
             </div>
 
-            {loadingGtks ? (
-              <p className="text-sm text-gray-500 text-center py-4">Memuat data...</p>
-            ) : (
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gray-50 dark:bg-white/[0.01] p-5 rounded-2xl border border-gray-100 dark:border-white/[0.05]">
                 <div className="flex-grow">
                   <Label className="font-bold text-gray-800 dark:text-white/90">Mode Presensi Guru</Label>
@@ -353,7 +320,6 @@ export default function Umum() {
                   </select>
                 </div>
               </div>
-            )}
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-white/[0.05]">
@@ -470,7 +436,9 @@ export default function Umum() {
 
               {/* Members List */}
               {loadingMembers ? (
-                <p className="text-sm text-gray-500 text-center py-4">Memuat data...</p>
+                <div className="flex items-center justify-center py-6">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand-500 border-t-transparent"></div>
+                </div>
               ) : (
                 <div className="space-y-2 max-h-[300px] overflow-y-auto border border-gray-100 dark:border-gray-800 rounded-xl p-3 bg-gray-50/50 dark:bg-white/[0.01]">
                   {(() => {

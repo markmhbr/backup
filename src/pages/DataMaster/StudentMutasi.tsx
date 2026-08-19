@@ -355,7 +355,9 @@ export default function StudentMutasi() {
           </div>
 
           {loading ? (
-            <p className="text-sm text-gray-500 text-center py-8">Memuat data pengajuan mutasi...</p>
+            <div className="flex justify-center items-center py-16">
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-brand-500 border-t-transparent"></div>
+            </div>
           ) : currentItems.length === 0 ? (
             <p className="text-sm text-gray-500 text-center py-8">Tidak ada pengajuan mutasi ditemukan.</p>
           ) : (
