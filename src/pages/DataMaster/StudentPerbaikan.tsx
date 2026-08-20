@@ -52,6 +52,7 @@ const keyLabels: any = {
   tahun_lahir_ayah: 'Tahun Lahir Ayah',
   jenjang_pendidikan_ayah: 'Pendidikan Ayah',
   penghasilan_id_ayah: 'Penghasilan Ayah',
+  status_hidup_ayah: 'Status Hidup Ayah',
 
   // Ibu
   nama_ibu_kandung: 'Nama Ibu Kandung',
@@ -60,6 +61,7 @@ const keyLabels: any = {
   tahun_lahir_ibu: 'Tahun Lahir Ibu',
   jenjang_pendidikan_ibu: 'Pendidikan Ibu',
   penghasilan_id_ibu: 'Penghasilan Ibu',
+  status_hidup_ibu: 'Status Hidup Ibu',
 
   // Wali
   is_wali: 'Memiliki Wali',

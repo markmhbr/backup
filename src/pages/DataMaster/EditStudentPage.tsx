@@ -1565,6 +1565,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
         jenjang_pendidikan_ayah: formData.jenjang_pendidikan_ayah || null,
         penghasilan_id_ayah: formData.penghasilan_id_ayah || null,
         kebutuhan_khusus_id_ayah: formData.kebutuhan_khusus_id_ayah || null,
+        status_hidup_ayah: formData.status_hidup_ayah !== undefined ? Number(formData.status_hidup_ayah) : 0,
         
         // Ibu
         nama_ibu_kandung: formData.namaIbu,
@@ -1575,6 +1576,7 @@ const EditStudentPage: React.FC<EditStudentPageProps> = ({ profileId }) => {
         jenjang_pendidikan_ibu: formData.jenjang_pendidikan_ibu || null,
         penghasilan_id_ibu: formData.penghasilan_id_ibu || null,
         kebutuhan_khusus_id_ibu: formData.kebutuhan_khusus_id_ibu || null,
+        status_hidup_ibu: formData.status_hidup_ibu !== undefined ? Number(formData.status_hidup_ibu) : 0,
         
         // Wali
         is_wali: formData.isWali || false,
